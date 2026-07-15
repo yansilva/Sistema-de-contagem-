@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque SaaS — Contagem de Estoque</title>
+  <meta name="description" content="Sistema SaaS de contagem de estoque — controle de inventário com exportação Excel e back-office para gestores.">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cor-primaria: #2563eb;
+      --cor-primaria-hover: #1d4ed8;
+      --cor-primaria-bg: #eff6ff;
+      --cor-sucesso: #16a34a;
+      --cor-sucesso-bg: #dcfce7;
+      --cor-sucesso-border: #bbf7d0;
+      --cor-perigo: #dc2626;
+      --cor-perigo-hover: #b91c1c;
+      --cor-perigo-bg: #fee2e2;
+      --cor-perigo-border: #fecaca;
+      --cor-aviso: #d97706;
+      --cor-aviso-bg: #fef3c7;
+      --cor-fundo: #f1f5f9;
+      --cor-superficie: #ffffff;
+      --cor-borda: #e2e8f0;
+      --cor-texto: #1e293b;
+      --cor-texto-secundario: #64748b;
+      --cor-texto-mudo: #94a3b8;
+      --raio: 12px;
+      --raio-sm: 8px;
+      --raio-lg: 16px;
+      --sombra: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --sombra-md: 0 4px 6px rgba(0,0,0,.05), 0 2px 4px rgba(0,0,0,.04);
+      --sombra-lg: 0 10px 25px rgba(0,0,0,.08), 0 4px 10px rgba(0,0,0,.04);
+      --transicao: .2s cubic-bezier(.4,0,.2,1);
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--cor-fundo);
+      color: var(--cor-texto);
+      line-height: 1.6;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== TOPBAR ===== */
+    .topbar {
+      background: rgba(255,255,255,.88);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--cor-borda);
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .topbar h1 {
+      font-size: 1.125rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--cor-texto);
+    }
+    .topbar h1 i { color: var(--cor-primaria); font-size: 1.4rem; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .user-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--cor-fundo);
+      border-radius: 999px;
+      font-size: .8125rem;
+      font-weight: 500;
+      color: var(--cor-texto-secundario);
+    }
+    .user-badge .avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cor-primaria), #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: .7rem; font-weight: 700;
+    }
+
+    /* ===== BOTÕES ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: var(--raio-sm);
+      font-weight: 600;
+      font-size: .875rem;
+      cursor: pointer;
+      border: none;
+      transition: all var(--transicao);
+      font-family: inherit;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--cor-primaria); color: #fff; box-shadow: 0 1px 3px rgba(37,99,235,.3); }
+    .btn-primary:hover:not(:disabled) { background: var(--cor-primaria-hover); box-shadow: 0 4px 12px rgba(37,99,235,.35); }
+    .btn-success { background: var(--cor-sucesso); color: #fff; box-shadow: 0 1px 3px rgba(22,163,74,.3); }
+    .btn-success:hover:not(:disabled) { background: #15803d; }
+    .btn-danger { background: var(--cor-perigo); color: #fff; box-shadow: 0 1px 3px rgba(220,38,38,.3); }
+    .btn-danger:hover:not(:disabled) { background: var(--cor-perigo-hover); }
+    .btn-outline { background: transparent; color: var(--cor-texto-secundario); border: 1px solid var(--cor-borda); }
+    .btn-outline:hover { background: var(--cor-fundo); border-color: var(--cor-texto-mudo); }
+    .btn-ghost { background: transparent; color: var(--cor-texto-secundario); padding: 8px 14px; }
+    .btn-ghost:hover { background: var(--cor-fundo); color: var(--cor-texto); }
+    .btn-lg { padding: 14px 32px; font-size: 1rem; border-radius: var(--raio); }
+    .btn-sm { padding: 6px 12px; font-size: .8125rem; }
+    .btn-block { width: 100%; justify-content: center; }
+    .btn i { font-size: 1.1em; }
+
+    /* ===== CARD ===== */
+    .card {
+      background: var(--cor-superficie);
+      border: 1px solid var(--cor-borda);
+      border-radius: var(--raio);
+      padding: 24px;
+      box-shadow: var(--sombra);
+      transition: box-shadow var(--transicao);
+    }
+
+    /* ===== CONTAINER ===== */
+    .container { max-width: 800px; margin: 0 auto; padding: 24px 20px 40px; }
+
+    /* ===== SCREENS ===== */
+    .screen { display: none; min-height: calc(100vh - 64px); }
+    .screen.active { display: block; animation: fadeIn .3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== INPUTS ===== */
+    .form-group { margin-bottom: 16px; }
+    .form-group label {
+      display: block; font-size: .8125rem; font-weight: 600;
+      color: var(--cor-texto-secundario); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: .03em;
+    }
+    input[type="text"], input[type="number"], input[type="password"], input[type="email"] {
+      width: 100%; padding: 10px 14px;
+      border: 1.5px solid var(--cor-borda);
+      border-radius: var(--raio-sm);
+      font-size: .9375rem;
+      font-family: inherit;
+      color: var(--cor-texto);
+      background: var(--cor-superficie);
+      transition: border-color var(--transicao), box-shadow var(--transicao);
+      outline: none;
+    }
+    input:focus { border-color: var(--cor-primaria); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    input::placeholder { color: var(--cor-texto-mudo); }
+
+    /* ===== BADGES ===== */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 10px; border-radius: 999px;
+      font-size: .75rem; font-weight: 600; white-space: nowrap;
+    }
+    .badge-success { background: var(--cor-sucesso-bg); color: var(--cor-sucesso); }
+    .badge-danger { background: var(--cor-perigo-bg); color: var(--cor-perigo); }
+    .badge-neutral { background: var(--cor-fundo); color: var(--cor-texto-mudo); }
+    .badge-primary { background: var(--cor-primaria-bg); color: var(--cor-primaria); }
+
+    /* ===== AUTH SCREENS ===== */
+    .auth-wrapper {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 20px;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    }
+    .auth-card {
+      width: 100%; max-width: 420px;
+      background: var(--cor-superficie);
+      border-radius: var(--raio-lg);
+      padding: 40px 36px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    }
+    .auth-logo {
+      width: 64px; height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--cor-primaria), #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px;
+      box-shadow: 0 6px 20px rgba(37,99,235,.3);
+    }
+    .auth-logo i { font-size: 2rem; color: #fff; }
+    .auth-card h2 { text-align: center; font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+    .auth-card .subtitle { text-align: center; color: var(--cor-texto-secundario); font-size: .9rem; margin-bottom: 28px; }
+    .auth-error {
+      color: var(--cor-perigo); font-size: .85rem; font-weight: 500;
+      text-align: center; min-height: 22px; margin-top: 4px;
+    }
+    .auth-link {
+      text-align: center; margin-top: 20px; font-size: .875rem;
+      color: var(--cor-texto-secundario);
+    }
+    .auth-link a {
+      color: var(--cor-primaria); text-decoration: none; font-weight: 600;
+      cursor: pointer;
+    }
+    .auth-link a:hover { text-decoration: underline; }
+    .auth-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 20px 0; color: var(--cor-texto-mudo); font-size: .8rem;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--cor-borda);
+    }
+
+    /* ===== HOME ===== */
+    .home-hero {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      min-height: calc(100vh - 64px - 80px);
+      gap: 8px;
+    }
+    .home-icon {
+      width: 96px; height: 96px; border-radius: 24px;
+      background: linear-gradient(135deg, var(--cor-primaria), #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+      box-shadow: 0 8px 30px rgba(37,99,235,.25);
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    .home-icon i { font-size: 2.8rem; color: #fff; }
+    .home-hero h2 { font-size: 1.75rem; font-weight: 800; }
+    .home-hero p { color: var(--cor-texto-secundario); max-width: 400px; font-size: .95rem; margin-bottom: 12px; }
+
+    /* ===== CONTAGEM ===== */
+    .step-indicator {
+      display: flex; align-items: center; gap: 10px;
+      padding: 14px 18px;
+      background: var(--cor-primaria-bg); border: 1px solid #bfdbfe;
+      border-radius: var(--raio-sm); margin-bottom: 20px;
+      font-size: .875rem; color: var(--cor-primaria); font-weight: 500;
+    }
+    .step-indicator i { font-size: 1.2rem; }
+    .fornecedor-search { position: relative; }
+    .sugestoes {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--cor-superficie); border: 1px solid var(--cor-borda);
+      border-radius: 0 0 var(--raio-sm) var(--raio-sm);
+      max-height: 220px; overflow-y: auto; z-index: 20;
+      box-shadow: var(--sombra-lg); display: none;
+    }
+    .sugestoes.show { display: block; }
+    .sugestao-item {
+      padding: 10px 14px; cursor: pointer; font-size: .9rem;
+      transition: background var(--transicao);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .sugestao-item:hover { background: var(--cor-primaria-bg); color: var(--cor-primaria); }
+    .sugestao-item i { font-size: 1rem; color: var(--cor-texto-mudo); }
+
+    .bloco-produtos { display: none; margin-top: 20px; animation: fadeIn .25s ease; }
+    .bloco-produtos.show { display: block; }
+
+    .sem-diferenca-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px;
+      background: var(--cor-sucesso-bg); border: 1px solid var(--cor-sucesso-border);
+      border-radius: var(--raio-sm); margin-bottom: 16px;
+      cursor: pointer; transition: all var(--transicao); user-select: none;
+    }
+    .sem-diferenca-row.com-dif { background: var(--cor-perigo-bg); border-color: var(--cor-perigo-border); }
+    .sem-diferenca-row label { font-weight: 600; font-size: .9rem; cursor: pointer; flex: 1; }
+
+    .produto-item {
+      padding: 16px; border: 1px solid var(--cor-borda);
+      border-radius: var(--raio-sm); margin-bottom: 10px;
+      background: var(--cor-superficie); transition: all var(--transicao);
+    }
+    .produto-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .produto-nome { font-weight: 600; font-size: .9375rem; }
+    .produto-codigo { font-size: .8rem; color: var(--cor-texto-mudo); font-family: 'Courier New', monospace; }
+    .produto-campos { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; margin-top: 10px; }
+    .produto-campos.hidden { display: none; }
+    .campo-label { font-size: .75rem; font-weight: 600; color: var(--cor-texto-secundario); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 4px; }
+    .diff-badge {
+      min-width: 52px; text-align: center; padding: 8px 12px;
+      border-radius: var(--raio-sm); font-weight: 700; font-size: .9rem;
+      align-self: end; margin-bottom: 1px;
+    }
+
+    .fornecedores-contados { margin-top: 24px; }
+    .fornecedor-contado {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border: 1px solid var(--cor-borda);
+      border-radius: var(--raio-sm); margin-bottom: 8px;
+      background: var(--cor-superficie);
+      animation: slideIn .3s ease;
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+    .fornecedor-contado i { font-size: 1.2rem; }
+    .fornecedor-contado .nome { font-weight: 600; flex: 1; }
+
+    /* ===== RESULTADO ===== */
+    .resultado-card {
+      padding: 32px; border-radius: var(--raio-lg);
+      text-align: center; margin-bottom: 24px;
+    }
+    .resultado-card.sucesso { background: linear-gradient(135deg, #dcfce7, #bbf7d0); border: 1px solid var(--cor-sucesso-border); }
+    .resultado-card.erro { background: linear-gradient(135deg, #fee2e2, #fecaca); border: 1px solid var(--cor-perigo-border); }
+    .resultado-card i { font-size: 3rem; margin-bottom: 8px; }
+    .resultado-card.sucesso i { color: var(--cor-sucesso); }
+    .resultado-card.erro i { color: var(--cor-perigo); }
+    .resultado-card h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+    .resultado-card p { font-size: .95rem; color: var(--cor-texto-secundario); }
+
+    .metricas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .metrica {
+      text-align: center; padding: 18px 12px;
+      background: var(--cor-superficie); border: 1px solid var(--cor-borda);
+      border-radius: var(--raio);
+    }
+    .metrica-valor { font-size: 1.5rem; font-weight: 800; }
+    .metrica-label { font-size: .75rem; color: var(--cor-texto-mudo); text-transform: uppercase; font-weight: 600; letter-spacing: .04em; margin-top: 2px; }
+
+    .resultado-fornecedor { border: 1px solid var(--cor-borda); border-radius: var(--raio-sm); margin-bottom: 10px; overflow: hidden; background: var(--cor-superficie); }
+    .resultado-fornecedor-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px; font-weight: 600; }
+    .resultado-produto {
+      padding: 10px 16px 10px 44px; display: flex; align-items: center;
+      justify-content: space-between; border-top: 1px solid var(--cor-borda);
+      font-size: .875rem; background: var(--cor-fundo);
+    }
+    .resultado-produto .info { flex: 1; }
+    .resultado-produto .valores { display: flex; gap: 16px; align-items: center; font-size: .8125rem; }
+    .resultado-produto .valores span { min-width: 60px; text-align: center; }
+
+    /* ===== BACK-OFFICE ===== */
+    .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--cor-borda); margin-bottom: 24px; }
+    .tab {
+      padding: 10px 20px; font-weight: 600; font-size: .875rem;
+      color: var(--cor-texto-mudo); cursor: pointer; border: none;
+      background: none; font-family: inherit; position: relative;
+      transition: color var(--transicao);
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+    }
+    .tab:hover { color: var(--cor-texto); }
+    .tab.active { color: var(--cor-primaria); border-bottom-color: var(--cor-primaria); }
+    .tab-content { display: none; animation: fadeIn .25s ease; }
+    .tab-content.active { display: block; }
+
+    .historico-counter { font-size: .9rem; color: var(--cor-texto-secundario); margin-bottom: 16px; }
+    .historico-counter strong { color: var(--cor-texto); }
+
+    .hist-card {
+      border: 1px solid var(--cor-borda); border-radius: var(--raio);
+      margin-bottom: 12px; background: var(--cor-superficie);
+      overflow: hidden; transition: box-shadow var(--transicao);
+    }
+    .hist-card:hover { box-shadow: var(--sombra-md); }
+    .hist-card-header {
+      padding: 16px; display: flex; align-items: center;
+      gap: 12px; cursor: pointer; user-select: none;
+    }
+    .hist-card-header i.status-icon { font-size: 1.3rem; }
+    .hist-card-info { flex: 1; }
+    .hist-card-info .data { font-weight: 700; font-size: .95rem; }
+    .hist-card-info .resumo { font-size: .8125rem; color: var(--cor-texto-secundario); }
+    .hist-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .hist-chip {
+      padding: 2px 10px; border-radius: 999px; font-size: .75rem;
+      font-weight: 500; background: var(--cor-fundo);
+      color: var(--cor-texto-secundario); border: 1px solid var(--cor-borda);
+    }
+    .hist-actions { display: flex; gap: 8px; align-items: center; }
+    .hist-chevron { transition: transform var(--transicao); color: var(--cor-texto-mudo); }
+    .hist-card.expanded .hist-chevron { transform: rotate(180deg); }
+    .hist-card-body { display: none; padding: 0 16px 16px; border-top: 1px solid var(--cor-borda); }
+    .hist-card.expanded .hist-card-body { display: block; animation: fadeIn .2s ease; }
+
+    .grupo-fornecedor { margin-bottom: 16px; }
+    .grupo-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; background: var(--cor-fundo);
+      border: 1px solid var(--cor-borda);
+      border-radius: var(--raio-sm) var(--raio-sm) 0 0;
+      font-weight: 700; font-size: .9rem;
+    }
+    .grupo-body { border: 1px solid var(--cor-borda); border-top: none; border-radius: 0 0 var(--raio-sm) var(--raio-sm); }
+    .grupo-produto {
+      padding: 8px 14px; display: flex; align-items: center;
+      justify-content: space-between; font-size: .85rem;
+      border-bottom: 1px solid var(--cor-borda);
+    }
+    .grupo-produto:last-child { border-bottom: none; }
+
+    .config-card { max-width: 440px; }
+    .config-card h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+    .msg-feedback {
+      padding: 10px 14px; border-radius: var(--raio-sm);
+      font-size: .875rem; font-weight: 500; margin-top: 14px;
+      display: none;
+    }
+    .msg-feedback.show { display: block; animation: fadeIn .2s ease; }
+    .msg-feedback.success { background: var(--cor-sucesso-bg); color: var(--cor-sucesso); }
+    .msg-feedback.error { background: var(--cor-perigo-bg); color: var(--cor-perigo); }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed; top: 80px; right: 20px;
+      padding: 14px 22px; border-radius: var(--raio-sm);
+      font-weight: 600; font-size: .9rem; z-index: 999;
+      box-shadow: var(--sombra-lg);
+      animation: toastIn .3s ease, toastOut .3s ease 2.7s forwards;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .toast.success { background: var(--cor-sucesso); color: #fff; }
+    .toast.error { background: var(--cor-perigo); color: #fff; }
+    .toast.info { background: var(--cor-primaria); color: #fff; }
+    @keyframes toastIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+    /* ===== CHECKBOX ===== */
+    .custom-check {
+      appearance: none; width: 22px; height: 22px;
+      border: 2px solid var(--cor-borda); border-radius: 6px;
+      cursor: pointer; position: relative; flex-shrink: 0;
+      transition: all var(--transicao);
+    }
+    .custom-check:checked { background: var(--cor-sucesso); border-color: var(--cor-sucesso); }
+    .custom-check:checked::after {
+      content: ''; position: absolute; top: 3px; left: 6px;
+      width: 6px; height: 10px; border: solid #fff;
+      border-width: 0 2.5px 2.5px 0; transform: rotate(45deg);
+    }
+
+    /* ===== SPINNER ===== */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 600px) {
+      .container { padding: 16px 14px 32px; }
+      .topbar { padding: 0 14px; }
+      .metricas-grid { grid-template-columns: 1fr; }
+      .produto-campos { grid-template-columns: 1fr 1fr; }
+      .auth-card { padding: 28px 20px; }
+      .tabs { overflow-x: auto; }
+      .hist-card-header { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ==================== TELA LOGIN ==================== -->
+<div id="screen-login" class="screen active">
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-logo"><i class="ti ti-barcode"></i></div>
+      <h2>Estoque SaaS</h2>
+      <p class="subtitle">Entre na sua conta para continuar</p>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="login-senha" placeholder="Sua senha" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter')fazerLogin()">
+      </div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="fazerLogin()" id="btn-login">
+        <i class="ti ti-login"></i> Entrar
+      </button>
+      <div class="auth-link">
+        Não tem conta? <a onclick="showScreen('screen-registro')">Criar conta grátis</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TELA REGISTRO ==================== -->
+<div id="screen-registro" class="screen">
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-logo"><i class="ti ti-building-store"></i></div>
+      <h2>Criar conta</h2>
+      <p class="subtitle">14 dias grátis — sem cartão de crédito</p>
+      <div class="form-group">
+        <label>Nome da empresa</label>
+        <input type="text" id="reg-empresa" placeholder="Minha Loja">
+      </div>
+      <div class="form-group">
+        <label>Seu nome</label>
+        <input type="text" id="reg-nome" placeholder="João Silva">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="joao@minhaloja.com">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="reg-senha" placeholder="Mínimo 4 caracteres">
+      </div>
+      <div class="form-group">
+        <label>Confirmar senha</label>
+        <input type="password" id="reg-confirmar" placeholder="Repita a senha"
+               onkeydown="if(event.key==='Enter')fazerRegistro()">
+      </div>
+      <div class="auth-error" id="reg-error"></div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="fazerRegistro()" id="btn-registro">
+        <i class="ti ti-user-plus"></i> Criar conta
+      </button>
+      <div class="auth-link">
+        Já tem conta? <a onclick="showScreen('screen-login')">Entrar</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TELA HOME ==================== -->
+<div id="screen-home" class="screen">
+  <div class="topbar">
+    <h1><i class="ti ti-clipboard-list"></i> Contagem de Estoque</h1>
+    <div class="topbar-right">
+      <div class="user-badge">
+        <div class="avatar" id="home-avatar"></div>
+        <span id="home-user-name"></span>
+      </div>
+      <button class="btn btn-outline btn-sm" id="btn-backoffice" onclick="irParaBackoffice()" style="display:none;">
+        <i class="ti ti-settings"></i> Back-office
+      </button>
+      <button class="btn btn-ghost btn-sm" id="btn-logout-home" onclick="fazerLogout()">
+        <i class="ti ti-logout"></i>
+      </button>
+    </div>
+  </div>
+  <div class="container">
+    <div class="home-hero">
+      <div class="home-icon"><i class="ti ti-barcode"></i></div>
+      <h2>Iniciar contagem</h2>
+      <p>Selecione os fornecedores, confira os produtos e registre as diferenças de estoque.</p>
+      <button class="btn btn-primary btn-lg" onclick="iniciarContagem()">
+        <i class="ti ti-player-play-filled"></i> Iniciar contagem
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TELA CONTAGEM ==================== -->
+<div id="screen-contagem" class="screen">
+  <div class="topbar">
+    <h1><i class="ti ti-clipboard-check"></i> Contagem ativa</h1>
+    <button class="btn btn-danger" onclick="finalizarContagem()">
+      <i class="ti ti-player-stop-filled"></i> Finalizar
+    </button>
+  </div>
+  <div class="container">
+    <div class="step-indicator">
+      <i class="ti ti-info-circle"></i>
+      Pesquise o fornecedor, confira os produtos e marque como contado. Repita para cada fornecedor.
+    </div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="form-group fornecedor-search">
+        <label>Fornecedor</label>
+        <input type="text" id="input-fornecedor" placeholder="Digite o nome do fornecedor…" autocomplete="off"
+               oninput="filtrarFornecedores()" onfocus="filtrarFornecedores()">
+        <div class="sugestoes" id="sugestoes-lista"></div>
+      </div>
+    </div>
+    <div id="bloco-produtos" class="bloco-produtos">
+      <div class="card">
+        <h3 id="titulo-fornecedor" style="font-size:1.1rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+          <i class="ti ti-building-store" style="color:var(--cor-primaria)"></i>
+          <span id="nome-fornecedor-titulo"></span>
+        </h3>
+        <div class="sem-diferenca-row" id="sem-dif-row" onclick="toggleSemDiferenca()">
+          <input type="checkbox" id="chk-sem-diferenca" class="custom-check" checked>
+          <label for="chk-sem-diferenca">Todos sem diferença de estoque</label>
+          <span id="badge-sem-dif" class="badge badge-success"><i class="ti ti-check"></i> Ok</span>
+        </div>
+        <div id="lista-produtos-contagem"></div>
+        <button class="btn btn-success btn-block" style="margin-top:16px;" onclick="marcarFornecedorContado()">
+          <i class="ti ti-check"></i> Fornecedor contado — ir para o próximo
+        </button>
+      </div>
+    </div>
+    <div id="fornecedores-contados-lista" class="fornecedores-contados"></div>
+  </div>
+</div>
+
+<!-- ==================== TELA RESULTADO ==================== -->
+<div id="screen-resultado" class="screen">
+  <div class="topbar">
+    <h1><i class="ti ti-report-analytics"></i> Resultado</h1>
+    <button class="btn btn-primary" onclick="showScreen('screen-home')">
+      <i class="ti ti-plus"></i> Nova contagem
+    </button>
+  </div>
+  <div class="container" id="resultado-container"></div>
+</div>
+
+<!-- ==================== TELA BACK-OFFICE ==================== -->
+<div id="screen-backoffice" class="screen">
+  <div class="topbar">
+    <h1><i class="ti ti-layout-dashboard"></i> Back-office</h1>
+    <button class="btn btn-outline" onclick="showScreen('screen-home')">
+      <i class="ti ti-arrow-left"></i> Voltar
+    </button>
+  </div>
+  <div class="container">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('tab-historico', this)"><i class="ti ti-history"></i> Histórico</button>
+      <button class="tab" onclick="switchTab('tab-produtos', this)"><i class="ti ti-package"></i> Produtos</button>
+      <button class="tab" onclick="switchTab('tab-config', this)"><i class="ti ti-settings"></i> Configurações</button>
+    </div>
+    <div id="tab-historico" class="tab-content active">
+      <div class="historico-counter" id="hist-counter"></div>
+      <div id="hist-lista"></div>
+    </div>
+    <div id="tab-produtos" class="tab-content">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+        <h3 style="font-size:1rem;font-weight:700;">Produtos cadastrados</h3>
+        <label class="btn btn-primary btn-sm" style="cursor:pointer;">
+          <i class="ti ti-file-upload"></i> Importar CSV
+          <input type="file" accept=".csv,.txt" style="display:none" onchange="importarCSV(event)">
+        </label>
+      </div>
+
+      <div class="card" style="margin-bottom: 24px; padding: 20px;">
+        <h4 style="font-size:.95rem;font-weight:700;margin-bottom:14px;"><i class="ti ti-playlist-add"></i> Cadastrar Manualmente</h4>
+        <div style="display:grid;grid-template-columns:1fr 2fr 1.5fr auto;gap:12px;align-items:end;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Código</label>
+            <input type="text" id="cad-prod-cod" placeholder="Ex: 123">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Nome do Produto</label>
+            <input type="text" id="cad-prod-nome" placeholder="Ex: Camiseta">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label>Fornecedor</label>
+            <input type="text" id="cad-prod-forn" placeholder="Ex: Fornecedor A">
+          </div>
+          <button class="btn btn-success" onclick="cadastrarProdutoManual()" style="height: 42px;">
+            <i class="ti ti-plus"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="produtos-lista-back"></div>
+    </div>
+    <div id="tab-config" class="tab-content">
+      <div class="card config-card">
+        <h3><i class="ti ti-key"></i> Alterar senha</h3>
+        <div class="form-group">
+          <label>Senha atual</label>
+          <input type="password" id="cfg-senha-atual" placeholder="Digite a senha atual">
+        </div>
+        <div class="form-group">
+          <label>Nova senha</label>
+          <input type="password" id="cfg-nova-senha" placeholder="Mínimo 4 caracteres">
+        </div>
+        <div class="form-group">
+          <label>Confirmar nova senha</label>
+          <input type="password" id="cfg-confirmar-senha" placeholder="Repita a nova senha">
+        </div>
+        <button class="btn btn-primary" onclick="alterarSenha()">
+          <i class="ti ti-device-floppy"></i> Salvar nova senha
+        </button>
+        <div class="msg-feedback" id="cfg-msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =============================================
+   API CLIENT
+============================================= */
+const api = {
+  baseURL: '/api',
+
+  async fetch(path, options = {}) {
+    const token = sessionStorage.getItem('accessToken');
+    try {
+      const res = await fetch(this.baseURL + path, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...options.headers,
+        },
+      });
+
+      // Token expirado → renovar
+      if (res.status === 401) {
+        const body = await res.json().catch(() => ({}));
+        if (body.erro === 'TOKEN_EXPIRADO') {
+          const renovado = await this.renovarToken();
+          if (renovado) return this.fetch(path, options);
+        }
+        this.logout();
+        return null;
+      }
+
+      // Trial expirado ou conta suspensa
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}));
+        if (body.erro === 'TRIAL_EXPIRADO' || body.erro === 'CONTA_SUSPENSA') {
+          toast(body.mensagem, 'error');
+          return null;
+        }
+      }
+
+      return res;
+    } catch (err) {
+      console.error('Erro na API:', err);
+      toast('Erro de conexão com o servidor.', 'error');
+      return null;
+    }
+  },
+
+  async json(path, options = {}) {
+    const res = await this.fetch(path, options);
+    if (!res) return null;
+    return res.json();
+  },
+
+  async renovarToken() {
+    const refreshToken = sessionStorage.getItem('refreshToken');
+    if (!refreshToken) return false;
+    try {
+      const res = await fetch(this.baseURL + '/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      sessionStorage.setItem('accessToken', data.accessToken);
+      return true;
+    } catch { return false; }
+  },
+
+  logout() {
+    sessionStorage.clear();
+    estado.usuario = null;
+    estado.empresa = null;
+    showScreen('screen-login');
+  },
+
+  get(path) { return this.json(path); },
+  post(path, body) { return this.json(path, { method: 'POST', body: JSON.stringify(body) }); },
+  put(path, body) { return this.json(path, { method: 'PUT', body: JSON.stringify(body) }); },
+  del(path) { return this.json(path, { method: 'DELETE' }); },
+
+  // Download blob (para Excel)
+  async download(path) {
+    const res = await this.fetch(path);
+    if (!res || !res.ok) return null;
+    return res.blob();
+  }
+};
+
+/* =============================================
+   ESTADO GLOBAL
+============================================= */
+const estado = {
+  usuario: null,
+  empresa: null,
+  produtos: [],
+  fornecedores: [],
+  contagemId: null,
+  fornecedorSelecionado: null,
+  fornecedoresContados: [],
+  contagemTemDiferenca: false,
+};
+
+/* =============================================
+   NAVEGAÇÃO SPA
+============================================= */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* =============================================
+   TOAST
+============================================= */
+function toast(msg, type = 'info') {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? 'check' : type === 'error' ? 'alert-circle' : 'info-circle';
+  el.innerHTML = `<i class="ti ti-${icon}"></i> ${msg}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+/* =============================================
+   AUTH — LOGIN
+============================================= */
+async function fazerLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const senha = document.getElementById('login-senha').value;
+  const errorEl = document.getElementById('login-error');
+  const btn = document.getElementById('btn-login');
+
+  if (!email || !senha) {
+    errorEl.textContent = 'Preencha email e senha.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Entrando…';
+  errorEl.textContent = '';
+
+  const data = await api.post('/auth/login', { email, senha });
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-login"></i> Entrar';
+
+  if (!data) {
+    errorEl.textContent = 'Erro de conexão. Tente novamente.';
+    return;
+  }
+
+  if (data.erro) {
+    errorEl.textContent = data.mensagem || 'Email ou senha incorretos.';
+    return;
+  }
+
+  // Salvar tokens e estado
+  sessionStorage.setItem('accessToken', data.accessToken);
+  sessionStorage.setItem('refreshToken', data.refreshToken);
+  estado.usuario = data.usuario;
+  estado.empresa = data.empresa;
+
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-senha').value = '';
+
+  entrarNoSistema();
+}
+
+/* =============================================
+   AUTH — REGISTRO
+============================================= */
+async function fazerRegistro() {
+  const empresa_nome = document.getElementById('reg-empresa').value.trim();
+  const nome = document.getElementById('reg-nome').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const senha = document.getElementById('reg-senha').value;
+  const confirmar = document.getElementById('reg-confirmar').value;
+  const errorEl = document.getElementById('reg-error');
+  const btn = document.getElementById('btn-registro');
+
+  if (!empresa_nome || !nome || !email || !senha) {
+    errorEl.textContent = 'Preencha todos os campos.';
+    return;
+  }
+  if (senha.length < 4) {
+    errorEl.textContent = 'A senha deve ter pelo menos 4 caracteres.';
+    return;
+  }
+  if (senha !== confirmar) {
+    errorEl.textContent = 'As senhas não coincidem.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Criando conta…';
+  errorEl.textContent = '';
+
+  const data = await api.post('/empresas/registrar', { empresa_nome, nome, email, senha });
+
+  btn.disabled = false;
+  btn.innerHTML = '<i class="ti ti-user-plus"></i> Criar conta';
+
+  if (!data) {
+    errorEl.textContent = 'Erro de conexão. Tente novamente.';
+    return;
+  }
+
+  if (data.erro) {
+    errorEl.textContent = data.mensagem || 'Erro ao criar conta.';
+    return;
+  }
+
+  sessionStorage.setItem('accessToken', data.accessToken);
+  sessionStorage.setItem('refreshToken', data.refreshToken);
+  estado.usuario = data.usuario;
+  estado.empresa = data.empresa;
+
+  toast('Conta criada com sucesso! 🎉', 'success');
+  entrarNoSistema();
+}
+
+/* =============================================
+   AUTH — LOGOUT
+============================================= */
+async function fazerLogout() {
+  const refreshToken = sessionStorage.getItem('refreshToken');
+  if (refreshToken) {
+    api.post('/auth/logout', { refreshToken }).catch(() => {});
+  }
+  api.logout();
+  toast('Sessão encerrada.', 'info');
+}
+
+/* =============================================
+   ENTRAR NO SISTEMA (pós-login)
+============================================= */
+function entrarNoSistema() {
+  // Atualizar UI com dados do usuário
+  const iniciais = (estado.usuario.nome || '').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('home-avatar').textContent = iniciais;
+  document.getElementById('home-user-name').textContent = estado.usuario.nome;
+
+  // Mostrar botão backoffice se gestor, ou 'Acesso Gestor' se funcionario
+  const btnBack = document.getElementById('btn-backoffice');
+  const btnLogout = document.getElementById('btn-logout-home');
+
+  if (estado.usuario.papel === 'gestor') {
+    btnBack.style.display = '';
+    btnBack.innerHTML = '<i class="ti ti-settings"></i> Back-office';
+    btnLogout.style.display = '';
+  } else {
+    btnBack.style.display = '';
+    btnBack.innerHTML = '<i class="ti ti-lock"></i> Acesso Gestor';
+    btnLogout.style.display = 'none'; // Esconde botão de sair se for guest
+  }
+
+  // Carregar produtos
+  carregarProdutos();
+
+  showScreen('screen-home');
+}
+
+/* =============================================
+   PRODUTOS — carregar do backend
+============================================= */
+async function carregarProdutos() {
+  const data = await api.get('/produtos');
+  if (data && data.produtos) {
+    estado.produtos = data.produtos;
+  }
+
+  const dataF = await api.get('/produtos/fornecedores');
+  if (dataF && dataF.fornecedores) {
+    estado.fornecedores = dataF.fornecedores;
+  }
+}
+
+/* =============================================
+   CONTAGEM — iniciar
+============================================= */
+async function iniciarContagem() {
+  // Recarregar produtos antes de iniciar
+  await carregarProdutos();
+
+  const data = await api.post('/contagens', {});
+  if (!data || data.erro) {
+    toast(data?.mensagem || 'Erro ao iniciar contagem.', 'error');
+    return;
+  }
+
+  estado.contagemId = data.contagem.id;
+  estado.fornecedorSelecionado = null;
+  estado.fornecedoresContados = [];
+  estado.contagemTemDiferenca = false;
+
+  document.getElementById('input-fornecedor').value = '';
+  document.getElementById('bloco-produtos').classList.remove('show');
+  document.getElementById('fornecedores-contados-lista').innerHTML = '';
+
+  showScreen('screen-contagem');
+  document.getElementById('input-fornecedor').focus();
+}
+
+/* =============================================
+   CONTAGEM — filtrar fornecedores
+============================================= */
+function filtrarFornecedores() {
+  const input = document.getElementById('input-fornecedor');
+  const lista = document.getElementById('sugestoes-lista');
+  const val = input.value.trim().toLowerCase();
+
+  const jaContados = new Set(estado.fornecedoresContados.map(f => f.nome));
+  const disponiveis = estado.fornecedores.filter(f => !jaContados.has(f));
+  const filtrados = val === '' ? disponiveis : disponiveis.filter(f => f.toLowerCase().includes(val));
+
+  if (filtrados.length === 0) { lista.classList.remove('show'); return; }
+
+  lista.innerHTML = filtrados.map(f =>
+    `<div class="sugestao-item" onclick="selecionarFornecedor('${f.replace(/'/g, "\\'")}')">
+      <i class="ti ti-building-store"></i> ${f}
+    </div>`
+  ).join('');
+  lista.classList.add('show');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.fornecedor-search')) {
+    const el = document.getElementById('sugestoes-lista');
+    if (el) el.classList.remove('show');
+  }
+});
+
+function selecionarFornecedor(nome) {
+  estado.fornecedorSelecionado = nome;
+  document.getElementById('input-fornecedor').value = nome;
+  document.getElementById('sugestoes-lista').classList.remove('show');
+  document.getElementById('nome-fornecedor-titulo').textContent = nome;
+
+  const chk = document.getElementById('chk-sem-diferenca');
+  chk.checked = true;
+  atualizarBadgeSemDif();
+
+  const prods = estado.produtos.filter(p => p.fornecedor === nome);
+  const container = document.getElementById('lista-produtos-contagem');
+  container.innerHTML = prods.map((p, i) => `
+    <div class="produto-item" data-idx="${i}">
+      <div class="produto-header">
+        <div>
+          <div class="produto-nome">${p.nome}</div>
+          <div class="produto-codigo">Cód. ${p.codigo}</div>
+        </div>
+        <div class="diff-badge badge-neutral" id="diff-${i}">—</div>
+      </div>
+      <div class="produto-campos hidden" id="campos-${i}">
+        <div>
+          <div class="campo-label">Tiny (estoque)</div>
+          <input type="number" id="tiny-${i}" placeholder="0" min="0" oninput="calcDiff(${i})">
+        </div>
+        <div>
+          <div class="campo-label">Contagem física</div>
+          <input type="number" id="cont-${i}" placeholder="0" min="0" oninput="calcDiff(${i})">
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('bloco-produtos').classList.add('show');
+  document.getElementById('bloco-produtos').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleSemDiferenca() {
+  const chk = document.getElementById('chk-sem-diferenca');
+  chk.checked = !chk.checked;
+  atualizarBadgeSemDif();
+  toggleCamposProdutos();
+}
+
+function atualizarBadgeSemDif() {
+  const chk = document.getElementById('chk-sem-diferenca');
+  const badge = document.getElementById('badge-sem-dif');
+  const row = document.getElementById('sem-dif-row');
+  if (chk.checked) {
+    badge.className = 'badge badge-success';
+    badge.innerHTML = '<i class="ti ti-check"></i> Ok';
+    row.classList.remove('com-dif');
+  } else {
+    badge.className = 'badge badge-danger';
+    badge.innerHTML = '<i class="ti ti-alert-triangle"></i> Diferença';
+    row.classList.add('com-dif');
+  }
+}
+
+function toggleCamposProdutos() {
+  const chk = document.getElementById('chk-sem-diferenca');
+  const prods = estado.produtos.filter(p => p.fornecedor === estado.fornecedorSelecionado);
+  prods.forEach((_, i) => {
+    const campos = document.getElementById(`campos-${i}`);
+    const diff = document.getElementById(`diff-${i}`);
+    if (chk.checked) {
+      campos.classList.add('hidden');
+      diff.className = 'diff-badge badge-neutral';
+      diff.textContent = '—';
+    } else {
+      campos.classList.remove('hidden');
+      calcDiff(i);
+    }
+  });
+}
+
+function calcDiff(idx) {
+  const tinyEl = document.getElementById(`tiny-${idx}`);
+  const contEl = document.getElementById(`cont-${idx}`);
+  const diffEl = document.getElementById(`diff-${idx}`);
+  const t = tinyEl.value.trim();
+  const c = contEl.value.trim();
+
+  if (t === '' || c === '') {
+    diffEl.className = 'diff-badge badge-neutral'; diffEl.textContent = '—'; return;
+  }
+  const diff = parseInt(c) - parseInt(t);
+  if (diff === 0) {
+    diffEl.className = 'diff-badge badge-success'; diffEl.textContent = '=';
+  } else if (diff > 0) {
+    diffEl.className = 'diff-badge'; diffEl.textContent = `+${diff}`;
+    diffEl.style.background = 'var(--cor-sucesso-bg)'; diffEl.style.color = 'var(--cor-sucesso)';
+  } else {
+    diffEl.className = 'diff-badge'; diffEl.textContent = `${diff}`;
+    diffEl.style.background = 'var(--cor-perigo-bg)'; diffEl.style.color = 'var(--cor-perigo)';
+  }
+}
+
+/* =============================================
+   CONTAGEM — marcar fornecedor contado
+============================================= */
+async function marcarFornecedorContado() {
+  if (!estado.fornecedorSelecionado) return;
+
+  const chk = document.getElementById('chk-sem-diferenca');
+  const prods = estado.produtos.filter(p => p.fornecedor === estado.fornecedorSelecionado);
+  let temDif = false;
+  const produtosPayload = [];
+
+  prods.forEach((p, i) => {
+    if (chk.checked) {
+      produtosPayload.push({
+        produto_id: p.id,
+        codigo: p.codigo,
+        nome: p.nome,
+        qty_tiny: 0,
+        qty_contagem: 0,
+        diferenca: 0,
+        sem_diferenca: true
+      });
+    } else {
+      const tiny = parseInt(document.getElementById(`tiny-${i}`).value) || 0;
+      const contagem = parseInt(document.getElementById(`cont-${i}`).value) || 0;
+      const diferenca = contagem - tiny;
+      if (diferenca !== 0) temDif = true;
+      produtosPayload.push({
+        produto_id: p.id,
+        codigo: p.codigo,
+        nome: p.nome,
+        qty_tiny: tiny,
+        qty_contagem: contagem,
+        diferenca,
+        sem_diferenca: false
+      });
+    }
+  });
+
+  // Enviar para API
+  const data = await api.post(`/contagens/${estado.contagemId}/fornecedor`, {
+    fornecedor: estado.fornecedorSelecionado,
+    tem_diferenca: temDif,
+    produtos: produtosPayload
+  });
+
+  if (!data || data.erro) {
+    toast(data?.mensagem || 'Erro ao registrar fornecedor.', 'error');
+    return;
+  }
+
+  if (temDif) estado.contagemTemDiferenca = true;
+
+  estado.fornecedoresContados.push({
+    nome: estado.fornecedorSelecionado,
+    temDiferenca: temDif,
+    produtos: produtosPayload
+  });
+
+  estado.fornecedorSelecionado = null;
+  document.getElementById('input-fornecedor').value = '';
+  document.getElementById('bloco-produtos').classList.remove('show');
+  renderFornecedoresContados();
+  toast('Fornecedor registrado com sucesso!', 'success');
+  document.getElementById('input-fornecedor').focus();
+}
+
+function renderFornecedoresContados() {
+  const container = document.getElementById('fornecedores-contados-lista');
+  if (estado.fornecedoresContados.length === 0) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <h4 style="font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:var(--cor-texto-mudo);margin-bottom:10px;font-weight:600;">
+      Fornecedores contados (${estado.fornecedoresContados.length})
+    </h4>
+    ${estado.fornecedoresContados.map(f => `
+      <div class="fornecedor-contado">
+        <i class="ti ti-${f.temDiferenca ? 'alert-circle' : 'circle-check'}" style="color:${f.temDiferenca ? 'var(--cor-perigo)' : 'var(--cor-sucesso)'}"></i>
+        <span class="nome">${f.nome}</span>
+        <span class="badge ${f.temDiferenca ? 'badge-danger' : 'badge-success'}">${f.temDiferenca ? 'Diferença' : 'Ok'}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+/* =============================================
+   CONTAGEM — finalizar
+============================================= */
+async function finalizarContagem() {
+  if (estado.fornecedoresContados.length === 0) {
+    toast('Nenhum fornecedor foi contado ainda.', 'error');
+    return;
+  }
+
+  const data = await api.put(`/contagens/${estado.contagemId}/finalizar`, {});
+  if (!data || data.erro) {
+    toast(data?.mensagem || 'Erro ao finalizar contagem.', 'error');
+    return;
+  }
+
+  renderResultado(data.contagem);
+  showScreen('screen-resultado');
+}
+
+/* =============================================
+   RESULTADO
+============================================= */
+function renderResultado(contagem) {
+  const container = document.getElementById('resultado-container');
+  const totalForn = estado.fornecedoresContados.length;
+  const comDif = estado.fornecedoresContados.filter(f => f.temDiferenca).length;
+  const data = formatDate(contagem.finalizado_em || new Date().toISOString());
+
+  let html = '';
+
+  if (!estado.contagemTemDiferenca) {
+    html += `
+      <div class="resultado-card sucesso">
+        <i class="ti ti-circle-check"></i>
+        <h2>Estoque conferido!</h2>
+        <p>${totalForn} fornecedor${totalForn > 1 ? 'es' : ''} contado${totalForn > 1 ? 's' : ''} — nenhuma diferença encontrada.</p>
+      </div>`;
+  } else {
+    html += `
+      <div class="resultado-card erro">
+        <i class="ti ti-alert-triangle"></i>
+        <h2>${comDif} fornecedor${comDif > 1 ? 'es' : ''} com diferença</h2>
+        <p>Foram encontradas divergências no estoque.</p>
+        <button class="btn btn-danger" style="margin-top:14px;" onclick="baixarExcel('${contagem.id}')">
+          <i class="ti ti-file-spreadsheet"></i> Baixar Excel de diferenças
+        </button>
+      </div>`;
+  }
+
+  html += `
+    <div class="metricas-grid">
+      <div class="metrica">
+        <div class="metrica-valor">${totalForn}</div>
+        <div class="metrica-label">Fornecedores</div>
+      </div>
+      <div class="metrica">
+        <div class="metrica-valor" style="color:${comDif > 0 ? 'var(--cor-perigo)' : 'var(--cor-sucesso)'}">${comDif}</div>
+        <div class="metrica-label">Com diferença</div>
+      </div>
+      <div class="metrica">
+        <div class="metrica-valor" style="font-size:1rem;">${data}</div>
+        <div class="metrica-label">Data</div>
+      </div>
+    </div>
+    <h3 style="font-size:1rem;font-weight:700;margin-bottom:12px;">Detalhes por fornecedor</h3>`;
+
+  estado.fornecedoresContados.forEach(f => {
+    const prodsComDif = f.produtos.filter(p => !p.sem_diferenca && p.diferenca !== 0);
+    html += `
+      <div class="resultado-fornecedor">
+        <div class="resultado-fornecedor-header">
+          <i class="ti ti-${f.temDiferenca ? 'alert-circle' : 'circle-check'}" style="color:${f.temDiferenca ? 'var(--cor-perigo)' : 'var(--cor-sucesso)'};font-size:1.2rem;"></i>
+          ${f.nome}
+          <span class="badge ${f.temDiferenca ? 'badge-danger' : 'badge-success'}" style="margin-left:auto;">
+            ${f.temDiferenca ? `${prodsComDif.length} com diferença` : 'Ok'}
+          </span>
+        </div>
+        ${prodsComDif.map(p => `
+          <div class="resultado-produto">
+            <div class="info"><strong>${p.nome}</strong> <span style="color:var(--cor-texto-mudo);font-size:.8rem;">(${p.codigo})</span></div>
+            <div class="valores">
+              <span>Tiny: <strong>${p.qty_tiny}</strong></span>
+              <span>Contagem: <strong>${p.qty_contagem}</strong></span>
+              <span style="color:${p.diferenca < 0 ? 'var(--cor-perigo)' : 'var(--cor-sucesso)'};font-weight:700;">
+                ${p.diferenca > 0 ? '+' : ''}${p.diferenca}
+              </span>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+/* =============================================
+   EXCEL — download via API
+============================================= */
+async function baixarExcel(contagemId) {
+  const blob = await api.download(`/relatorios/contagens/${contagemId}/excel`);
+  if (!blob) {
+    toast('Erro ao gerar Excel.', 'error');
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `diferenca_estoque.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Excel baixado com sucesso!', 'success');
+}
+
+/* =============================================
+   BACK-OFFICE
+============================================= */
+function irParaBackoffice() {
+  if (estado.usuario.papel !== 'gestor') {
+    showScreen('screen-login');
+    return;
+  }
+  showScreen('screen-backoffice');
+  carregarHistorico();
+  carregarProdutosBack();
+}
+
+function switchTab(tabId, btn) {
+  document.querySelectorAll('#screen-backoffice .tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#screen-backoffice .tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* --- Histórico --- */
+async function carregarHistorico() {
+  const data = await api.get('/contagens');
+  if (!data || !data.contagens) return;
+  renderHistorico(data.contagens);
+}
+
+function renderHistorico(contagens) {
+  const counter = document.getElementById('hist-counter');
+  const lista = document.getElementById('hist-lista');
+
+  counter.innerHTML = `Total: <strong>${contagens.length}</strong> contagem${contagens.length !== 1 ? 's' : ''}`;
+
+  if (contagens.length === 0) {
+    lista.innerHTML = '<p style="color:var(--cor-texto-mudo);text-align:center;padding:40px;">Nenhuma contagem registrada.</p>';
+    return;
+  }
+
+  lista.innerHTML = contagens.map((c, idx) => {
+    const totalF = c.fornecedores ? c.fornecedores.length : 0;
+    const comDif = c.fornecedores ? c.fornecedores.filter(f => f.tem_diferenca).length : 0;
+    const icon = c.tem_diferenca ? 'alert-circle' : 'circle-check';
+    const cor = c.tem_diferenca ? 'var(--cor-perigo)' : 'var(--cor-sucesso)';
+
+    return `
+      <div class="hist-card" id="hist-${idx}">
+        <div class="hist-card-header" onclick="toggleHistCard(${idx}, '${c.id}')">
+          <i class="ti ti-${icon} status-icon" style="color:${cor}"></i>
+          <div class="hist-card-info">
+            <div class="data">${formatDate(c.finalizado_em || c.iniciado_em)}</div>
+            <div class="resumo">${totalF} fornecedor${totalF > 1 ? 'es' : ''} · ${comDif} com diferença${c.iniciado_por_nome ? ` · por ${c.iniciado_por_nome}` : ''}</div>
+            <div class="hist-chips">
+              ${(c.fornecedores || []).map(f => `<span class="hist-chip">${f.fornecedor}</span>`).join('')}
+            </div>
+          </div>
+          <div class="hist-actions">
+            ${c.tem_diferenca ? `<button class="btn btn-sm btn-outline" onclick="event.stopPropagation();baixarExcel('${c.id}')"><i class="ti ti-file-spreadsheet"></i> Excel</button>` : ''}
+            <i class="ti ti-chevron-down hist-chevron"></i>
+          </div>
+        </div>
+        <div class="hist-card-body" id="hist-body-${idx}">
+          <p style="color:var(--cor-texto-mudo);padding:12px 0;">Carregando detalhes…</p>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleHistCard(idx, contagemId) {
+  const card = document.getElementById(`hist-${idx}`);
+  const isExpanded = card.classList.contains('expanded');
+
+  if (isExpanded) {
+    card.classList.remove('expanded');
+    return;
+  }
+
+  card.classList.add('expanded');
+
+  // Carregar detalhes da contagem
+  const body = document.getElementById(`hist-body-${idx}`);
+  const data = await api.get(`/contagens/${contagemId}`);
+  if (!data || !data.contagem) {
+    body.innerHTML = '<p style="color:var(--cor-perigo);padding:12px 0;">Erro ao carregar detalhes.</p>';
+    return;
+  }
+
+  let html = '';
+  (data.contagem.fornecedores || []).forEach(f => {
+    const prodsComDif = (f.produtos || []).filter(p => !p.sem_diferenca && p.diferenca !== 0);
+    html += `<div style="margin-top:12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <i class="ti ti-${f.tem_diferenca ? 'alert-circle' : 'circle-check'}" style="color:${f.tem_diferenca ? 'var(--cor-perigo)' : 'var(--cor-sucesso)'}"></i>
+        <strong>${f.fornecedor}</strong>
+        <span class="badge ${f.tem_diferenca ? 'badge-danger' : 'badge-success'}">${f.tem_diferenca ? 'Diferença' : 'Ok'}</span>
+      </div>`;
+
+    if (prodsComDif.length > 0) {
+      prodsComDif.forEach(p => {
+        html += `<div class="resultado-produto" style="margin-left:0;padding-left:32px;">
+          <div class="info">${p.nome} <span style="color:var(--cor-texto-mudo);font-size:.8rem;">(${p.codigo})</span></div>
+          <div class="valores">
+            <span>Tiny: ${p.qty_tiny}</span>
+            <span>Contagem: ${p.qty_contagem}</span>
+            <span style="color:${p.diferenca < 0 ? 'var(--cor-perigo)' : 'var(--cor-sucesso)'};font-weight:700;">
+              ${p.diferenca > 0 ? '+' : ''}${p.diferenca}
+            </span>
+          </div>
+        </div>`;
+      });
+    } else if (!f.tem_diferenca) {
+      html += '<p style="margin-left:32px;font-size:.85rem;color:var(--cor-texto-mudo);">Todos os produtos sem diferença.</p>';
+    }
+    html += '</div>';
+  });
+
+  body.innerHTML = html;
+}
+
+/* --- Produtos --- */
+async function carregarProdutosBack() {
+  await carregarProdutos();
+  renderProdutosBack();
+}
+
+function renderProdutosBack() {
+  const container = document.getElementById('produtos-lista-back');
+  if (estado.produtos.length === 0) {
+    container.innerHTML = '<p style="color:var(--cor-texto-mudo);text-align:center;padding:40px;">Nenhum produto cadastrado. Importe um CSV.</p>';
+    return;
+  }
+  const grupos = {};
+  estado.produtos.forEach(p => {
+    if (!grupos[p.fornecedor]) grupos[p.fornecedor] = [];
+    grupos[p.fornecedor].push(p);
+  });
+
+  container.innerHTML = Object.entries(grupos).sort((a, b) => a[0].localeCompare(b[0])).map(([forn, prods]) => `
+    <div class="grupo-fornecedor">
+      <div class="grupo-header">
+        <span><i class="ti ti-building-store" style="margin-right:6px;"></i>${forn}</span>
+        <span class="badge badge-primary">${prods.length} produto${prods.length > 1 ? 's' : ''}</span>
+      </div>
+      <div class="grupo-body">
+        ${prods.map(p => `
+          <div class="grupo-produto">
+            <span>${p.nome}</span>
+            <span style="color:var(--cor-texto-mudo);font-family:monospace;font-size:.8rem;">${p.codigo}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+/* --- Cadastrar Produto Manualmente --- */
+async function cadastrarProdutoManual() {
+  const codigo = document.getElementById('cad-prod-cod').value.trim();
+  const nome = document.getElementById('cad-prod-nome').value.trim();
+  const fornecedor = document.getElementById('cad-prod-forn').value.trim();
+
+  if (!codigo || !nome || !fornecedor) {
+    toast('Preencha Código, Nome e Fornecedor.', 'error');
+    return;
+  }
+
+  const data = await api.post('/produtos', { codigo, nome, fornecedor });
+  if (data && !data.erro) {
+    toast('Produto cadastrado com sucesso!', 'success');
+    document.getElementById('cad-prod-cod').value = '';
+    document.getElementById('cad-prod-nome').value = '';
+    // Não limpa o fornecedor para facilitar múltiplos cadastros do mesmo
+    await carregarProdutosBack();
+  } else {
+    toast(data?.mensagem || 'Erro ao cadastrar produto.', 'error');
+  }
+}
+
+/* --- Importar CSV --- */
+async function importarCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    const text = e.target.result;
+    const primeiraLinha = text.split('\n')[0];
+    const sep = primeiraLinha.includes(';') ? ';' : ',';
+    const linhas = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (linhas.length < 2) { toast('CSV vazio.', 'error'); return; }
+
+    const headers = linhas[0].split(sep).map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    let colCod = headers.findIndex(h => h.includes('cod'));
+    let colNome = headers.findIndex(h => h.includes('prod') || h.includes('nome') || h.includes('descri'));
+    let colForn = headers.findIndex(h => h.includes('forn'));
+
+    if (colCod === -1 || colNome === -1 || colForn === -1) {
+      toast('Colunas não detectadas (cod, nome, fornecedor).', 'error');
+      return;
+    }
+
+    const produtos = [];
+    for (let i = 1; i < linhas.length; i++) {
+      const cols = linhas[i].split(sep).map(c => c.trim().replace(/^"|"$/g, ''));
+      if (cols.length <= Math.max(colCod, colNome, colForn)) continue;
+      const cod = cols[colCod], nome = cols[colNome], forn = cols[colForn];
+      if (cod && nome && forn) produtos.push({ codigo: cod, nome, fornecedor: forn });
+    }
+
+    if (produtos.length === 0) { toast('Nenhum produto válido no CSV.', 'error'); return; }
+
+    const data = await api.post('/produtos/importar', { produtos });
+    if (data && !data.erro) {
+      toast(`${data.total} produtos importados!`, 'success');
+      await carregarProdutosBack();
+    } else {
+      toast(data?.mensagem || 'Erro na importação.', 'error');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  event.target.value = '';
+}
+
+/* --- Config — Alterar senha --- */
+async function alterarSenha() {
+  const atual = document.getElementById('cfg-senha-atual').value;
+  const nova = document.getElementById('cfg-nova-senha').value;
+  const confirmar = document.getElementById('cfg-confirmar-senha').value;
+  const msg = document.getElementById('cfg-msg');
+
+  if (!atual) { showMsg(msg, 'Digite a senha atual.', 'error'); return; }
+  if (nova.length < 4) { showMsg(msg, 'A nova senha deve ter pelo menos 4 caracteres.', 'error'); return; }
+  if (nova !== confirmar) { showMsg(msg, 'As senhas não coincidem.', 'error'); return; }
+
+  const data = await api.put('/auth/senha', { senha_atual: atual, nova_senha: nova });
+
+  if (!data || data.erro) {
+    showMsg(msg, data?.mensagem || 'Erro ao alterar senha.', 'error');
+    return;
+  }
+
+  showMsg(msg, 'Senha alterada com sucesso!', 'success');
+  document.getElementById('cfg-senha-atual').value = '';
+  document.getElementById('cfg-nova-senha').value = '';
+  document.getElementById('cfg-confirmar-senha').value = '';
+}
+
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className = `msg-feedback show ${type === 'info' ? 'success' : type}`;
+  setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+/* =============================================
+   UTILITÁRIOS
+============================================= */
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+}
+
+/* =============================================
+   INICIALIZAÇÃO
+============================================= */
+(async function init() {
+  // Verificar se tem sessão ativa
+  let token = sessionStorage.getItem('accessToken');
+
+  if (!token) {
+    // Login silencioso — fetch nativo para evitar interceptação do api.fetch
+    try {
+      const res = await fetch('/api/auth/guest');
+      if (res.ok) {
+        const guestData = await res.json();
+        sessionStorage.setItem('accessToken', guestData.accessToken);
+        estado.usuario = guestData.usuario;
+        estado.empresa = guestData.empresa;
+        entrarNoSistema();
+        return;
+      }
+    } catch (e) {
+      console.error('Falha no login silencioso:', e);
+    }
+    // Se falhou, mostrar login normal
+    showScreen('screen-login');
+    return;
+  }
+
+  // Já tem token salvo — restaurar sessão
+  try {
+    const data = await api.get('/auth/me');
+    if (!data || data.erro) {
+      sessionStorage.removeItem('accessToken');
+      showScreen('screen-login');
+      return;
+    }
+    estado.usuario = data.usuario;
+    estado.empresa = data.empresa;
+    entrarNoSistema();
+  } catch {
+    sessionStorage.removeItem('accessToken');
+    showScreen('screen-login');
+  }
+})();
+</script>
+
+</body>
+</html>
