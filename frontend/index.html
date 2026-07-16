@@ -26,7 +26,9 @@
       --cor-aviso-bg: #fef3c7;
       --cor-fundo: #f1f5f9;
       --cor-superficie: #ffffff;
+      --cor-superficie2: #f1f5f9;
       --cor-borda: #e2e8f0;
+      --cor-borda-forte: #cbd5e1;
       --cor-texto: #1e293b;
       --cor-texto-secundario: #64748b;
       --cor-texto-mudo: #94a3b8;
@@ -39,6 +41,32 @@
       --transicao: .2s cubic-bezier(.4,0,.2,1);
     }
 
+    [data-theme="dark"] {
+      --cor-primaria: #3b82f6;
+      --cor-primaria-hover: #60a5fa;
+      --cor-primaria-bg: #1e3a5f;
+      --cor-sucesso: #22c55e;
+      --cor-sucesso-bg: #14532d;
+      --cor-sucesso-border: #166534;
+      --cor-perigo: #ef4444;
+      --cor-perigo-hover: #f87171;
+      --cor-perigo-bg: #450a0a;
+      --cor-perigo-border: #7f1d1d;
+      --cor-aviso: #f59e0b;
+      --cor-aviso-bg: #451a03;
+      --cor-fundo: #0f172a;
+      --cor-superficie: #1e293b;
+      --cor-superficie2: #334155;
+      --cor-borda: #334155;
+      --cor-borda-forte: #475569;
+      --cor-texto: #f1f5f9;
+      --cor-texto-secundario: #94a3b8;
+      --cor-texto-mudo: #64748b;
+      --sombra: 0 1px 3px rgba(0,0,0,.2), 0 1px 2px rgba(0,0,0,.15);
+      --sombra-md: 0 4px 6px rgba(0,0,0,.2), 0 2px 4px rgba(0,0,0,.15);
+      --sombra-lg: 0 10px 25px rgba(0,0,0,.3), 0 4px 10px rgba(0,0,0,.2);
+    }
+
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background: var(--cor-fundo);
@@ -46,9 +74,26 @@
       line-height: 1.6;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
+      transition: background 0.2s, color 0.2s;
     }
 
     /* ===== TOPBAR ===== */
+    /* ===== BOTÃO TEMA ===== */
+    .btn-theme {
+      padding: 7px 10px;
+      border-radius: var(--raio-sm);
+      border: 0.5px solid var(--cor-borda-forte, var(--cor-borda));
+      background: var(--cor-superficie2, var(--cor-fundo));
+      color: var(--cor-texto-secundario);
+      cursor: pointer;
+      font-size: 15px;
+      line-height: 1;
+      transition: background 0.15s;
+    }
+    .btn-theme:hover {
+      background: var(--cor-borda);
+    }
+
     .topbar {
       background: rgba(255,255,255,.88);
       backdrop-filter: blur(12px);
@@ -179,6 +224,24 @@
       display: flex; align-items: center; justify-content: center;
       min-height: 100vh; padding: 20px;
       background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    }
+    [data-theme="dark"] .topbar {
+      background: rgba(30,41,59,.88);
+    }
+    [data-theme="dark"] .auth-wrapper {
+      background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+    }
+    [data-theme="dark"] input[type="text"],
+    [data-theme="dark"] input[type="number"],
+    [data-theme="dark"] input[type="password"],
+    [data-theme="dark"] input[type="email"] {
+      background: var(--cor-superficie);
+      border-color: var(--cor-borda);
+      color: var(--cor-texto);
+    }
+    [data-theme="dark"] .auth-card {
+      background: var(--cor-superficie);
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
     }
     .auth-card {
       width: 100%; max-width: 420px;
@@ -313,13 +376,22 @@
       padding: 32px; border-radius: var(--raio-lg);
       text-align: center; margin-bottom: 24px;
     }
-    .resultado-card.sucesso { background: linear-gradient(135deg, #dcfce7, #bbf7d0); border: 1px solid var(--cor-sucesso-border); }
-    .resultado-card.erro { background: linear-gradient(135deg, #fee2e2, #fecaca); border: 1px solid var(--cor-perigo-border); }
+    .resultado-card.sucesso {
+      background: var(--cor-sucesso-bg);
+      border: 1px solid var(--cor-sucesso-border);
+    }
+    .resultado-card.erro {
+      background: var(--cor-perigo-bg);
+      border: 1px solid var(--cor-perigo-border);
+    }
     .resultado-card i { font-size: 3rem; margin-bottom: 8px; }
     .resultado-card.sucesso i { color: var(--cor-sucesso); }
     .resultado-card.erro i { color: var(--cor-perigo); }
-    .resultado-card h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+    .resultado-card h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; color: var(--cor-texto); }
+    .resultado-card.sucesso h2 { color: var(--cor-sucesso); }
+    .resultado-card.erro h2 { color: var(--cor-perigo); }
     .resultado-card p { font-size: .95rem; color: var(--cor-texto-secundario); }
+    .resultado-card .btn { margin-top: 14px; }
 
     .metricas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
     .metrica {
@@ -487,6 +559,9 @@
       <div class="auth-link">
         Não tem conta? <a onclick="showScreen('screen-registro')">Criar conta grátis</a>
       </div>
+      <div style="margin-top: 16px; text-align: center;">
+        <button class="btn-theme" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      </div>
     </div>
   </div>
 </div>
@@ -526,6 +601,9 @@
       <div class="auth-link">
         Já tem conta? <a onclick="showScreen('screen-login')">Entrar</a>
       </div>
+      <div style="margin-top: 16px; text-align: center;">
+        <button class="btn-theme" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      </div>
     </div>
   </div>
 </div>
@@ -535,6 +613,7 @@
   <div class="topbar">
     <h1><i class="ti ti-clipboard-list"></i> Contagem de Estoque</h1>
     <div class="topbar-right">
+      <button class="btn-theme" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
       <div class="user-badge">
         <div class="avatar" id="home-avatar"></div>
         <span id="home-user-name"></span>
@@ -563,9 +642,12 @@
 <div id="screen-contagem" class="screen">
   <div class="topbar">
     <h1><i class="ti ti-clipboard-check"></i> Contagem ativa</h1>
-    <button class="btn btn-danger" onclick="finalizarContagem()">
-      <i class="ti ti-player-stop-filled"></i> Finalizar
-    </button>
+    <div class="topbar-right">
+      <button class="btn-theme" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      <button class="btn btn-danger" onclick="finalizarContagem()">
+        <i class="ti ti-player-stop-filled"></i> Finalizar
+      </button>
+    </div>
   </div>
   <div class="container">
     <div class="step-indicator">
@@ -605,9 +687,12 @@
 <div id="screen-resultado" class="screen">
   <div class="topbar">
     <h1><i class="ti ti-report-analytics"></i> Resultado</h1>
-    <button class="btn btn-primary" onclick="showScreen('screen-home')">
-      <i class="ti ti-plus"></i> Nova contagem
-    </button>
+    <div class="topbar-right">
+      <button class="btn-theme" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      <button class="btn btn-primary" onclick="showScreen('screen-home')">
+        <i class="ti ti-plus"></i> Nova contagem
+      </button>
+    </div>
   </div>
   <div class="container" id="resultado-container"></div>
 </div>
@@ -616,9 +701,12 @@
 <div id="screen-backoffice" class="screen">
   <div class="topbar">
     <h1><i class="ti ti-layout-dashboard"></i> Back-office</h1>
-    <button class="btn btn-outline" onclick="showScreen('screen-home')">
-      <i class="ti ti-arrow-left"></i> Voltar
-    </button>
+    <div class="topbar-right">
+      <button class="btn-theme" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      <button class="btn btn-outline" onclick="showScreen('screen-home')">
+        <i class="ti ti-arrow-left"></i> Voltar
+      </button>
+    </div>
   </div>
   <div class="container">
     <div class="tabs">
@@ -1248,7 +1336,7 @@ function renderResultado(contagem) {
         <i class="ti ti-alert-triangle"></i>
         <h2>${comDif} fornecedor${comDif > 1 ? 'es' : ''} com diferença</h2>
         <p>Foram encontradas divergências no estoque.</p>
-        <button class="btn btn-danger" style="margin-top:14px;" onclick="baixarExcel('${contagem.id}')">
+        <button class="btn btn-danger btn-sm" style="margin-top:14px;" onclick="baixarExcel('${contagem.id}')">
           <i class="ti ti-file-spreadsheet"></i> Baixar Excel de diferenças
         </button>
       </div>`;
@@ -1585,9 +1673,39 @@ function formatDate(iso) {
 }
 
 /* =============================================
+   TEMA CLARO / ESCURO
+============================================= */
+var THEME_KEY = 'estoque_tema';
+
+function toggleTheme() {
+  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  var novoTema = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', novoTema);
+  localStorage.setItem(THEME_KEY, novoTema);
+  atualizarBotoesTema();
+}
+
+function atualizarBotoesTema() {
+  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.querySelectorAll('.btn-theme').forEach(function(btn) {
+    btn.textContent = isDark ? '☀️' : '🌙';
+    btn.title = isDark ? 'Mudar para tema claro' : 'Mudar para tema escuro';
+  });
+}
+
+function carregarTema() {
+  var temaSalvo = localStorage.getItem(THEME_KEY) || 'light';
+  document.documentElement.setAttribute('data-theme', temaSalvo);
+  atualizarBotoesTema();
+}
+
+/* =============================================
    INICIALIZAÇÃO
 ============================================= */
 (async function init() {
+  // Carregar tema salvo
+  carregarTema();
+
   // Verificar se tem sessão ativa
   let token = sessionStorage.getItem('accessToken');
 
