@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Banco de Dados PostgreSQL com inicialização automática de Schema e Seed
+  # ============================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: inventory_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: estoque_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./backend/sql/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d estoque_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - inventory_network
+
+  # ============================================================================
+  # Aplicação SaaS (API REST + Frontend Modular)
+  # ============================================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inventory_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgrespassword@db:5432/estoque_db
+      JWT_SECRET: super_secret_jwt_production_key_inventory_management_system_2026_sha256
+      JWT_EXPIRA_EM: 15m
+      REFRESH_TOKEN_EXPIRA_DIAS: 30
+      FRONTEND_URL: http://localhost:3001
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - inventory_network
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  inventory_network:
+    driver: bridge

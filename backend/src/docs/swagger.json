@@ -1,0 +1,391 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Inventory Management System API",
+    "version": "1.0.0",
+    "description": "API REST profissional para SaaS de controle e contagem de inventário de estoque com suporte multi-tenant, autenticação JWT, rotação de refresh tokens e conciliação em tempo real."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Servidor atual"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string" },
+          "code": { "type": "string" },
+          "details": { "type": "array", "items": { "type": "object" } }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "senha"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "admin@demo.com" },
+          "senha": { "type": "string", "example": "AdminDemo@2026!" }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["empresa_nome", "nome", "email", "senha"],
+        "properties": {
+          "empresa_nome": { "type": "string", "example": "Minha Empresa" },
+          "nome": { "type": "string", "example": "Gestor Silva" },
+          "email": { "type": "string", "format": "email", "example": "gestor@empresa.com" },
+          "senha": { "type": "string", "example": "SenhaForte@123" }
+        }
+      },
+      "Produto": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "codigo": { "type": "string", "example": "SKU-001" },
+          "nome": { "type": "string", "example": "Camiseta Básica" },
+          "fornecedor": { "type": "string", "example": "Têxtil Sul" },
+          "criado_em": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health Check do Servidor",
+        "responses": {
+          "200": {
+            "description": "Serviço operacional",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" },
+                    "timestamp": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "summary": "Autenticação de Usuário",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Autenticado com sucesso" },
+          "401": { "description": "Credenciais inválidas" }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "Renovar Access Token com Rotação de Refresh Token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["refreshToken"],
+                "properties": {
+                  "refreshToken": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Novo par de tokens gerado" },
+          "401": { "description": "Token inválido ou expirado" }
+        }
+      }
+    },
+    "/api/auth/guest": {
+      "get": {
+        "summary": "Login de Demonstração (Sandbox Loja Demo)",
+        "responses": {
+          "200": { "description": "Token de demonstração emitido" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Dados da Sessão do Usuário",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Dados do usuário autenticado" },
+          "401": { "description": "Não autenticado" }
+        }
+      }
+    },
+    "/api/auth/senha": {
+      "put": {
+        "summary": "Alterar Senha do Usuário",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["senhaAtual", "novaSenha"],
+                "properties": {
+                  "senhaAtual": { "type": "string" },
+                  "novaSenha": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Senha atualizada" }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Encerrar Sessão e Revogar Tokens",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Logout efetuado" }
+        }
+      }
+    },
+    "/api/empresas/registrar": {
+      "post": {
+        "summary": "Cadastro de Nova Empresa e Gestor",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Empresa e gestor criados" },
+          "409": { "description": "Email já cadastrado" }
+        }
+      }
+    },
+    "/api/produtos": {
+      "get": {
+        "summary": "Listar Produtos Ativos",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "fornecedor", "in": "query", "schema": { "type": "string" } },
+          { "name": "sort", "in": "query", "schema": { "type": "string", "default": "fornecedor" } },
+          { "name": "order", "in": "query", "schema": { "type": "string", "default": "asc" } }
+        ],
+        "responses": {
+          "200": { "description": "Lista paginada de produtos" }
+        }
+      },
+      "post": {
+        "summary": "Cadastrar Produto (Gestor)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["codigo", "nome", "fornecedor"],
+                "properties": {
+                  "codigo": { "type": "string" },
+                  "nome": { "type": "string" },
+                  "fornecedor": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Produto cadastrado" }
+        }
+      }
+    },
+    "/api/produtos/{id}": {
+      "put": {
+        "summary": "Editar Produto (Gestor)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "codigo": { "type": "string" },
+                  "nome": { "type": "string" },
+                  "fornecedor": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Produto atualizado" }
+        }
+      },
+      "delete": {
+        "summary": "Desativar Produto (Gestor)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Produto desativado" }
+        }
+      }
+    },
+    "/api/produtos/importar": {
+      "post": {
+        "summary": "Importar Catálogo de Produtos em Massa (Gestor)",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "modo": { "type": "string", "enum": ["mesclar", "substituir"], "default": "mesclar" },
+                  "produtos": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": ["codigo", "nome", "fornecedor"],
+                      "properties": {
+                        "codigo": { "type": "string" },
+                        "nome": { "type": "string" },
+                        "fornecedor": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Catálogo importado" }
+        }
+      }
+    },
+    "/api/contagens": {
+      "get": {
+        "summary": "Histórico de Contagens Finalizadas (Gestor)",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Lista de contagens com fornecedores" }
+        }
+      },
+      "post": {
+        "summary": "Iniciar Nova Sessão de Contagem",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "201": { "description": "Contagem iniciada" }
+        }
+      }
+    },
+    "/api/contagens/{id}/fornecedor": {
+      "post": {
+        "summary": "Registrar Contagem de Fornecedor",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["fornecedor", "produtos"],
+                "properties": {
+                  "fornecedor": { "type": "string" },
+                  "tem_diferenca": { "type": "boolean" },
+                  "produtos": { "type": "array", "items": { "type": "object" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Fornecedor registrado" },
+          "409": { "description": "Fornecedor já registrado nesta sessão" }
+        }
+      }
+    },
+    "/api/contagens/{id}/finalizar": {
+      "put": {
+        "summary": "Finalizar Sessão de Contagem",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Sessão finalizada" }
+        }
+      }
+    },
+    "/api/contagens/{id}": {
+      "get": {
+        "summary": "Detalhes Completos de uma Contagem (Gestor)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Detalhes com itens e divergências" }
+        }
+      }
+    },
+    "/api/relatorios/contagens/{id}/excel": {
+      "get": {
+        "summary": "Exportar Relatório de Divergências em Planilha Excel (.xlsx)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arquivo .xlsx baixado com sucesso",
+            "content": {
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@
  */
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
-const { query, pool } = require('./config/db');
+const { query } = require('./config/db');
 
 const SALT_ROUNDS = 12;
 
@@ -15,7 +15,9 @@ async function seed() {
     console.log('🌱 Iniciando seed...');
 
     // Verificar se empresa demo já existe
-    const existe = await query("SELECT id FROM empresas WHERE email_contato = 'contato@lojademo.com'");
+    const existe = await query(
+      "SELECT id FROM empresas WHERE email_contato = 'contato@lojademo.com'"
+    );
     if (existe.rows.length > 0) {
       console.log('⚠️  Empresa demo já existe. Pulando seed.');
       process.exit(0);
@@ -35,14 +37,14 @@ async function seed() {
     console.log(`✅ Empresa criada: ${empresaId}`);
 
     // Criar usuário gestor
-    const senhaHash = await bcrypt.hash('1234', SALT_ROUNDS);
-    const usuario = await query(
+    const senhaHash = await bcrypt.hash('AdminDemo@2026!', SALT_ROUNDS);
+    await query(
       `INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel)
        VALUES ($1, 'Admin Demo', 'admin@demo.com', $2, 'gestor')
        RETURNING id`,
       [empresaId, senhaHash]
     );
-    console.log(`✅ Usuário gestor criado: admin@demo.com / 1234`);
+    console.log(`✅ Usuário gestor criado: admin@demo.com / AdminDemo@2026!`);
 
     // Criar produtos demo
     const produtos = [
@@ -53,7 +55,7 @@ async function seed() {
       { codigo: '011', nome: 'Sandália Comfort Flex', fornecedor: 'Calçados Express' },
       { codigo: '020', nome: 'Mochila Urban 30L', fornecedor: 'Acessórios Prime' },
       { codigo: '021', nome: 'Boné Snapback Classic', fornecedor: 'Acessórios Prime' },
-      { codigo: '022', nome: 'Óculos de Sol Aviador', fornecedor: 'Acessórios Prime' },
+      { codigo: '022', nome: 'Óculos de Sol Aviador', fornecedor: 'Acessórios Prime' }
     ];
 
     for (const p of produtos) {
@@ -66,7 +68,7 @@ async function seed() {
     console.log(`✅ ${produtos.length} produtos criados`);
 
     console.log('\n🎉 Seed concluído com sucesso!');
-    console.log('   Login: admin@demo.com / 1234\n');
+    console.log('   Login: admin@demo.com / AdminDemo@2026!\n');
     process.exit(0);
   } catch (err) {
     console.error('❌ Erro no seed:', err);

@@ -1,16 +1,17 @@
 const { verificarToken } = require('../config/jwt');
 const { query } = require('../config/db');
+const { UnauthorizedError, ForbiddenError } = require('../errors/AppError');
 
 /**
  * Middleware de autenticação JWT
- * Extrai Bearer token, verifica, busca usuário e empresa no banco.
+ * Extrai Bearer token, verifica integridade, busca usuário e empresa no banco.
  * Popula req.usuario com { id, nome, email, papel, empresa_id }
  */
 async function auth(req, res, next) {
   try {
     const header = req.headers.authorization;
     if (!header || !header.startsWith('Bearer ')) {
-      return res.status(401).json({ erro: 'TOKEN_AUSENTE', mensagem: 'Token de autenticação não fornecido.' });
+      throw new UnauthorizedError('Token de autenticação não fornecido.', 'TOKEN_AUSENTE');
     }
 
     const token = header.split(' ')[1];
@@ -20,32 +21,42 @@ async function auth(req, res, next) {
       decoded = verificarToken(token);
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ erro: 'TOKEN_EXPIRADO', mensagem: 'Token expirado. Renove com refresh token.' });
+        throw new UnauthorizedError(
+          'Token expirado. Renove sua sessão com o refresh token.',
+          'TOKEN_EXPIRADO'
+        );
       }
-      return res.status(401).json({ erro: 'TOKEN_INVALIDO', mensagem: 'Token inválido.' });
+      throw new UnauthorizedError('Token de autenticação inválido.', 'TOKEN_INVALIDO');
     }
 
     let usuario;
 
     if (decoded.id === '00000000-0000-0000-0000-000000000000') {
-      // É um token de guest, não existe na tabela de usuários. Buscar apenas a empresa
-      const resultEmp = await query('SELECT id, nome AS empresa_nome, plano, trial_expira_em FROM empresas WHERE id = $1', [decoded.empresa_id]);
+      // Token de Convidado (Sandbox Demo)
+      const resultEmp = await query(
+        'SELECT id, nome AS empresa_nome, plano, trial_expira_em FROM empresas WHERE id = $1',
+        [decoded.empresa_id]
+      );
       if (resultEmp.rows.length === 0) {
-        return res.status(401).json({ erro: 'EMPRESA_NAO_ENCONTRADA', mensagem: 'Empresa do guest não encontrada.' });
+        throw new UnauthorizedError(
+          'Empresa de demonstração não encontrada.',
+          'EMPRESA_NAO_ENCONTRADA'
+        );
       }
       const e = resultEmp.rows[0];
       usuario = {
         id: decoded.id,
-        nome: 'Convidado',
-        email: 'guest@' + e.id,
+        nome: 'Convidado (Demonstração)',
+        email: 'guest@lojademo.com',
         papel: 'funcionario',
         empresa_id: e.id,
         empresa_nome: e.empresa_nome,
         plano: e.plano,
-        trial_expira_em: e.trial_expira_em
+        trial_expira_em: e.trial_expira_em,
+        isGuest: true
       };
     } else {
-      // Buscar usuário e empresa normal
+      // Usuário registrado padrão
       const result = await query(
         `SELECT u.id, u.nome, u.email, u.papel, u.empresa_id,
                 e.nome AS empresa_nome, e.plano, e.trial_expira_em
@@ -56,38 +67,34 @@ async function auth(req, res, next) {
       );
 
       if (result.rows.length === 0) {
-        return res.status(401).json({ erro: 'USUARIO_NAO_ENCONTRADO', mensagem: 'Usuário não encontrado.' });
+        throw new UnauthorizedError('Usuário não encontrado ou inativo.', 'USUARIO_NAO_ENCONTRADO');
       }
       usuario = result.rows[0];
+      usuario.isGuest = false;
     }
 
-    // Verificar plano da empresa
+    // Verificar status do plano
     if (usuario.plano === 'suspenso') {
-      return res.status(403).json({ erro: 'CONTA_SUSPENSA', mensagem: 'Sua conta está suspensa. Entre em contato com o suporte.' });
+      throw new ForbiddenError(
+        'Acesso suspenso para esta organização. Contate o suporte.',
+        'CONTA_SUSPENSA'
+      );
     }
 
     if (usuario.plano === 'trial' && usuario.trial_expira_em) {
       const agora = new Date();
       const expira = new Date(usuario.trial_expira_em);
       if (agora > expira) {
-        return res.status(403).json({ erro: 'TRIAL_EXPIRADO', mensagem: 'Seu período de teste expirou.' });
+        throw new ForbiddenError('O período de avaliação desta conta expirou.', 'TRIAL_EXPIRADO');
       }
     }
 
-    req.usuario = {
-      id: usuario.id,
-      nome: usuario.nome,
-      email: usuario.email,
-      papel: usuario.papel,
-      empresa_id: usuario.empresa_id,
-      empresa_nome: usuario.empresa_nome,
-      plano: usuario.plano
-    };
+    req.usuario = usuario;
+    req.empresaId = usuario.empresa_id;
 
     next();
   } catch (err) {
-    console.error('Erro no middleware auth:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro interno de autenticação.' });
+    next(err);
   }
 }
 

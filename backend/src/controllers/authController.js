@@ -1,20 +1,18 @@
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/db');
-const { gerarAccessToken, gerarRefreshToken } = require('../config/jwt');
+const { gerarAccessToken, gerarRefreshToken, hashToken } = require('../config/jwt');
+const { UnauthorizedError, NotFoundError } = require('../errors/AppError');
+
+const SALT_ROUNDS = 12;
 
 /**
  * POST /api/auth/login
  * Autentica email + senha, retorna tokens + dados do usuário e empresa
  */
-async function login(req, res) {
+async function login(req, res, next) {
   try {
     const { email, senha } = req.body;
 
-    if (!email || !senha) {
-      return res.status(400).json({ erro: 'CAMPOS_OBRIGATORIOS', mensagem: 'Email e senha são obrigatórios.' });
-    }
-
-    // Buscar usuário com dados da empresa
     const result = await query(
       `SELECT u.id, u.nome, u.email, u.senha_hash, u.papel, u.empresa_id,
               e.nome AS empresa_nome, e.plano, e.trial_expira_em
@@ -25,221 +23,279 @@ async function login(req, res) {
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ erro: 'CREDENCIAIS_INVALIDAS', mensagem: 'Email ou senha incorretos.' });
+      throw new UnauthorizedError('Credenciais inválidas.', 'CREDENCIAIS_INVALIDAS');
     }
 
     const usuario = result.rows[0];
 
-    // Verificar senha com bcrypt
     const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
     if (!senhaValida) {
-      return res.status(401).json({ erro: 'CREDENCIAIS_INVALIDAS', mensagem: 'Email ou senha incorretos.' });
+      throw new UnauthorizedError('Credenciais inválidas.', 'CREDENCIAIS_INVALIDAS');
     }
 
     // Gerar tokens
     const accessToken = gerarAccessToken({ id: usuario.id, empresa_id: usuario.empresa_id });
-    const { token: refreshToken, expiraEm } = gerarRefreshToken();
+    const { token: rawRefreshToken, expiraEm } = gerarRefreshToken();
+    const tokenHash = hashToken(rawRefreshToken);
 
-    // Salvar refresh token no banco
+    // Salvar hash do refresh token no banco
     await query(
-      'INSERT INTO refresh_tokens (usuario_id, token, expira_em) VALUES ($1, $2, $3)',
-      [usuario.id, refreshToken, expiraEm]
+      `INSERT INTO refresh_tokens (usuario_id, token_hash, expira_em)
+       VALUES ($1, $2, $3)`,
+      [usuario.id, tokenHash, expiraEm]
     );
 
     res.json({
-      accessToken,
-      refreshToken,
-      usuario: {
-        id: usuario.id,
-        nome: usuario.nome,
-        email: usuario.email,
-        papel: usuario.papel
-      },
-      empresa: {
-        id: usuario.empresa_id,
-        nome: usuario.empresa_nome,
-        plano: usuario.plano
+      success: true,
+      data: {
+        accessToken,
+        refreshToken: rawRefreshToken,
+        usuario: {
+          id: usuario.id,
+          nome: usuario.nome,
+          email: usuario.email,
+          papel: usuario.papel
+        },
+        empresa: {
+          id: usuario.empresa_id,
+          nome: usuario.empresa_nome,
+          plano: usuario.plano
+        }
       }
     });
   } catch (err) {
-    console.error('Erro no login:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro ao processar login.' });
+    next(err);
   }
 }
 
 /**
  * POST /api/auth/refresh
- * Renova access token usando refresh token válido
+ * Rotação real de refresh token com hash SHA-256 e detecção de reúso
  */
-async function refresh(req, res) {
+async function refresh(req, res, next) {
   try {
     const { refreshToken } = req.body;
+    const tokenHash = hashToken(refreshToken);
 
-    if (!refreshToken) {
-      return res.status(400).json({ erro: 'TOKEN_AUSENTE', mensagem: 'Refresh token é obrigatório.' });
-    }
-
-    // Buscar refresh token no banco
+    // Buscar o token pelo hash
     const result = await query(
-      `SELECT rt.*, u.id AS user_id, u.empresa_id
+      `SELECT rt.id, rt.usuario_id, rt.token_hash, rt.revogado, rt.expira_em,
+              u.empresa_id
        FROM refresh_tokens rt
        JOIN usuarios u ON u.id = rt.usuario_id
-       WHERE rt.token = $1 AND rt.expira_em > NOW()`,
-      [refreshToken]
+       WHERE rt.token_hash = $1`,
+      [tokenHash]
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ erro: 'REFRESH_INVALIDO', mensagem: 'Refresh token inválido ou expirado.' });
+      throw new UnauthorizedError('Refresh token inválido ou inexistente.', 'REFRESH_INVALIDO');
     }
 
-    const row = result.rows[0];
+    const tokenDoc = result.rows[0];
 
-    // Gerar novo access token
-    const accessToken = gerarAccessToken({ id: row.user_id, empresa_id: row.empresa_id });
+    // Detecção de Reúso de Token (Token Theft Detection)
+    if (tokenDoc.revogado) {
+      // Invalida todos os tokens daquele usuário imediatamente
+      await query(`UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1`, [
+        tokenDoc.usuario_id
+      ]);
+      throw new UnauthorizedError(
+        'Tentativa de reúso de refresh token detectada. Sessão invalidada por segurança.',
+        'SESSAO_COMPROMETIDA'
+      );
+    }
 
-    res.json({ accessToken });
+    // Verificar expiração
+    if (new Date(tokenDoc.expira_em) <= new Date()) {
+      throw new UnauthorizedError(
+        'Refresh token expirado. Faça login novamente.',
+        'REFRESH_EXPIRADO'
+      );
+    }
+
+    // Gerar novo par de tokens (Rotação)
+    const novoAccessToken = gerarAccessToken({
+      id: tokenDoc.usuario_id,
+      empresa_id: tokenDoc.empresa_id
+    });
+    const { token: novoRawRefreshToken, expiraEm: novoExpiraEm } = gerarRefreshToken();
+    const novoTokenHash = hashToken(novoRawRefreshToken);
+
+    // Invalida o token antigo e aponta para o novo (substituído_por)
+    await query(
+      `UPDATE refresh_tokens
+       SET revogado = TRUE, substituido_por = $1
+       WHERE id = $2`,
+      [novoTokenHash, tokenDoc.id]
+    );
+
+    // Salva o novo refresh token hasheado
+    await query(
+      `INSERT INTO refresh_tokens (usuario_id, token_hash, expira_em)
+       VALUES ($1, $2, $3)`,
+      [tokenDoc.usuario_id, novoTokenHash, novoExpiraEm]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        accessToken: novoAccessToken,
+        refreshToken: novoRawRefreshToken
+      }
+    });
   } catch (err) {
-    console.error('Erro no refresh:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro ao renovar token.' });
+    next(err);
   }
 }
 
 /**
  * POST /api/auth/logout
- * Invalida o refresh token
+ * Invalida o refresh token atual e remove tokens expirados
  */
-async function logout(req, res) {
+async function logout(req, res, next) {
   try {
     const { refreshToken } = req.body;
 
     if (refreshToken) {
-      await query('DELETE FROM refresh_tokens WHERE token = $1', [refreshToken]);
+      const tokenHash = hashToken(refreshToken);
+      await query('UPDATE refresh_tokens SET revogado = TRUE WHERE token_hash = $1', [tokenHash]);
     }
 
-    // Limpar todos os tokens expirados do usuário
-    if (req.usuario) {
-      await query('DELETE FROM refresh_tokens WHERE usuario_id = $1 AND expira_em < NOW()', [req.usuario.id]);
+    if (req.usuario?.id) {
+      await query(
+        'DELETE FROM refresh_tokens WHERE usuario_id = $1 AND (expira_em < NOW() OR revogado = TRUE)',
+        [req.usuario.id]
+      );
     }
 
-    res.json({ mensagem: 'Logout realizado com sucesso.' });
+    res.json({
+      success: true,
+      message: 'Logout realizado com sucesso.'
+    });
   } catch (err) {
-    console.error('Erro no logout:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro ao processar logout.' });
+    next(err);
   }
 }
 
 /**
  * GET /api/auth/me
- * Retorna dados do usuário autenticado (para restaurar sessão)
+ * Retorna dados do usuário autenticado para restauração de sessão
  */
-async function me(req, res) {
+async function me(req, res, next) {
   try {
     res.json({
-      usuario: {
-        id: req.usuario.id,
-        nome: req.usuario.nome,
-        email: req.usuario.email,
-        papel: req.usuario.papel
-      },
-      empresa: {
-        id: req.usuario.empresa_id,
-        nome: req.usuario.empresa_nome,
-        plano: req.usuario.plano
+      success: true,
+      data: {
+        usuario: {
+          id: req.usuario.id,
+          nome: req.usuario.nome,
+          email: req.usuario.email,
+          papel: req.usuario.papel
+        },
+        empresa: {
+          id: req.usuario.empresa_id,
+          nome: req.usuario.empresa_nome,
+          plano: req.usuario.plano
+        }
       }
     });
   } catch (err) {
-    console.error('Erro no /me:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro ao buscar dados do usuário.' });
+    next(err);
   }
 }
 
 /**
  * PUT /api/auth/senha
- * Altera a senha do usuário autenticado
+ * Altera a senha do usuário autenticado com validação e revogação de sessões antigas
  */
-async function alterarSenha(req, res) {
+async function alterarSenha(req, res, next) {
   try {
-    const { senha_atual, nova_senha } = req.body;
+    const { senhaAtual, novaSenha } = req.body;
 
-    if (!senha_atual || !nova_senha) {
-      return res.status(400).json({
-        erro: 'CAMPOS_OBRIGATORIOS',
-        mensagem: 'Senha atual e nova senha são obrigatórias.'
-      });
-    }
-
-    if (nova_senha.length < 4) {
-      return res.status(400).json({
-        erro: 'SENHA_CURTA',
-        mensagem: 'A nova senha deve ter pelo menos 4 caracteres.'
-      });
-    }
-
-    // Buscar hash atual
     const result = await query('SELECT senha_hash FROM usuarios WHERE id = $1', [req.usuario.id]);
     if (result.rows.length === 0) {
-      return res.status(404).json({ erro: 'USUARIO_NAO_ENCONTRADO', mensagem: 'Usuário não encontrado.' });
+      throw new NotFoundError('Usuário não encontrado.', 'USUARIO_NAO_ENCONTRADO');
     }
 
-    // Verificar senha atual
-    const senhaValida = await bcrypt.compare(senha_atual, result.rows[0].senha_hash);
+    const senhaValida = await bcrypt.compare(senhaAtual, result.rows[0].senha_hash);
     if (!senhaValida) {
-      return res.status(401).json({ erro: 'SENHA_INCORRETA', mensagem: 'Senha atual incorreta.' });
+      throw new UnauthorizedError('Senha atual incorreta.', 'SENHA_INCORRETA');
     }
 
-    // Hash da nova senha
-    const novoHash = await bcrypt.hash(nova_senha, 12);
+    const novoHash = await bcrypt.hash(novaSenha, SALT_ROUNDS);
     await query('UPDATE usuarios SET senha_hash = $1 WHERE id = $2', [novoHash, req.usuario.id]);
 
-    res.json({ mensagem: 'Senha alterada com sucesso.' });
+    // Revoga sessões antigas por segurança
+    await query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [
+      req.usuario.id
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Senha alterada com sucesso. Faça login novamente se necessário.'
+    });
   } catch (err) {
-    console.error('Erro ao alterar senha:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro ao alterar senha.' });
+    next(err);
   }
 }
 
 /**
  * GET /api/auth/guest
- * Emite um token temporário com papel de funcionário
- * da primeira empresa cadastrada (ou Loja Demo)
+ * Emite token temporário seguro exclusivo para o ambiente sandbox da "Loja Demo"
  */
-async function guest(req, res) {
+async function guest(req, res, next) {
   try {
-    // Busca a primeira empresa existente (preferencialmente a Demo se existir)
-    const result = await query(
-      `SELECT id, nome FROM empresas ORDER BY id ASC LIMIT 1`
+    // Busca exclusivamente a empresa demo oficial
+    let result = await query(
+      `SELECT id, nome, plano FROM empresas WHERE email_contato = 'contato@lojademo.com'`
     );
 
+    // Se não existir, tenta encontrar por nome ou cria a sandbox demo
     if (result.rows.length === 0) {
-      return res.status(404).json({ erro: 'SEM_EMPRESA', mensagem: 'Nenhuma empresa cadastrada no sistema.' });
+      result = await query(`SELECT id, nome, plano FROM empresas WHERE nome = 'Loja Demo' LIMIT 1`);
     }
 
-    const empresa = result.rows[0];
+    let empresa;
+    if (result.rows.length === 0) {
+      // Criar sandbox demo caso o seed ainda não tenha sido executado
+      const trialExpira = new Date();
+      trialExpira.setDate(trialExpira.getDate() + 30);
+      const novaEmpresa = await query(
+        `INSERT INTO empresas (nome, email_contato, plano, trial_expira_em)
+         VALUES ('Loja Demo', 'contato@lojademo.com', 'trial', $1)
+         RETURNING id, nome, plano`,
+        [trialExpira]
+      );
+      empresa = novaEmpresa.rows[0];
+    } else {
+      empresa = result.rows[0];
+    }
 
-    // Gerar token como funcionário (gestor=falso, sem acesso ao backoffice)
-    // Usamos um ID de usuário fictício (0) ou podemos criar um usuário anônimo
+    const guestId = '00000000-0000-0000-0000-000000000000';
     const accessToken = gerarAccessToken({
-      id: '00000000-0000-0000-0000-000000000000',
+      id: guestId,
       empresa_id: empresa.id
     });
 
     res.json({
-      accessToken,
-      usuario: {
-        id: '00000000-0000-0000-0000-000000000000',
-        nome: 'Convidado (Funcionário)',
-        email: 'guest@' + empresa.id,
-        papel: 'funcionario'
-      },
-      empresa: {
-        id: empresa.id,
-        nome: empresa.nome,
-        plano: 'trial' // ou o que for irrelevante
+      success: true,
+      data: {
+        accessToken,
+        usuario: {
+          id: guestId,
+          nome: 'Convidado (Demonstração)',
+          email: 'guest@lojademo.com',
+          papel: 'funcionario'
+        },
+        empresa: {
+          id: empresa.id,
+          nome: empresa.nome,
+          plano: empresa.plano
+        }
       }
     });
   } catch (err) {
-    console.error('Erro no guest login:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro ao gerar login temporário.' });
+    next(err);
   }
 }
 

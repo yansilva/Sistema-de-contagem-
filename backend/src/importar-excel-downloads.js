@@ -4,7 +4,6 @@
  *
  * Execução: node src/importar-excel-downloads.js
  */
-const path = require('path');
 const ExcelJS = require('exceljs');
 require('dotenv').config();
 const { query, pool } = require('./config/db');
@@ -14,7 +13,9 @@ async function importar() {
     console.log('🚀 Iniciando importação de produtos do Excel...');
 
     // 1. Verificar a empresa Demo no banco de dados
-    const empresaResult = await query("SELECT id FROM empresas WHERE email_contato = 'contato@lojademo.com'");
+    const empresaResult = await query(
+      "SELECT id FROM empresas WHERE email_contato = 'contato@lojademo.com'"
+    );
     if (empresaResult.rows.length === 0) {
       console.error('❌ Empresa demo (Loja Demo) não encontrada no banco de dados.');
       process.exit(1);
@@ -25,10 +26,10 @@ async function importar() {
     // 2. Carregar o arquivo Excel
     const filePath = 'C:\\Users\\User\\Downloads\\Produtos.xlsx';
     const workbook = new ExcelJS.Workbook();
-    
+
     console.log(`📁 Lendo arquivo: ${filePath}`);
     await workbook.xlsx.readFile(filePath);
-    
+
     const worksheet = workbook.getWorksheet(1); // primeira aba
     console.log(`📊 Planilha identificada: "${worksheet.name}" com ${worksheet.rowCount} linhas.`);
 
@@ -52,11 +53,15 @@ async function importar() {
     if (skuIdx === -1 || produtoIdx === -1 || produtorIdx === -1) {
       console.log('⚠️  Cabeçalhos mapeados:', { skuIdx, produtoIdx, produtorIdx });
       console.log('Valores da linha 1:', firstRow);
-      console.error('❌ Não foi possível mapear as colunas necessárias (Sku, Produto, Produtor/Fornecedor) na linha 1.');
+      console.error(
+        '❌ Não foi possível mapear as colunas necessárias (Sku, Produto, Produtor/Fornecedor) na linha 1.'
+      );
       process.exit(1);
     }
 
-    console.log(`🔍 Colunas identificadas: Sku (coluna ${skuIdx}), Produto (coluna ${produtoIdx}), Produtor (coluna ${produtorIdx})`);
+    console.log(
+      `🔍 Colunas identificadas: Sku (coluna ${skuIdx}), Produto (coluna ${produtoIdx}), Produtor (coluna ${produtorIdx})`
+    );
 
     // 4. Ler produtos e realizar upsert
     let adicionados = 0;
@@ -69,10 +74,14 @@ async function importar() {
 
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
-        
+
         const sku = row.getCell(skuIdx).value ? row.getCell(skuIdx).value.toString().trim() : '';
-        const nome = row.getCell(produtoIdx).value ? row.getCell(produtoIdx).value.toString().trim() : '';
-        const fornecedor = row.getCell(produtorIdx).value ? row.getCell(produtorIdx).value.toString().trim() : '';
+        const nome = row.getCell(produtoIdx).value
+          ? row.getCell(produtoIdx).value.toString().trim()
+          : '';
+        const fornecedor = row.getCell(produtorIdx).value
+          ? row.getCell(produtorIdx).value.toString().trim()
+          : '';
 
         // Ignorar linhas vazias ou incompletas
         if (!sku || !nome || !fornecedor) {

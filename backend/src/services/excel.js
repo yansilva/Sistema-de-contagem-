@@ -6,7 +6,7 @@ const ExcelJS = require('exceljs');
  * @param {Date|string} data - Data da contagem
  * @returns {Buffer} Buffer do arquivo .xlsx
  */
-async function gerarExcelContagem(itens, data) {
+async function gerarExcelContagem(itens, _data) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Estoque SaaS';
   workbook.created = new Date();
@@ -22,7 +22,7 @@ async function gerarExcelContagem(itens, data) {
     { header: 'Produto', key: 'nome', width: 38 },
     { header: 'Estoque Tiny', key: 'qty_tiny', width: 16 },
     { header: 'Contagem Física', key: 'qty_contagem', width: 18 },
-    { header: 'Diferença', key: 'diferenca', width: 14 },
+    { header: 'Diferença', key: 'diferenca', width: 14 }
   ];
 
   // Estilo do cabeçalho

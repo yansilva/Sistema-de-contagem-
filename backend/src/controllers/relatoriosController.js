@@ -1,11 +1,12 @@
 const { query } = require('../config/db');
 const { gerarExcelContagem } = require('../services/excel');
+const { NotFoundError, ValidationError } = require('../errors/AppError');
 
 /**
  * GET /api/relatorios/contagens/:id/excel
  * Gera e retorna arquivo .xlsx com as diferenças de uma contagem
  */
-async function excelContagem(req, res) {
+async function excelContagem(req, res, next) {
   try {
     const { id } = req.params;
 
@@ -18,7 +19,7 @@ async function excelContagem(req, res) {
     );
 
     if (contagem.rows.length === 0) {
-      return res.status(404).json({ erro: 'NAO_ENCONTRADO', mensagem: 'Contagem não encontrada.' });
+      throw new NotFoundError('Contagem não encontrada.', 'CONTAGEM_NAO_ENCONTRADA');
     }
 
     // Buscar fornecedores e itens com diferença
@@ -32,10 +33,10 @@ async function excelContagem(req, res) {
     );
 
     if (itens.rows.length === 0) {
-      return res.status(400).json({
-        erro: 'SEM_DIFERENCAS',
-        mensagem: 'Esta contagem não tem diferenças para exportar.'
-      });
+      throw new ValidationError(
+        'Esta contagem não possui divergências de estoque para exportação.',
+        'SEM_DIFERENCAS'
+      );
     }
 
     // Gerar Excel
@@ -49,12 +50,14 @@ async function excelContagem(req, res) {
     const aaaa = d.getFullYear();
     const nomeArquivo = `diferenca_estoque_${dd}_${mm}_${aaaa}.xlsx`;
 
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
     res.setHeader('Content-Disposition', `attachment; filename="${nomeArquivo}"`);
     res.send(buffer);
   } catch (err) {
-    console.error('Erro ao gerar Excel:', err);
-    res.status(500).json({ erro: 'ERRO_INTERNO', mensagem: 'Erro ao gerar relatório Excel.' });
+    next(err);
   }
 }
 

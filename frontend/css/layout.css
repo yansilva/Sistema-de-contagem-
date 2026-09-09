@@ -1,0 +1,140 @@
+/* ===== TOPBAR ===== */
+.topbar {
+  background: rgba(255, 255, 255, .88);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--cor-borda);
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+[data-theme="dark"] .topbar {
+  background: rgba(30, 41, 59, .88);
+}
+
+.topbar h1 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--cor-texto);
+  user-select: none;
+}
+
+.topbar h1 i {
+  color: var(--cor-primaria);
+  font-size: 1.4rem;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--cor-fundo);
+  border-radius: 999px;
+  font-size: .8125rem;
+  font-weight: 500;
+  color: var(--cor-texto-secundario);
+}
+
+.user-badge .avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--cor-primaria), #7c3aed);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+/* ===== CONTAINER ===== */
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px 20px 40px;
+}
+
+/* ===== SCREENS MANAGER ===== */
+.screen {
+  display: none;
+  min-height: calc(100vh - 64px);
+}
+
+.screen.active {
+  display: block;
+  animation: fadeIn .3s ease;
+}
+
+/* ===== TABS (BACK-OFFICE) ===== */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--cor-borda);
+  margin-bottom: 24px;
+}
+
+.tab {
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: .875rem;
+  color: var(--cor-texto-mudo);
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  position: relative;
+  transition: color var(--transicao);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.tab:hover {
+  color: var(--cor-texto);
+}
+
+.tab.active {
+  color: var(--cor-primaria);
+  border-bottom-color: var(--cor-primaria);
+}
+
+.tab-content {
+  display: none;
+  animation: fadeIn .25s ease;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ===== RESPONSIVE MEDIA QUERIES ===== */
+@media (max-width: 600px) {
+  .container {
+    padding: 16px 14px 32px;
+  }
+  .topbar {
+    padding: 0 14px;
+  }
+  .metricas-grid {
+    grid-template-columns: 1fr;
+  }
+  .tabs {
+    overflow-x: auto;
+  }
+}

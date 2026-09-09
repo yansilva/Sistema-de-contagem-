@@ -1,0 +1,107 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* ===== RESET & BOX SIZING ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ===== DESIGN TOKENS (LIGHT THEME) ===== */
+:root {
+  --cor-primaria: #2563eb;
+  --cor-primaria-hover: #1d4ed8;
+  --cor-primaria-bg: #eff6ff;
+  --cor-sucesso: #16a34a;
+  --cor-sucesso-bg: #dcfce7;
+  --cor-sucesso-border: #bbf7d0;
+  --cor-perigo: #dc2626;
+  --cor-perigo-hover: #b91c1c;
+  --cor-perigo-bg: #fee2e2;
+  --cor-perigo-border: #fecaca;
+  --cor-aviso: #d97706;
+  --cor-aviso-bg: #fef3c7;
+  --cor-fundo: #f1f5f9;
+  --cor-superficie: #ffffff;
+  --cor-superficie2: #f8fafc;
+  --cor-borda: #e2e8f0;
+  --cor-borda-forte: #cbd5e1;
+  --cor-texto: #1e293b;
+  --cor-texto-secundario: #64748b;
+  --cor-texto-mudo: #94a3b8;
+  --raio: 12px;
+  --raio-sm: 8px;
+  --raio-lg: 16px;
+  --sombra: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+  --sombra-md: 0 4px 6px rgba(0, 0, 0, .05), 0 2px 4px rgba(0, 0, 0, .04);
+  --sombra-lg: 0 10px 25px rgba(0, 0, 0, .08), 0 4px 10px rgba(0, 0, 0, .04);
+  --transicao: .2s cubic-bezier(.4, 0, .2, 1);
+}
+
+/* ===== DARK THEME TOKENS ===== */
+[data-theme="dark"] {
+  --cor-primaria: #3b82f6;
+  --cor-primaria-hover: #60a5fa;
+  --cor-primaria-bg: #1e3a5f;
+  --cor-sucesso: #22c55e;
+  --cor-sucesso-bg: #14532d;
+  --cor-sucesso-border: #166534;
+  --cor-perigo: #ef4444;
+  --cor-perigo-hover: #f87171;
+  --cor-perigo-bg: #450a0a;
+  --cor-perigo-border: #7f1d1d;
+  --cor-aviso: #f59e0b;
+  --cor-aviso-bg: #451a03;
+  --cor-fundo: #0f172a;
+  --cor-superficie: #1e293b;
+  --cor-superficie2: #334155;
+  --cor-borda: #334155;
+  --cor-borda-forte: #475569;
+  --cor-texto: #f1f5f9;
+  --cor-texto-secundario: #94a3b8;
+  --cor-texto-mudo: #64748b;
+  --sombra: 0 1px 3px rgba(0, 0, 0, .2), 0 1px 2px rgba(0, 0, 0, .15);
+  --sombra-md: 0 4px 6px rgba(0, 0, 0, .2), 0 2px 4px rgba(0, 0, 0, .15);
+  --sombra-lg: 0 10px 25px rgba(0, 0, 0, .3), 0 4px 10px rgba(0, 0, 0, .2);
+}
+
+/* ===== BASE TYPOGRAPHY & BODY ===== */
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* ===== COMMON KEYFRAMES ===== */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: translateY(-10px); }
+}

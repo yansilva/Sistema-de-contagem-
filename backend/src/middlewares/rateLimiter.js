@@ -14,7 +14,7 @@ const loginLimiter = rateLimit({
     mensagem: 'Muitas tentativas. Tente novamente em 1 minuto.'
   },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: false
 });
 
 /**
@@ -29,7 +29,7 @@ const apiLimiter = rateLimit({
     mensagem: 'Muitas requisições. Tente novamente em breve.'
   },
   standardHeaders: true,
-  legacyHeaders: false,
+  legacyHeaders: false
 });
 
 module.exports = { loginLimiter, apiLimiter };
