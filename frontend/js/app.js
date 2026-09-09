@@ -19,6 +19,53 @@ function showScreen(screenId) {
     Produtos.carregar();
   } else if (screenId === 'screen-home') {
     Auth.atualizarInterface();
+    carregarDashboard();
+  }
+}
+
+/**
+ * Carrega dados contextuais e KPIs do dashboard da Home
+ */
+async function carregarDashboard() {
+  // 1. Atualiza dados de boas-vindas
+  const homeUserEl = document.getElementById('home-user-name');
+  if (homeUserEl) {
+    homeUserEl.textContent = Auth.usuario?.nome || 'Usuário';
+  }
+
+  // 2. Formata data atual
+  const dateEl = document.getElementById('home-current-date');
+  if (dateEl) {
+    const hoje = new Date();
+    const opcoes = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dataFormatada = hoje.toLocaleDateString('pt-BR', opcoes);
+    dateEl.innerHTML = `<i class="ti ti-calendar"></i> ${dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)} | Painel Operacional`;
+  }
+
+  // 3. Busca KPIs em paralelo
+  try {
+    const [resProd, resForn, resHist] = await Promise.all([
+      API.get('/produtos?limit=1'),
+      API.get('/produtos/fornecedores'),
+      API.get('/contagens/historico?limit=1')
+    ]);
+
+    const kpiProd = document.getElementById('kpi-total-produtos');
+    if (kpiProd && resProd && resProd.data?.pagination) {
+      kpiProd.textContent = resProd.data.pagination.total ?? 0;
+    }
+
+    const kpiForn = document.getElementById('kpi-total-fornecedores');
+    if (kpiForn && resForn && resForn.data?.fornecedores) {
+      kpiForn.textContent = resForn.data.fornecedores.length ?? 0;
+    }
+
+    const kpiCont = document.getElementById('kpi-total-contagens');
+    if (kpiCont && resHist && resHist.data) {
+      kpiCont.textContent = resHist.data.total ?? (resHist.data.contagens?.length ?? 0);
+    }
+  } catch (err) {
+    console.warn('[DASHBOARD] Falha ao atualizar KPIs em tempo real:', err);
   }
 }
 

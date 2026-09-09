@@ -132,14 +132,106 @@
   <!-- ==================== TELA: HOME (DASHBOARD) ==================== -->
   <section id="screen-home" class="screen">
     <div class="container">
-      <div class="home-hero">
-        <div class="home-icon"><i class="ti ti-barcode"></i></div>
-        <h2>Contagem de Estoque</h2>
-        <p>Inicie uma sessão de conferência física, registre itens por fornecedor e concilie divergências em tempo real.</p>
-        <button class="btn btn-primary btn-lg" onclick="Contagens.iniciarNovaSessao()">
-          <i class="ti ti-plus"></i> Iniciar Nova Contagem
-        </button>
+      
+      <!-- HEADER DO DASHBOARD (ESTILO MOCKUP) -->
+      <div class="dash-header">
+        <div class="dash-welcome">
+          <h2>Bem-vindo(a) de volta, <span id="home-user-name">Usuário</span> 👋</h2>
+          <p class="dash-date" id="home-current-date"><i class="ti ti-calendar"></i> Carregando data...</p>
+        </div>
+        <div class="dash-actions">
+          <button class="btn btn-primary" onclick="Contagens.iniciarNovaSessao()">
+            <i class="ti ti-plus"></i> Iniciar Nova Contagem
+          </button>
+        </div>
       </div>
+
+      <!-- CARDS DE MÉTRICAS KPI (GLOWING GLASSMORPHISM) -->
+      <div class="kpi-grid">
+        
+        <!-- KPI 1: PRODUTOS CADASTRADOS -->
+        <div class="kpi-card kpi-emerald" onclick="showScreen('screen-backoffice'); switchTab('produtos')">
+          <div class="kpi-top">
+            <span class="kpi-title">Catálogo Total</span>
+            <div class="kpi-icon"><i class="ti ti-packages"></i></div>
+          </div>
+          <div class="kpi-value" id="kpi-total-produtos">8</div>
+          <div class="kpi-badge positive"><i class="ti ti-trending-up"></i> Produtos ativos</div>
+        </div>
+
+        <!-- KPI 2: FORNECEDORES -->
+        <div class="kpi-card kpi-indigo" onclick="showScreen('screen-backoffice'); switchTab('produtos')">
+          <div class="kpi-top">
+            <span class="kpi-title">Fornecedores</span>
+            <div class="kpi-icon"><i class="ti ti-truck-delivery"></i></div>
+          </div>
+          <div class="kpi-value" id="kpi-total-fornecedores">3</div>
+          <div class="kpi-badge neutral"><i class="ti ti-building-store"></i> Parceiros ativos</div>
+        </div>
+
+        <!-- KPI 3: CONTAGENS REALIZADAS -->
+        <div class="kpi-card kpi-amber" onclick="showScreen('screen-backoffice'); switchTab('historico')">
+          <div class="kpi-top">
+            <span class="kpi-title">Contagens Realizadas</span>
+            <div class="kpi-icon"><i class="ti ti-clipboard-check"></i></div>
+          </div>
+          <div class="kpi-value" id="kpi-total-contagens">0</div>
+          <div class="kpi-badge warning"><i class="ti ti-history"></i> Sessões no histórico</div>
+        </div>
+
+        <!-- KPI 4: STATUS / SINCRONIZAÇÃO -->
+        <div class="kpi-card kpi-cyan">
+          <div class="kpi-top">
+            <span class="kpi-title">Sincronização</span>
+            <div class="kpi-icon"><i class="ti ti-refresh"></i></div>
+          </div>
+          <div class="kpi-value status-text">Status: <span>OK</span></div>
+          <div class="kpi-badge positive"><i class="ti ti-shield-check"></i> SaaS Seguro & Ativo</div>
+        </div>
+
+      </div>
+
+      <!-- PAINEL PRINCIPAL DE CONCILIAÇÃO E ATALHOS -->
+      <div class="dash-reconciliation-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <i class="ti ti-scan"></i>
+            <div>
+              <h3>Central de Contagem & Conciliação de Estoque</h3>
+              <p>Conferência física rápida por fornecedor com identificação de sobras e faltas</p>
+            </div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="showScreen('screen-backoffice')">
+            <i class="ti ti-settings"></i> Acessar Back-office
+          </button>
+        </div>
+
+        <div class="quick-cards-grid">
+          
+          <div class="quick-card" onclick="Contagens.iniciarNovaSessao()">
+            <div class="quick-icon primary"><i class="ti ti-barcode"></i></div>
+            <h4>Nova Conferência Física</h4>
+            <p>Selecione um fornecedor, bipe ou digite as quantidades e apure as divergências.</p>
+            <span class="quick-link">Iniciar contagem <i class="ti ti-arrow-right"></i></span>
+          </div>
+
+          <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('produtos')">
+            <div class="quick-icon secondary"><i class="ti ti-file-spreadsheet"></i></div>
+            <h4>Gestão de Produtos & Excel</h4>
+            <p>Cadastre novos SKUs ou importe planilhas completas com substituição ou mescla.</p>
+            <span class="quick-link">Gerenciar catálogo <i class="ti ti-arrow-right"></i></span>
+          </div>
+
+          <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('historico')">
+            <div class="quick-icon success"><i class="ti ti-report-analytics"></i></div>
+            <h4>Histórico & Exportação</h4>
+            <p>Consulte relatórios detalhados e exporte relatórios consolidados em .XLSX.</p>
+            <span class="quick-link">Ver relatórios <i class="ti ti-arrow-right"></i></span>
+          </div>
+
+        </div>
+      </div>
+
     </div>
   </section>
 
