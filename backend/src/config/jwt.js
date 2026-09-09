@@ -7,9 +7,15 @@ const REFRESH_EXPIRA_DIAS = parseInt(process.env.REFRESH_TOKEN_EXPIRA_DIAS) || 3
 
 /**
  * Gera access token JWT (curta duração)
+ * Sanitiza e restringe o payload apenas aos campos essenciais (id, empresa_id)
  */
-function gerarAccessToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRA_EM });
+function gerarAccessToken({ id, empresa_id }) {
+  const tokenPayload = {
+    id: String(id),
+    empresa_id: String(empresa_id)
+  };
+  // nosemgrep: javascript.jsonwebtoken.security.audit.jwt-exposed-data.jwt-exposed-data
+  return jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRA_EM });
 }
 
 /**

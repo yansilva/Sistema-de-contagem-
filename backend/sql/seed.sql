@@ -16,13 +16,14 @@ VALUES (
 );
 
 -- Usuário gestor demo
+-- Senha do admin: 1234 (hash gerado dinamicamente via pgcrypto)
 INSERT INTO usuarios (id, empresa_id, nome, email, senha_hash, papel)
 VALUES (
   'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
   'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
   'Admin Demo',
   'admin@demo.com',
-  '$2a$12$LJ3m4ys3LzgJiVHU9bUuBu4GNpH5cXTqHp5C5oN7HJsYVxqvKjvW6',
+  crypt('1234', gen_salt('bf', 12)),
   'gestor'
 );
 

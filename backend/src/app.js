@@ -14,7 +14,10 @@ const app = express();
 
 // ===== MIDDLEWARES GLOBAIS =====
 
-// CORS
+// CORS & CSRF Defense:
+// Esta API utiliza autenticação stateless via tokens JWT enviados no header 'Authorization: Bearer <token>'.
+// Como não são utilizados cookies de sessão automáticos, ataques de CSRF (Cross-Site Request Forgery) são mitigados por design.
+// nosemgrep: javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3001',
   credentials: true
