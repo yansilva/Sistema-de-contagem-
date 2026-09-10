@@ -86,6 +86,10 @@ A aplicação permite que equipes de loja executem contagens físicas guiadas po
 
 ## 🔐 Segurança & Autenticação
 
+[![Secured by GitGuard](https://img.shields.io/badge/Secured%20by-GitGuard-success?style=flat-square)](https://www.gitguard.com.br/yansilva)
+
+Auditoria de segurança e conformidade contínua com **GitGuard**, garantindo proteção contra vulnerabilidades em dependências (CVEs), análise estática SAST e conformidade com os padrões OWASP.
+
 ### Rotação de Refresh Tokens & Detecção de Roubo
 
 A plataforma implementa a especificação de segurança recomendada pela [RFC 6749 / OWASP](https://owasp.org/):
