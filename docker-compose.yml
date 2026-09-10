@@ -8,6 +8,12 @@ services:
     image: postgres:16-alpine
     container_name: inventory_postgres
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/postgresql
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgrespassword
@@ -35,6 +41,11 @@ services:
       dockerfile: Dockerfile
     container_name: inventory_api
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     depends_on:
       db:
         condition: service_healthy

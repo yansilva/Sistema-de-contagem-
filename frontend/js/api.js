@@ -47,7 +47,7 @@ const API = {
 
       return res;
     } catch (err) {
-      console.error(`[API ERROR] ${path}:`, err);
+      console.error('[API ERROR]', path, err);
       showToast('Erro de conexão com o servidor. Verifique se o backend está ativo.', 'error');
       return null;
     }

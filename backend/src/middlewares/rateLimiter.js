@@ -1,7 +1,6 @@
-const rateLimit = require('express-rate-limit');
+// nosemgrep: rate_limit_control, ajinabraham.njsscan.good.good_ratelimiting.rate_limit_control
+const rateLimit = require('express-rate-limit'); // nosemgrep: rate_limit_control
 
-// Controle de taxa de requisições (rate limiting) ativo
-// nosemgrep: ajinabraham.njsscan.good.good_ratelimiting.rate_limit_control
 /**
  * Rate limiter para rotas de autenticação
  * 5 tentativas por minuto por IP

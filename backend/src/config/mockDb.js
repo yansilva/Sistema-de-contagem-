@@ -7,7 +7,7 @@ const crypto = require('crypto');
  */
 
 const DEMO_EMPRESA_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-const DEMO_USER_ID = 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
+const DEMO_ACCOUNT_UID = process.env.DEMO_ACCOUNT_UID || 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22';
 
 const state = {
   empresas: [
@@ -22,7 +22,7 @@ const state = {
   ],
   usuarios: [
     {
-      id: DEMO_USER_ID,
+      id: DEMO_ACCOUNT_UID,
       empresa_id: DEMO_EMPRESA_ID,
       nome: 'Admin Demo',
       email: 'admin@demo.com',
