@@ -159,9 +159,9 @@ docker compose logs -f api
 ```
 
 Acesse no navegador:
-- **Aplicação:** [http://localhost:3001](http://localhost:3001)
-- **Documentação Swagger:** [http://localhost:3001/api/docs](http://localhost:3001/api/docs)
-- **Healthcheck:** [http://localhost:3001/health](http://localhost:3001/health)
+- **Aplicação:** [http://localhost:3002](http://localhost:3002)
+- **Documentação Swagger:** [http://localhost:3002/api/docs](http://localhost:3002/api/docs)
+- **Healthcheck:** [http://localhost:3002/health](http://localhost:3002/health)
 
 ---
 
@@ -211,7 +211,7 @@ npm run format
 ## 📖 Documentação da API (Swagger)
 
 A API possui documentação OpenAPI 3.0 navegável e testável diretamente pelo navegador em:
-👉 **`http://localhost:3001/api/docs`**
+👉 **`http://localhost:3002/api/docs`**
 
 ### Principais Endpoints
 

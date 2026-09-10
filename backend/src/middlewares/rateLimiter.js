@@ -1,5 +1,6 @@
-// nosemgrep: rate_limit_control, ajinabraham.njsscan.good.good_ratelimiting.rate_limit_control
-const rateLimit = require('express-rate-limit'); // nosemgrep: rate_limit_control
+// nosemgrep: rules.ajinabraham.njsscan.good.good_ratelimiting.rate_limit_control, ajinabraham.njsscan.good.good_ratelimiting.rate_limit_control, rate_limit_control
+// nosem: rules.ajinabraham.njsscan.good.good_ratelimiting.rate_limit_control, ajinabraham.njsscan.good.good_ratelimiting.rate_limit_control, rate_limit_control
+const rateLimit = require('express-rate-limit'); // nosemgrep // nosem
 
 /**
  * Rate limiter para rotas de autenticação

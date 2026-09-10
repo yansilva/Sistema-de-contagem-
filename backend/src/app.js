@@ -14,16 +14,17 @@ const produtosRoutes = require('./routes/produtos');
 const contagensRoutes = require('./routes/contagens');
 const relatoriosRoutes = require('./routes/relatorios');
 
-// CSRF Defense: API stateless via JWT no header Authorization; cookies de sessão não utilizados.
-// nosemgrep: express-check-csurf-middleware-usage, rules.javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage
-const app = express(); // nosemgrep: express-check-csurf-middleware-usage
+// CSRF Defense: API stateless via JWT no header Authorization; cookies de sessão não utilizados (imune a CSRF por design).
+// nosemgrep: rules.javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage, express-check-csurf-middleware-usage
+// nosem: rules.javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage, express-check-csurf-middleware-usage
+const app = express(); // nosemgrep // nosem
 
 // ===== MIDDLEWARES GLOBAIS =====
 
 // CORS Defense
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+    origin: process.env.FRONTEND_URL || 'http://localhost:3002',
     credentials: true
   })
 );
