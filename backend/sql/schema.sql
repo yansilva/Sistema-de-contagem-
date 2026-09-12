@@ -13,7 +13,7 @@ CREATE TABLE empresas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome VARCHAR(255) NOT NULL,
   email_contato VARCHAR(255) UNIQUE NOT NULL,
-  plano VARCHAR(50) DEFAULT 'trial' NOT NULL,
+  plano VARCHAR(50) DEFAULT 'ativo' NOT NULL,
   trial_expira_em TIMESTAMPTZ,
   criado_em TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT chk_empresas_plano CHECK (plano IN ('trial', 'ativo', 'suspenso'))
@@ -32,12 +32,16 @@ CREATE TABLE usuarios (
   email VARCHAR(255) UNIQUE NOT NULL,
   senha_hash VARCHAR(255) NOT NULL,
   papel VARCHAR(20) DEFAULT 'funcionario' NOT NULL,
+  ativo BOOLEAN DEFAULT TRUE NOT NULL,
+  must_change_password BOOLEAN DEFAULT FALSE NOT NULL,
   criado_em TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_usuarios_papel CHECK (papel IN ('gestor', 'funcionario', 'admin'))
+  atualizado_em TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT chk_usuarios_papel CHECK (papel IN ('administrador', 'funcionario', 'gestor', 'admin'))
 );
 
 CREATE INDEX idx_usuarios_empresa ON usuarios(empresa_id);
 CREATE INDEX idx_usuarios_email ON usuarios(email);
+CREATE INDEX idx_usuarios_empresa_ativo ON usuarios(empresa_id, ativo);
 
 -- =============================================
 -- Tabela: produtos
@@ -45,9 +49,10 @@ CREATE INDEX idx_usuarios_email ON usuarios(email);
 CREATE TABLE produtos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
-  codigo VARCHAR(100) NOT NULL,
+  codigo VARCHAR(100) NOT NULL, -- SKU do Tiny / Produto
   nome VARCHAR(255) NOT NULL,
-  fornecedor VARCHAR(255) NOT NULL,
+  fornecedor VARCHAR(255) NOT NULL, -- Produtor / Fornecedor
+  estoque_atual INTEGER DEFAULT 0 NOT NULL, -- Estoque atual importado do relatório Tiny
   ativo BOOLEAN DEFAULT TRUE NOT NULL,
   criado_em TIMESTAMPTZ DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ DEFAULT NOW(),
@@ -57,6 +62,25 @@ CREATE TABLE produtos (
 CREATE INDEX idx_produtos_empresa_ativo ON produtos(empresa_id, ativo);
 CREATE INDEX idx_produtos_empresa_fornecedor ON produtos(empresa_id, fornecedor) WHERE ativo = TRUE;
 CREATE INDEX idx_produtos_codigo ON produtos(empresa_id, codigo);
+
+-- =============================================
+-- Tabela: historico_importacao_estoque
+-- Auditoria de uploads de relatórios PDF do Tiny ERP
+-- =============================================
+CREATE TABLE historico_importacao_estoque (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
+  usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  nome_arquivo VARCHAR(255) NOT NULL,
+  produtos_encontrados INTEGER DEFAULT 0 NOT NULL,
+  produtos_atualizados INTEGER DEFAULT 0 NOT NULL,
+  skus_nao_encontrados JSONB DEFAULT '[]'::jsonb NOT NULL,
+  linhas_ignoradas INTEGER DEFAULT 0 NOT NULL,
+  status VARCHAR(50) DEFAULT 'concluido' NOT NULL,
+  criado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_historico_estoque_empresa ON historico_importacao_estoque(empresa_id, criado_em DESC);
 
 -- =============================================
 -- Tabela: contagens
@@ -69,7 +93,7 @@ CREATE TABLE contagens (
   finalizado_em TIMESTAMPTZ,
   tem_diferenca BOOLEAN DEFAULT FALSE NOT NULL,
   status VARCHAR(20) DEFAULT 'em_andamento' NOT NULL,
-  CONSTRAINT chk_contagens_status CHECK (status IN ('em_andamento', 'finalizada', 'cancelada'))
+  CONSTRAINT chk_contagens_status CHECK (status IN ('nao_iniciada', 'em_andamento', 'finalizada', 'cancelada'))
 );
 
 CREATE INDEX idx_contagens_empresa ON contagens(empresa_id);
@@ -93,6 +117,7 @@ CREATE INDEX idx_contagem_fornecedores_contagem ON contagem_fornecedores(contage
 
 -- =============================================
 -- Tabela: contagem_itens
+-- Contagem cega: estoque_referencia é snapshot interno
 -- =============================================
 CREATE TABLE contagem_itens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -100,14 +125,15 @@ CREATE TABLE contagem_itens (
   produto_id UUID REFERENCES produtos(id) ON DELETE SET NULL,
   codigo VARCHAR(100) NOT NULL,
   nome VARCHAR(255) NOT NULL,
-  qty_tiny INTEGER DEFAULT 0 NOT NULL,
-  qty_contagem INTEGER DEFAULT 0 NOT NULL,
-  diferenca INTEGER DEFAULT 0 NOT NULL,
-  sem_diferenca BOOLEAN DEFAULT TRUE NOT NULL
+  estoque_referencia INTEGER DEFAULT 0 NOT NULL, -- Snapshot imutável no momento da contagem
+  quantidade_contada INTEGER NULL, -- NULL = não contado; 0 = contado zero unidades
+  diferenca INTEGER NULL, -- quantidade_contada - estoque_referencia
+  situacao VARCHAR(30) NULL, -- 'sem_diferenca', 'sobra', 'falta'
+  contado_em TIMESTAMPTZ
 );
 
 CREATE INDEX idx_contagem_itens_fornecedor ON contagem_itens(contagem_fornecedor_id);
-CREATE INDEX idx_contagem_itens_diferenca ON contagem_itens(contagem_fornecedor_id, sem_diferenca);
+CREATE INDEX idx_contagem_itens_situacao ON contagem_itens(contagem_fornecedor_id, situacao);
 
 -- =============================================
 -- Tabela: refresh_tokens

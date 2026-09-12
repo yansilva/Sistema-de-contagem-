@@ -12,7 +12,7 @@ jest.mock('../src/config/db', () => ({
 
 const app = require('../src/app');
 
-describe('Autenticação & Refresh Token com Rotação', () => {
+describe('Autenticação, Onboarding & Refresh Token com Rotação', () => {
   const mockEmpresaId = '11111111-1111-1111-1111-111111111111';
   const mockUserId = '22222222-2222-2222-2222-222222222222';
   let mockSenhaHash;
@@ -26,7 +26,45 @@ describe('Autenticação & Refresh Token com Rotação', () => {
     jest.clearAllMocks();
   });
 
-  it('POST /api/auth/login — deve autenticar com sucesso e retornar tokens', async () => {
+  it('POST /api/auth/registro — deve realizar onboarding da empresa e do primeiro administrador', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [] }) // verifica se email usuario existe
+      .mockResolvedValueOnce({ rows: [] }) // verifica se email empresa existe
+      .mockResolvedValueOnce({
+        rows: [{ id: mockEmpresaId, nome: 'Empresa Teste Onboarding', plano: 'ativo' }]
+      }) // insere empresa
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: mockUserId,
+            nome: 'Administrador Silva',
+            email: 'admin@empresa.com',
+            papel: 'administrador',
+            ativo: true,
+            must_change_password: false
+          }
+        ]
+      }) // insere usuario
+      .mockResolvedValueOnce({ rows: [] }); // insere refresh token
+
+    const res = await request(app)
+      .post('/api/auth/registro')
+      .send({
+        empresa_nome: 'Empresa Teste Onboarding',
+        nome: 'Administrador Silva',
+        email: 'admin@empresa.com',
+        senha: 'SenhaForte@123'
+      });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('accessToken');
+    expect(res.body.data).toHaveProperty('refreshToken');
+    expect(res.body.data.usuario.papel).toBe('administrador');
+    expect(res.body.data.empresa.nome).toBe('Empresa Teste Onboarding');
+  });
+
+  it('POST /api/auth/login — deve autenticar com sucesso e retornar tokens e flag mustChangePassword', async () => {
     db.query
       .mockResolvedValueOnce({
         rows: [
@@ -35,7 +73,9 @@ describe('Autenticação & Refresh Token com Rotação', () => {
             nome: 'Gestor Teste',
             email: 'gestor@teste.com',
             senha_hash: mockSenhaHash,
-            papel: 'gestor',
+            papel: 'administrador',
+            ativo: true,
+            must_change_password: false,
             empresa_id: mockEmpresaId,
             empresa_nome: 'Empresa Teste',
             plano: 'ativo',
@@ -53,7 +93,35 @@ describe('Autenticação & Refresh Token com Rotação', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveProperty('accessToken');
     expect(res.body.data).toHaveProperty('refreshToken');
+    expect(res.body.data.mustChangePassword).toBe(false);
     expect(res.body.data.usuario.email).toBe('gestor@teste.com');
+  });
+
+  it('POST /api/auth/login — deve rejeitar senhas backdoor antigas (123456 ou AdminDemo)', async () => {
+    db.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: mockUserId,
+          nome: 'Gestor Teste',
+          email: 'gestor@teste.com',
+          senha_hash: mockSenhaHash, // hash de "SenhaForte@123"
+          papel: 'administrador',
+          ativo: true,
+          must_change_password: false,
+          empresa_id: mockEmpresaId,
+          empresa_nome: 'Empresa Teste',
+          plano: 'ativo'
+        }
+      ]
+    });
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'gestor@teste.com', senha: '123456' });
+
+    expect(res.statusCode).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe('CREDENCIAIS_INVALIDAS');
   });
 
   it('POST /api/auth/login — deve rejeitar credenciais inválidas', async () => {
@@ -78,31 +146,37 @@ describe('Autenticação & Refresh Token com Rotação', () => {
     expect(res.body.code).toBe('DADOS_INVALIDOS');
   });
 
-  it('GET /api/auth/guest — deve emitir token para a Loja Demo oficial', async () => {
+  it('POST /api/auth/login — deve rejeitar usuário desativado pelo administrador', async () => {
     db.query.mockResolvedValueOnce({
       rows: [
         {
-          id: mockEmpresaId,
-          nome: 'Loja Demo',
-          plano: 'trial'
+          id: mockUserId,
+          nome: 'Funcionario Desativado',
+          email: 'inativo@teste.com',
+          senha_hash: mockSenhaHash,
+          papel: 'funcionario',
+          ativo: false, // DESATIVADO
+          must_change_password: false,
+          empresa_id: mockEmpresaId,
+          empresa_nome: 'Empresa Teste',
+          plano: 'ativo'
         }
       ]
     });
 
-    const res = await request(app).get('/api/auth/guest');
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'inativo@teste.com', senha: 'SenhaForte@123' });
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data).toHaveProperty('accessToken');
-    expect(res.body.data.usuario.papel).toBe('funcionario');
-    expect(res.body.data.empresa.nome).toBe('Loja Demo');
+    expect(res.statusCode).toBe(401);
+    expect(res.body.success).toBe(false);
+    expect(res.body.code).toBe('USUARIO_DESATIVADO');
   });
 
   it('POST /api/auth/refresh — deve rotacionar refresh token e invalidar o anterior', async () => {
     const rawToken = 'teste_refresh_token_com_mais_de_dez_caracteres';
     const hash = hashToken(rawToken);
 
-    // 1. SELECT refresh_tokens
     db.query
       .mockResolvedValueOnce({
         rows: [
@@ -112,14 +186,13 @@ describe('Autenticação & Refresh Token com Rotação', () => {
             token_hash: hash,
             revogado: false,
             expira_em: new Date(Date.now() + 86400000).toISOString(),
-            empresa_id: mockEmpresaId
+            empresa_id: mockEmpresaId,
+            ativo: true
           }
         ]
       })
-      // 2. UPDATE refresh_tokens revogado = true
-      .mockResolvedValueOnce({ rows: [] })
-      // 3. INSERT new refresh token
-      .mockResolvedValueOnce({ rows: [] });
+      .mockResolvedValueOnce({ rows: [] }) // UPDATE revogado = true
+      .mockResolvedValueOnce({ rows: [] }); // INSERT novo token
 
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: rawToken });
 
@@ -127,7 +200,7 @@ describe('Autenticação & Refresh Token com Rotação', () => {
     expect(res.body.success).toBe(true);
     expect(res.body.data).toHaveProperty('accessToken');
     expect(res.body.data).toHaveProperty('refreshToken');
-    expect(res.body.data.refreshToken).not.toBe(rawToken); // novo token rotacionado!
+    expect(res.body.data.refreshToken).not.toBe(rawToken);
   });
 
   it('POST /api/auth/refresh — deve detectar reúso de token revogado e revogar sessões', async () => {
@@ -141,13 +214,12 @@ describe('Autenticação & Refresh Token com Rotação', () => {
             id: 'token-uuid-2',
             usuario_id: mockUserId,
             token_hash: hash,
-            revogado: true, // Token já havia sido revogado/usado!
+            revogado: true, // Token já revogado
             expira_em: new Date(Date.now() + 86400000).toISOString(),
             empresa_id: mockEmpresaId
           }
         ]
       })
-      // UPDATE all tokens to revoked
       .mockResolvedValueOnce({ rows: [] });
 
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: rawToken });

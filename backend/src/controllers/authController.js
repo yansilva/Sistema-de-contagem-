@@ -2,24 +2,27 @@ const bcrypt = require('bcryptjs');
 const { query } = require('../config/db');
 const { gerarAccessToken, gerarRefreshToken, hashToken } = require('../config/jwt');
 const { UnauthorizedError, NotFoundError } = require('../errors/AppError');
+const { registrar: registrarEmpresa } = require('./empresasController');
 
 const SALT_ROUNDS = 12;
 
 /**
  * POST /api/auth/login
  * Autentica email + senha, retorna tokens + dados do usuário e empresa
+ * SEM backdoors, SEM senhas demo padrão.
  */
 async function login(req, res, next) {
   try {
     const { email, senha } = req.body;
+    const emailNorm = email.toLowerCase().trim();
 
     const result = await query(
-      `SELECT u.id, u.nome, u.email, u.senha_hash, u.papel, u.empresa_id,
+      `SELECT u.id, u.nome, u.email, u.senha_hash, u.papel, u.ativo, u.must_change_password, u.empresa_id,
               e.nome AS empresa_nome, e.plano, e.trial_expira_em
        FROM usuarios u
        JOIN empresas e ON e.id = u.empresa_id
        WHERE u.email = $1`,
-      [email.toLowerCase().trim()]
+      [emailNorm]
     );
 
     if (result.rows.length === 0) {
@@ -27,10 +30,16 @@ async function login(req, res, next) {
     }
     const usuario = result.rows[0];
 
-    const senhaValida =
-      senha === '123456' ||
-      senha === 'AdminDemo@2026!' ||
-      (await bcrypt.compare(senha, usuario.senha_hash));
+    // Verificar se usuário está ativo
+    if (usuario.ativo === false) {
+      throw new UnauthorizedError(
+        'Este usuário foi desativado pelo administrador da empresa.',
+        'USUARIO_DESATIVADO'
+      );
+    }
+
+    // Validação estrita via bcrypt (SEM senhas padrão 123456 ou AdminDemo)
+    const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
 
     if (!senhaValida) {
       throw new UnauthorizedError('Credenciais inválidas.', 'CREDENCIAIS_INVALIDAS');
@@ -53,11 +62,14 @@ async function login(req, res, next) {
       data: {
         accessToken,
         refreshToken: rawRefreshToken,
+        mustChangePassword: Boolean(usuario.must_change_password),
         usuario: {
           id: usuario.id,
           nome: usuario.nome,
           email: usuario.email,
-          papel: usuario.papel
+          papel: usuario.papel,
+          ativo: usuario.ativo,
+          mustChangePassword: Boolean(usuario.must_change_password)
         },
         empresa: {
           id: usuario.empresa_id,
@@ -82,7 +94,7 @@ async function refresh(req, res, next) {
 
     const result = await query(
       `SELECT rt.id, rt.usuario_id, rt.revogado, rt.expira_em,
-              u.empresa_id, u.papel, u.nome, u.email
+              u.empresa_id, u.papel, u.nome, u.email, u.ativo, u.must_change_password
        FROM refresh_tokens rt
        JOIN usuarios u ON u.id = rt.usuario_id
        WHERE rt.token_hash = $1`,
@@ -104,6 +116,11 @@ async function refresh(req, res, next) {
         'Violação de segurança detectada: tentativa de reutilização de token. Todas as sessões foram invalidadas.',
         'SESSAO_COMPROMETIDA'
       );
+    }
+
+    // Verificar se usuário ainda está ativo
+    if (row.ativo === false) {
+      throw new UnauthorizedError('Usuário desativado.', 'USUARIO_DESATIVADO');
     }
 
     // Verificar se expirou
@@ -182,7 +199,9 @@ async function me(req, res, next) {
           id: req.usuario.id,
           nome: req.usuario.nome,
           email: req.usuario.email,
-          papel: req.usuario.papel
+          papel: req.usuario.papel,
+          ativo: req.usuario.ativo,
+          mustChangePassword: Boolean(req.usuario.must_change_password)
         },
         empresa: {
           id: req.usuario.empresa_id,
@@ -198,13 +217,13 @@ async function me(req, res, next) {
 
 /**
  * PUT /api/auth/senha
- * Altera a senha do usuário com verificação de senha atual e hash Bcrypt
+ * Altera a senha do usuário e desativa a flag must_change_password
  */
 async function alterarSenha(req, res, next) {
   try {
     const { senhaAtual, novaSenha } = req.body;
 
-    const result = await query('SELECT senha_hash FROM usuarios WHERE id = $1', [req.usuario.id]);
+    const result = await query('SELECT senha_hash, must_change_password FROM usuarios WHERE id = $1', [req.usuario.id]);
     if (result.rows.length === 0) {
       throw new NotFoundError('Usuário não encontrado.', 'USUARIO_NAO_ENCONTRADO');
     }
@@ -215,91 +234,27 @@ async function alterarSenha(req, res, next) {
     }
 
     const novoHash = await bcrypt.hash(novaSenha, SALT_ROUNDS);
-    await query('UPDATE usuarios SET senha_hash = $1, atualizado_em = NOW() WHERE id = $2', [
-      novoHash,
-      req.usuario.id
-    ]);
+    await query(
+      `UPDATE usuarios
+       SET senha_hash = $1, must_change_password = FALSE, atualizado_em = NOW()
+       WHERE id = $2`,
+      [novoHash, req.usuario.id]
+    );
 
     res.json({
       success: true,
-      message: 'Senha alterada com sucesso. Faça login novamente se necessário.'
+      message: 'Senha alterada com sucesso.'
     });
   } catch (err) {
     next(err);
   }
 }
 
-/**
- * GET /api/auth/guest
- * Emite token temporário seguro exclusivo para o ambiente sandbox da "Loja Demo"
- */
-async function guest(req, res, next) {
-  try {
-    let empresa = {
-      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-      nome: 'Loja Demo',
-      plano: 'trial'
-    };
-
-    try {
-      // Busca exclusivamente a empresa demo oficial
-      let result = await query(
-        `SELECT id, nome, plano FROM empresas WHERE email_contato = 'contato@lojademo.com'`
-      );
-
-      // Se não existir, tenta encontrar por nome ou cria a sandbox demo
-      if (result.rows.length === 0) {
-        result = await query(
-          `SELECT id, nome, plano FROM empresas WHERE nome = 'Loja Demo' LIMIT 1`
-        );
-      }
-
-      if (result.rows.length === 0) {
-        // Criar sandbox demo caso o seed ainda não tenha sido executado
-        const trialExpira = new Date();
-        trialExpira.setDate(trialExpira.getDate() + 30);
-        const novaEmpresa = await query(
-          `INSERT INTO empresas (nome, email_contato, plano, trial_expira_em)
-           VALUES ('Loja Demo', 'contato@lojademo.com', 'trial', $1)
-           RETURNING id, nome, plano`,
-          [trialExpira]
-        );
-        if (novaEmpresa && novaEmpresa.rows.length > 0) {
-          empresa = novaEmpresa.rows[0];
-        }
-      } else {
-        empresa = result.rows[0];
-      }
-    } catch (dbErr) {
-      console.warn('[AUTH] Sandbox demo fallback ativado:', dbErr.message);
-    }
-
-    const guestId = '00000000-0000-0000-0000-000000000000';
-    const accessToken = gerarAccessToken({
-      id: guestId,
-      empresa_id: empresa.id
-    });
-
-    res.json({
-      success: true,
-      data: {
-        accessToken,
-        usuario: {
-          id: guestId,
-          nome: 'Convidado (Demonstração)',
-          email: 'guest@lojademo.com',
-          papel: 'funcionario'
-        },
-        empresa: {
-          id: empresa.id,
-          nome: empresa.nome,
-          plano: empresa.plano
-        }
-      }
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-module.exports = { login, refresh, logout, me, alterarSenha, guest };
+module.exports = {
+  login,
+  refresh,
+  logout,
+  me,
+  alterarSenha,
+  registro: registrarEmpresa
+};

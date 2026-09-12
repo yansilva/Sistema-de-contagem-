@@ -35,7 +35,7 @@ async function listar(req, res, next) {
       `SELECT COUNT(*)::int AS total FROM produtos ${whereClauses}`,
       params
     );
-    const total = countResult.rows[0].total;
+    const total = countResult.rows[0]?.total || 0;
     const totalPages = Math.ceil(total / limit) || 1;
 
     // Ordenação segura
@@ -43,6 +43,7 @@ async function listar(req, res, next) {
       nome: 'nome',
       codigo: 'codigo',
       fornecedor: 'fornecedor',
+      estoque_atual: 'estoque_atual',
       criado_em: 'criado_em'
     };
     const sortCol = sortFieldMap[sort] || 'fornecedor';
@@ -50,7 +51,7 @@ async function listar(req, res, next) {
 
     params.push(limit, offset);
     const sql = `
-      SELECT id, codigo, nome, fornecedor, criado_em, atualizado_em
+      SELECT id, codigo, nome, fornecedor, estoque_atual, criado_em, atualizado_em
       FROM produtos
       ${whereClauses}
       ORDER BY ${sortCol} ${sortDir}, codigo ASC
@@ -78,7 +79,7 @@ async function listar(req, res, next) {
 
 /**
  * GET /api/produtos/fornecedores
- * Lista fornecedores únicos da empresa com produtos ativos
+ * Lista fornecedores / produtores únicos da empresa com produtos ativos
  */
 async function listarFornecedores(req, res, next) {
   try {
@@ -103,17 +104,17 @@ async function listarFornecedores(req, res, next) {
 
 /**
  * POST /api/produtos
- * Cria um produto (gestor only)
+ * Cria um produto (administrador only)
  */
 async function criar(req, res, next) {
   try {
-    const { codigo, nome, fornecedor } = req.body;
+    const { codigo, nome, fornecedor, estoque_atual = 0 } = req.body;
 
     const result = await query(
-      `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id, codigo, nome, fornecedor, criado_em, atualizado_em`,
-      [req.empresaId, codigo.trim(), nome.trim(), fornecedor.trim()]
+      `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, codigo, nome, fornecedor, estoque_atual, criado_em, atualizado_em`,
+      [req.empresaId, codigo.trim(), nome.trim(), fornecedor.trim(), parseInt(estoque_atual, 10) || 0]
     );
 
     res.status(201).json({
@@ -127,7 +128,7 @@ async function criar(req, res, next) {
     if (err.code === '23505') {
       return next(
         new ConflictError(
-          'Já existe um produto ativo com este código na sua empresa.',
+          'Já existe um produto com este código/SKU na sua empresa.',
           'CODIGO_DUPLICADO'
         )
       );
@@ -138,23 +139,47 @@ async function criar(req, res, next) {
 
 /**
  * PUT /api/produtos/:id
- * Edita um produto (gestor only)
+ * Edita um produto (administrador only)
  */
 async function editar(req, res, next) {
   try {
     const { id } = req.params;
-    const { codigo, nome, fornecedor } = req.body;
+    const { codigo, nome, fornecedor, estoque_atual } = req.body;
 
-    const result = await query(
-      `UPDATE produtos
-       SET codigo = COALESCE($1, codigo),
-           nome = COALESCE($2, nome),
-           fornecedor = COALESCE($3, fornecedor),
-           atualizado_em = NOW()
-       WHERE id = $4 AND empresa_id = $5 AND ativo = TRUE
-       RETURNING id, codigo, nome, fornecedor, atualizado_em`,
-      [codigo?.trim(), nome?.trim(), fornecedor?.trim(), id, req.empresaId]
-    );
+    const updates = [];
+    const params = [id, req.empresaId];
+
+    if (codigo !== undefined && codigo.trim()) {
+      params.push(codigo.trim());
+      updates.push(`codigo = $${params.length}`);
+    }
+    if (nome !== undefined && nome.trim()) {
+      params.push(nome.trim());
+      updates.push(`nome = $${params.length}`);
+    }
+    if (fornecedor !== undefined && fornecedor.trim()) {
+      params.push(fornecedor.trim());
+      updates.push(`fornecedor = $${params.length}`);
+    }
+    if (estoque_atual !== undefined) {
+      params.push(parseInt(estoque_atual, 10) || 0);
+      updates.push(`estoque_atual = $${params.length}`);
+    }
+
+    if (updates.length === 0) {
+      return res.json({ success: true, message: 'Nenhuma alteração enviada.' });
+    }
+
+    updates.push('atualizado_em = NOW()');
+
+    const sql = `
+      UPDATE produtos
+      SET ${updates.join(', ')}
+      WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
+      RETURNING id, codigo, nome, fornecedor, estoque_atual, atualizado_em
+    `;
+
+    const result = await query(sql, params);
 
     if (result.rows.length === 0) {
       throw new NotFoundError('Produto não encontrado ou inativo.', 'PRODUTO_NAO_ENCONTRADO');
@@ -170,7 +195,7 @@ async function editar(req, res, next) {
   } catch (err) {
     if (err.code === '23505') {
       return next(
-        new ConflictError('Já existe outro produto cadastrado com este código.', 'CODIGO_DUPLICADO')
+        new ConflictError('Já existe outro produto cadastrado com este código/SKU.', 'CODIGO_DUPLICADO')
       );
     }
     next(err);
@@ -179,7 +204,7 @@ async function editar(req, res, next) {
 
 /**
  * DELETE /api/produtos/:id
- * Soft delete — desativa o produto (gestor only)
+ * Soft delete — desativa o produto (administrador only)
  */
 async function desativar(req, res, next) {
   try {
@@ -208,9 +233,7 @@ async function desativar(req, res, next) {
 
 /**
  * POST /api/produtos/importar
- * Importa catálogo de produtos com transação segura e modos:
- * - 'mesclar' (padrão): atualiza existentes e adiciona novos
- * - 'substituir': desativa o catálogo anterior e importa apenas os novos
+ * Importa catálogo de produtos com transação segura
  */
 async function importar(req, res, next) {
   const client = await getClient();
@@ -230,14 +253,15 @@ async function importar(req, res, next) {
     let processados = 0;
     for (const p of produtos) {
       await client.query(
-        `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, ativo, atualizado_em)
-         VALUES ($1, $2, $3, $4, TRUE, NOW())
+        `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual, ativo, atualizado_em)
+         VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
          ON CONFLICT (empresa_id, codigo) DO UPDATE SET
            nome = EXCLUDED.nome,
            fornecedor = EXCLUDED.fornecedor,
+           estoque_atual = COALESCE(EXCLUDED.estoque_atual, produtos.estoque_atual),
            ativo = TRUE,
            atualizado_em = NOW()`,
-        [req.empresaId, p.codigo.trim(), p.nome.trim(), p.fornecedor.trim()]
+        [req.empresaId, p.codigo.trim(), p.nome.trim(), p.fornecedor.trim(), p.estoque_atual || 0]
       );
       processados++;
     }

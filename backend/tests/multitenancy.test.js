@@ -19,6 +19,7 @@ describe('Segurança Multi-Tenant e Isolamento de Dados', () => {
   let tokenEmpresaA;
 
   beforeAll(() => {
+    process.env.JWT_SECRET = 'segredo_de_teste_super_seguro_1234567890';
     tokenEmpresaA = gerarAccessToken({
       id: userA_Id,
       empresa_id: empresaA_Id
@@ -36,9 +37,11 @@ describe('Segurança Multi-Tenant e Isolamento de Dados', () => {
         rows: [
           {
             id: userA_Id,
-            nome: 'Gestor A',
-            email: 'gestora@empresa.com',
-            papel: 'gestor',
+            nome: 'Administrador A',
+            email: 'admina@empresa.com',
+            papel: 'administrador',
+            ativo: true,
+            must_change_password: false,
             empresa_id: empresaA_Id,
             empresa_nome: 'Empresa A',
             plano: 'ativo',
@@ -46,7 +49,7 @@ describe('Segurança Multi-Tenant e Isolamento de Dados', () => {
           }
         ]
       })
-      // 2. UPDATE produtos WHERE id = produtoB_Id AND empresa_id = empresaA_Id
+      // 2. UPDATE produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
       // Retorna 0 linhas porque o produto pertence à Empresa B!
       .mockResolvedValueOnce({ rows: [] });
 
@@ -61,7 +64,7 @@ describe('Segurança Multi-Tenant e Isolamento de Dados', () => {
 
     // Verifica que a query executada no banco de dados filtrou ESTRITAMENTE pela Empresa A
     const updateCall = db.query.mock.calls[1];
-    expect(updateCall[0]).toContain('empresa_id = $5');
+    expect(updateCall[0]).toContain('empresa_id = $2');
     expect(updateCall[1]).toContain(empresaA_Id); // A cláusula foi forçada pelo token JWT, não pelo usuário!
   });
 
@@ -71,9 +74,11 @@ describe('Segurança Multi-Tenant e Isolamento de Dados', () => {
         rows: [
           {
             id: userA_Id,
-            nome: 'Gestor A',
-            email: 'gestora@empresa.com',
-            papel: 'gestor',
+            nome: 'Administrador A',
+            email: 'admina@empresa.com',
+            papel: 'administrador',
+            ativo: true,
+            must_change_password: false,
             empresa_id: empresaA_Id,
             empresa_nome: 'Empresa A',
             plano: 'ativo'

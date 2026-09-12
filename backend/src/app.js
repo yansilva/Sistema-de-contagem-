@@ -10,7 +10,9 @@ const { pool } = require('./config/db');
 // Rotas
 const authRoutes = require('./routes/auth');
 const empresasRoutes = require('./routes/empresas');
+const usuariosRoutes = require('./routes/usuarios');
 const produtosRoutes = require('./routes/produtos');
+const estoqueRoutes = require('./routes/estoque');
 const contagensRoutes = require('./routes/contagens');
 const relatoriosRoutes = require('./routes/relatorios');
 
@@ -83,7 +85,9 @@ app.get('/api/health', healthHandler);
 // ===== ROTAS DA API =====
 app.use('/api/auth', authRoutes);
 app.use('/api/empresas', empresasRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/produtos', produtosRoutes);
+app.use('/api/estoque', estoqueRoutes);
 app.use('/api/contagens', contagensRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 

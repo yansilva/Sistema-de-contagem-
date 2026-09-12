@@ -1,330 +1,324 @@
 /**
- * Módulo de Execução de Contagem de Estoque e Conciliação
+ * Módulo de Execução de Contagem Cega de Estoque e Conciliação
+ *
+ * REGRAS INEGOCIÁVEIS:
+ * 1. Durante a contagem: funcionário NUNCA vê estoque Tiny, referência ou diferenças.
+ * 2. Diferenciação de NULL (não contado) vs 0 (contado zero unidades fisicamente).
+ * 3. Após finalização:
+ *    - Funcionário vê SOMENTE produto, quantidade contada, diferença e situação.
+ *    - Administrador visualiza auditoria completa com estoque de referência.
  */
 const Contagens = {
   contagemId: null,
   fornecedoresLista: [],
   fornecedorAtual: null,
   itensFornecedor: [],
-  fornecedoresContadosSessao: [],
-  contagemTeveDiferencaGlobal: false,
+  produtoresConcluidos: new Set(),
+  dadosSessao: null,
 
   /**
-   * Inicia uma nova sessão de contagem
+   * Inicia uma nova sessão de contagem cega com snapshot do estoque atual
    */
   async iniciarNovaSessao() {
     this.contagemId = null;
     this.fornecedorAtual = null;
     this.itensFornecedor = [];
-    this.fornecedoresContadosSessao = [];
-    this.contagemTeveDiferencaGlobal = false;
+    this.produtoresConcluidos.clear();
+    this.dadosSessao = null;
 
-    // Inicia contagem no backend
     const res = await API.post('/contagens', {});
-    if (res && res.success && res.data?.contagem) {
-      this.contagemId = res.data.contagem.id;
-    } else {
-      showToast('Falha ao iniciar contagem no servidor.', 'error');
+    if (!res || !res.success || !res.data?.contagem) {
+      showToast(res?.message || 'Falha ao iniciar contagem no servidor.', 'error');
       return;
     }
 
-    // Carrega fornecedores disponíveis
-    await this.carregarFornecedores();
+    this.contagemId = res.data.contagem.id;
+    await this.carregarDadosContagem();
 
-    this.limparFormulario();
-    this.renderizarFornecedoresContados();
+    showToast('Sessão de contagem cega iniciada. O estoque de referência foi congelado.', 'info');
     showScreen('screen-contagem');
   },
 
   /**
-   * Busca fornecedores únicos com produtos cadastrados
+   * Carrega os dados da contagem em andamento
    */
-  async carregarFornecedores() {
-    const res = await API.get('/produtos/fornecedores');
-    if (res && res.success && res.data?.fornecedores) {
-      this.fornecedoresLista = res.data.fornecedores;
-    } else {
-      this.fornecedoresLista = [];
-    }
-  },
+  async carregarDadosContagem() {
+    if (!this.contagemId) return;
 
-  /**
-   * Filtra fornecedores para sugestão ao digitar
-   */
-  filtrarSugestoes(termo) {
-    const box = document.getElementById('sugestoes-fornecedor');
-    if (!box) return;
+    const res = await API.get(`/contagens/${this.contagemId}`);
+    if (!res || !res.success || !res.data?.contagem) return;
 
-    const texto = termo.trim().toLowerCase();
-    if (!texto) {
-      box.classList.remove('show');
-      return;
-    }
+    this.dadosSessao = res.data.contagem;
+    this.fornecedoresLista = (this.dadosSessao.fornecedores || []).map((f) => f.fornecedor);
 
-    const disponiveis = this.fornecedoresLista.filter(
-      f => f.toLowerCase().includes(texto) && !this.fornecedoresContadosSessao.includes(f)
-    );
-
-    if (disponiveis.length === 0) {
-      box.innerHTML = '<div style="padding:10px 14px; color:var(--cor-texto-mudo); font-size:.85rem">Nenhum fornecedor encontrado ou já contado.</div>';
-      box.classList.add('show');
-      return;
-    }
-
-    box.innerHTML = disponiveis.map(f => `
-      <div class="sugestao-item" onclick="Contagens.selecionarFornecedor('${escapeHtml(f)}')">
-        <i class="ti ti-truck"></i> ${escapeHtml(f)}
-      </div>
-    `).join('');
-    box.classList.add('show');
-  },
-
-  /**
-   * Seleciona fornecedor e carrega seus produtos para contagem
-   */
-  async selecionarFornecedor(fornecedor) {
-    this.fornecedorAtual = fornecedor;
-    const inputBusca = document.getElementById('busca-fornecedor');
-    if (inputBusca) inputBusca.value = fornecedor;
-
-    const box = document.getElementById('sugestoes-fornecedor');
-    if (box) box.classList.remove('show');
-
-    // Carregar produtos deste fornecedor
-    const res = await API.get(`/produtos?fornecedor=${encodeURIComponent(fornecedor)}&limit=100`);
-    const bloco = document.getElementById('bloco-produtos');
-    const container = document.getElementById('lista-produtos-contagem');
-    const checkSemDif = document.getElementById('check-sem-diferenca');
-
-    if (!res || !res.success || !res.data?.produtos || res.data.produtos.length === 0) {
-      showToast(`Nenhum produto cadastrado para ${fornecedor}.`, 'error');
-      if (bloco) bloco.classList.remove('show');
-      return;
-    }
-
-    this.itensFornecedor = res.data.produtos.map(p => ({
-      produto_id: p.id,
-      codigo: p.codigo,
-      nome: p.nome,
-      qty_tiny: 0,
-      qty_contagem: 0,
-      diferenca: 0,
-      sem_diferenca: true
-    }));
-
-    if (checkSemDif) {
-      checkSemDif.checked = true;
-      document.getElementById('row-sem-dif')?.classList.remove('com-dif');
-    }
-
-    this.renderizarItensContagem();
-    if (bloco) bloco.classList.add('show');
-  },
-
-  /**
-   * Alterna modo sem diferença global para o fornecedor
-   */
-  toggleSemDiferenca(checked) {
-    const row = document.getElementById('row-sem-dif');
-    if (row) {
-      if (checked) row.classList.remove('com-dif');
-      else row.classList.add('com-dif');
-    }
-
-    this.itensFornecedor.forEach(item => {
-      item.sem_diferenca = checked;
-    });
-
-    const camposList = document.querySelectorAll('.produto-campos');
-    camposList.forEach(c => {
-      if (checked) c.classList.add('hidden');
-      else c.classList.remove('hidden');
-    });
-  },
-
-  /**
-   * Renderiza a lista de produtos com campos de quantidade
-   */
-  renderizarItensContagem() {
-    const container = document.getElementById('lista-produtos-contagem');
-    if (!container) return;
-
-    const semDifGlobal = document.getElementById('check-sem-diferenca')?.checked ?? true;
-
-    container.innerHTML = this.itensFornecedor.map((p, index) => `
-      <div class="produto-item" id="item-contagem-${index}">
-        <div class="produto-header">
-          <div>
-            <div class="produto-nome">${escapeHtml(p.nome)}</div>
-            <div class="produto-codigo">SKU: ${escapeHtml(p.codigo)}</div>
-          </div>
-        </div>
-        <div class="produto-campos ${semDifGlobal ? 'hidden' : ''}">
-          <div class="form-group" style="margin-bottom:0">
-            <div class="campo-label">Saldo Sistema (Tiny)</div>
-            <input type="number" value="${p.qty_tiny}" min="0"
-                   oninput="Contagens.atualizarQtd(${index}, 'qty_tiny', this.value)">
-          </div>
-          <div class="form-group" style="margin-bottom:0">
-            <div class="campo-label">Contagem Física</div>
-            <input type="number" value="${p.qty_contagem}" min="0"
-                   oninput="Contagens.atualizarQtd(${index}, 'qty_contagem', this.value)">
-          </div>
-          <div class="diff-badge ${this.getBadgeClass(p.diferenca)}" id="badge-diff-${index}">
-            ${p.diferenca > 0 ? '+' : ''}${p.diferenca}
-          </div>
-        </div>
-      </div>
-    `).join('');
-  },
-
-  getBadgeClass(diff) {
-    if (diff < 0) return 'badge-danger';
-    if (diff > 0) return 'badge-success';
-    return 'badge-neutral';
-  },
-
-  /**
-   * Atualiza quantidades e recalcula diferença em tempo real
-   */
-  atualizarQtd(index, campo, valor) {
-    const num = parseInt(valor, 10) || 0;
-    this.itensFornecedor[index][campo] = num;
-
-    const diff = this.itensFornecedor[index].qty_contagem - this.itensFornecedor[index].qty_tiny;
-    this.itensFornecedor[index].diferenca = diff;
-    this.itensFornecedor[index].sem_diferenca = (diff === 0);
-
-    const badge = document.getElementById(`badge-diff-${index}`);
-    if (badge) {
-      badge.className = `diff-badge ${this.getBadgeClass(diff)}`;
-      badge.textContent = `${diff > 0 ? '+' : ''}${diff}`;
-    }
-  },
-
-  /**
-   * Salva contagem do fornecedor atual no backend
-   */
-  async salvarFornecedor() {
-    if (!this.fornecedorAtual) {
-      showToast('Selecione um fornecedor para registrar.', 'error');
-      return;
-    }
-
-    const semDifGlobal = document.getElementById('check-sem-diferenca')?.checked ?? true;
-    let temDiferenca = false;
-
-    if (!semDifGlobal) {
-      temDiferenca = this.itensFornecedor.some(i => i.diferenca !== 0);
-    } else {
-      // Sem divergência: zera todas as diferenças
-      this.itensFornecedor.forEach(i => {
-        i.diferenca = 0;
-        i.sem_diferenca = true;
-      });
-    }
-
-    if (temDiferenca) {
-      this.contagemTeveDiferencaGlobal = true;
-    }
-
-    const btn = document.getElementById('btn-salvar-fornecedor');
-    if (btn) btn.disabled = true;
-
-    try {
-      const res = await API.post(`/contagens/${this.contagemId}/fornecedor`, {
-        fornecedor: this.fornecedorAtual,
-        tem_diferenca: temDiferenca,
-        produtos: this.itensFornecedor
-      });
-
-      if (!res || !res.success) {
-        showToast(res?.message || 'Erro ao registrar fornecedor.', 'error');
-        return;
+    // Mapeia produtores que já possuem itens contados
+    this.produtoresConcluidos.clear();
+    (this.dadosSessao.fornecedores || []).forEach((f) => {
+      const todosContados = (f.produtos || []).length > 0 &&
+        (f.produtos || []).every((p) => p.quantidade_contada !== null && p.quantidade_contada !== undefined);
+      if (todosContados) {
+        this.produtoresConcluidos.add(f.fornecedor);
       }
+    });
 
-      this.fornecedoresContadosSessao.push(this.fornecedorAtual);
-      showToast(`Fornecedor ${this.fornecedorAtual} registrado com sucesso!`, 'success');
+    this.atualizarBarraProgresso();
+    this.renderizarListaProdutores();
 
-      this.limparFormulario();
-      this.renderizarFornecedoresContados();
-    } catch (err) {
-      showToast('Falha na comunicação com o servidor.', 'error');
-    } finally {
-      if (btn) btn.disabled = false;
+    if (this.fornecedorAtual) {
+      this.selecionarFornecedor(this.fornecedorAtual);
     }
   },
 
-  limparFormulario() {
-    this.fornecedorAtual = null;
-    this.itensFornecedor = [];
-    const input = document.getElementById('busca-fornecedor');
-    if (input) input.value = '';
-    const bloco = document.getElementById('bloco-produtos');
-    if (bloco) bloco.classList.remove('show');
-  },
-
   /**
-   * Renderiza chips de fornecedores já contados na sessão
+   * Atualiza indicador de progresso global da contagem
    */
-  renderizarFornecedoresContados() {
-    const container = document.getElementById('lista-fornecedores-contados');
-    const totalEl = document.getElementById('total-fornecedores-contados');
+  atualizarBarraProgresso() {
+    if (!this.dadosSessao) return;
+
+    let totalProdutos = 0;
+    let totalContados = 0;
+
+    (this.dadosSessao.fornecedores || []).forEach((f) => {
+      (f.produtos || []).forEach((p) => {
+        totalProdutos++;
+        if (p.quantidade_contada !== null && p.quantidade_contada !== undefined) {
+          totalContados++;
+        }
+      });
+    });
+
+    const progressoTexto = document.getElementById('progresso-contagem-texto');
+    const progressoBarra = document.getElementById('progresso-contagem-barra');
     const btnFinalizar = document.getElementById('btn-finalizar-contagem');
 
-    if (totalEl) totalEl.textContent = this.fornecedoresContadosSessao.length;
-
-    if (!container) return;
-
-    if (this.fornecedoresContadosSessao.length === 0) {
-      container.innerHTML = '<div style="color:var(--cor-texto-mudo); font-size:.85rem">Nenhum fornecedor contado até o momento nesta sessão.</div>';
-      if (btnFinalizar) btnFinalizar.disabled = true;
-      return;
+    if (progressoTexto) {
+      progressoTexto.textContent = `${totalContados} de ${totalProdutos} produtos contados`;
     }
 
-    if (btnFinalizar) btnFinalizar.disabled = false;
+    if (progressoBarra) {
+      const perc = totalProdutos > 0 ? Math.round((totalContados / totalProdutos) * 100) : 0;
+      progressoBarra.style.width = `${perc}%`;
+    }
 
-    container.innerHTML = this.fornecedoresContadosSessao.map(f => `
-      <div class="fornecedor-contado">
-        <i class="ti ti-circle-check" style="color:var(--cor-sucesso)"></i>
-        <span class="nome">${escapeHtml(f)}</span>
-        <span class="badge badge-success">Contado</span>
-      </div>
-    `).join('');
+    if (btnFinalizar) {
+      btnFinalizar.disabled = totalContados === 0;
+    }
   },
 
   /**
-   * Finaliza sessão completa de contagem e abre tela de resultado
+   * Renderiza os cartões de produtores disponíveis na contagem
    */
-  async finalizarSessao() {
-    if (this.fornecedoresContadosSessao.length === 0) {
-      showToast('Registre ao menos um fornecedor antes de finalizar.', 'error');
+  renderizarListaProdutores() {
+    const container = document.getElementById('lista-produtores-cards');
+    if (!container || !this.dadosSessao) return;
+
+    const cards = (this.dadosSessao.fornecedores || []).map((f) => {
+      const isAtivo = this.fornecedorAtual === f.fornecedor;
+      const total = f.produtos?.length || 0;
+      const contados = f.produtos?.filter((p) => p.quantidade_contada !== null && p.quantidade_contada !== undefined).length || 0;
+      const concluido = total > 0 && contados === total;
+
+      const badge = concluido
+        ? '<span class="badge badge-sucesso"><i class="ti ti-check"></i> Concluído</span>'
+        : (contados > 0 ? `<span class="badge badge-warning">${contados}/${total} contados</span>` : '<span class="badge badge-neutro">Não iniciado</span>');
+
+      return `
+        <div class="quick-card ${isAtivo ? 'selected' : ''}" style="cursor:pointer; padding:14px; border:2px solid ${isAtivo ? 'var(--cor-primaria)' : 'var(--cor-borda)'}" onclick="Contagens.selecionarFornecedor('${escapeHtml(f.fornecedor)}')">
+          <div style="display:flex; justify-content:space-between; align-items:center">
+            <h4 style="margin:0; font-size:1rem"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
+            ${badge}
+          </div>
+          <p style="margin:6px 0 0 0; font-size:0.8rem; color:var(--cor-texto-mutado)">${contados} de ${total} produtos com contagem física registrada</p>
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = cards;
+  },
+
+  /**
+   * Seleciona um produtor e exibe seus produtos para contagem cega
+   */
+  selecionarFornecedor(fornecedor) {
+    this.fornecedorAtual = fornecedor;
+    const bloco = document.getElementById('bloco-produtos-contagem');
+    const titulo = document.getElementById('titulo-produtor-ativo');
+
+    if (titulo) titulo.textContent = fornecedor;
+
+    const fornObj = (this.dadosSessao?.fornecedores || []).find((f) => f.fornecedor === fornecedor);
+    if (!fornObj || !fornObj.produtos || fornObj.produtos.length === 0) {
+      if (bloco) bloco.style.display = 'none';
       return;
     }
 
-    if (!confirm('Deseja realmente finalizar esta sessão de contagem de estoque?')) return;
+    this.itensFornecedor = fornObj.produtos.map((p) => ({
+      id: p.id,
+      produto_id: p.produto_id,
+      codigo: p.codigo,
+      nome: p.nome,
+      // Distinção: valor original pode ser null ou número
+      quantidade_contada: p.quantidade_contada !== undefined ? p.quantidade_contada : null
+    }));
+
+    this.renderizarItensContagem();
+    this.renderizarListaProdutores();
+    if (bloco) bloco.style.display = 'block';
+  },
+
+  /**
+   * Renderiza a lista de produtos do produtor selecionado (CONTAGEM CEGA)
+   * NUNCA renderiza saldo do sistema, referência ou diferenças!
+   */
+  renderizarItensContagem() {
+    const container = document.getElementById('lista-produtos-produtor');
+    if (!container) return;
+
+    container.innerHTML = this.itensFornecedor.map((p, index) => {
+      const valorInput = p.quantidade_contada !== null && p.quantidade_contada !== undefined
+        ? p.quantidade_contada
+        : '';
+
+      const statusItem = p.quantidade_contada !== null && p.quantidade_contada !== undefined
+        ? `<span class="badge badge-sucesso"><i class="ti ti-check"></i> ${p.quantidade_contada} un</span>`
+        : '<span class="badge badge-neutro">Pendente</span>';
+
+      return `
+        <div class="produto-item" id="item-contagem-${index}" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--cor-borda)">
+          <div style="flex:1">
+            <div style="font-weight:700; font-size:1rem; color:var(--cor-texto)">${escapeHtml(p.nome)}</div>
+            <div style="font-size:0.8rem; color:var(--cor-texto-mutado)">SKU: <code>${escapeHtml(p.codigo)}</code> &bull; Produtor: <strong>${escapeHtml(this.fornecedorAtual)}</strong></div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:12px">
+            <div>${statusItem}</div>
+            <div style="width:130px">
+              <label style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mutado)">Qtd Física:</label>
+              <input type="number" min="0" step="1"
+                     placeholder="Não contado"
+                     value="${valorInput}"
+                     class="input-qtd-fisica"
+                     oninput="Contagens.atualizarQuantidadeItem(${index}, this.value)">
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  },
+
+  /**
+   * Atualiza a quantidade do item na memória
+   * Vazio = null (não contado)
+   * '0' ou número >= 0 = zero ou número contado
+   */
+  atualizarQuantidadeItem(index, valorStr) {
+    const limpo = valorStr.trim();
+    if (limpo === '') {
+      this.itensFornecedor[index].quantidade_contada = null;
+    } else {
+      const num = parseInt(limpo, 10);
+      this.itensFornecedor[index].quantidade_contada = isNaN(num) || num < 0 ? 0 : num;
+    }
+  },
+
+  /**
+   * Salva o progresso da contagem do produtor atual
+   */
+  async salvarProgressoAtual() {
+    if (!this.fornecedorAtual) return;
+
+    const btn = document.getElementById('btn-salvar-progresso-produtor');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Salvando...';
+    }
+
+    const payload = {
+      fornecedor: this.fornecedorAtual,
+      itens: this.itensFornecedor.map((p) => ({
+        produto_id: p.produto_id,
+        quantidade_contada: p.quantidade_contada
+      }))
+    };
+
+    const res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload);
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar Progresso Deste Produtor';
+    }
+
+    if (!res || !res.success) {
+      showToast(res?.message || 'Erro ao salvar progresso.', 'error');
+      return;
+    }
+
+    showToast(`Progresso salvo para ${this.fornecedorAtual}!`, 'success');
+    await this.carregarDadosContagem();
+  },
+
+  /**
+   * Finaliza a sessão de contagem cega
+   */
+  async finalizarSessao() {
+    if (!this.contagemId) return;
+
+    // Verificar se há itens não contados
+    let totalNaoContados = 0;
+    (this.dadosSessao?.fornecedores || []).forEach((f) => {
+      (f.produtos || []).forEach((p) => {
+        if (p.quantidade_contada === null || p.quantidade_contada === undefined) {
+          totalNaoContados++;
+        }
+      });
+    });
+
+    let confirmMsg = 'Deseja realmente finalizar esta contagem?';
+    if (totalNaoContados > 0) {
+      confirmMsg = `Atenção: existem ${totalNaoContados} produto(s) ainda não contados (ficarão registrados como 0 unidades).\n\nDeseja confirmar a finalização da contagem e apurar as diferenças?`;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    const btn = document.getElementById('btn-finalizar-contagem');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Finalizando e apurando...';
+    }
 
     const res = await API.put(`/contagens/${this.contagemId}/finalizar`, {});
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-flag-check"></i> Finalizar Contagem';
+    }
+
     if (!res || !res.success) {
       showToast(res?.message || 'Erro ao finalizar contagem.', 'error');
       return;
     }
 
-    showToast('Sessão de contagem finalizada com sucesso!', 'success');
-    this.exibirResultado();
+    showToast('Contagem finalizada! Diferenças calculadas.', 'success');
+    this.exibirResultado(this.contagemId);
   },
 
   /**
-   * Exibe tela de resultado com opção de exportar relatório Excel
+   * Exibe tela de resultados adaptada estritamente ao perfil do usuário
    */
-  async exibirResultado() {
-    const res = await API.get(`/contagens/${this.contagemId}`);
+  async exibirResultado(contagemId) {
+    const targetId = contagemId || this.contagemId;
+    if (!targetId) return;
+
+    const res = await API.get(`/contagens/${targetId}`);
     if (!res || !res.success || !res.data?.contagem) {
+      showToast('Não foi possível carregar os resultados da contagem.', 'error');
       showScreen('screen-home');
       return;
     }
 
     const c = res.data.contagem;
+    const isAdmin = Auth.usuario?.papel === 'administrador' || Auth.usuario?.papel === 'gestor' || Auth.usuario?.papel === 'admin';
+
     const cardEl = document.getElementById('resultado-status-card');
     const metricasEl = document.getElementById('resultado-metricas');
     const listaDivergenciasEl = document.getElementById('resultado-divergencias');
@@ -335,77 +329,106 @@ const Contagens = {
       cardEl.className = `resultado-card ${temDif ? 'erro' : 'sucesso'}`;
       cardEl.innerHTML = `
         <i class="ti ${temDif ? 'ti-alert-triangle' : 'ti-circle-check'}"></i>
-        <h2>${temDif ? 'Divergências Encontradas' : 'Estoque 100% Conciliado'}</h2>
+        <h2>${temDif ? 'Divergências Identificadas' : 'Estoque 100% Conciliado'}</h2>
         <p>${temDif
-          ? 'Foram identificadas divergências entre o saldo físico e o sistema.'
-          : 'Todos os itens contados conferem perfeitamente com os registros do sistema.'}
+          ? 'Foram identificadas sobras ou faltas físicas em relação ao estoque registrado.'
+          : 'A contagem física conferiu exatamente com o estoque registrado no sistema.'}
         </p>
-        ${temDif ? `
+        ${isAdmin ? `
           <button class="btn btn-primary" onclick="Contagens.baixarExcelDiferencas('${escapeHtml(c.id)}')">
-            <i class="ti ti-file-spreadsheet"></i> Baixar Relatório Excel (.xlsx)
+            <i class="ti ti-file-spreadsheet"></i> Exportar Relatório Excel (.xlsx)
           </button>
         ` : ''}
       `;
     }
 
-    // Métricas
-    const totalForn = c.fornecedores?.length || 0;
+    // Apuração das métricas
     let totalItens = 0;
-    let itensComDif = 0;
+    let totalFaltas = 0;
+    let totalSobras = 0;
+    let totalIguais = 0;
 
-    c.fornecedores?.forEach(f => {
-      totalItens += f.produtos?.length || 0;
-      itensComDif += f.produtos?.filter(p => !p.sem_diferenca && p.diferenca !== 0).length || 0;
+    (c.fornecedores || []).forEach((f) => {
+      (f.produtos || []).forEach((p) => {
+        totalItens++;
+        if (p.situacao === 'falta' || p.diferenca < 0) totalFaltas++;
+        else if (p.situacao === 'sobra' || p.diferenca > 0) totalSobras++;
+        else totalIguais++;
+      });
     });
 
     if (metricasEl) {
       metricasEl.innerHTML = `
         <div class="metrica">
-          <div class="metrica-valor">${totalForn}</div>
-          <div class="metrica-label">Fornecedores</div>
+          <div class="metrica-valor">${c.fornecedores?.length || 0}</div>
+          <div class="metrica-label">Produtores</div>
         </div>
         <div class="metrica">
           <div class="metrica-valor">${totalItens}</div>
-          <div class="metrica-label">Itens Verificados</div>
+          <div class="metrica-label">Itens Contados</div>
         </div>
         <div class="metrica">
-          <div class="metrica-valor" style="color:${temDif ? 'var(--cor-perigo)' : 'var(--cor-sucesso)'}">${itensComDif}</div>
-          <div class="metrica-label">Com Divergência</div>
+          <div class="metrica-valor" style="color:var(--cor-perigo)">${totalFaltas}</div>
+          <div class="metrica-label">Itens em Falta</div>
+        </div>
+        <div class="metrica">
+          <div class="metrica-valor" style="color:var(--cor-aviso)">${totalSobras}</div>
+          <div class="metrica-label">Itens com Sobra</div>
+        </div>
+        <div class="metrica">
+          <div class="metrica-valor" style="color:var(--cor-sucesso)">${totalIguais}</div>
+          <div class="metrica-label">Sem Diferença</div>
         </div>
       `;
     }
 
-    // Lista de fornecedores com divergência
+    // Renderização dos Itens (RESPEITANDO RBAC)
     if (listaDivergenciasEl) {
-      if (!temDif) {
-        listaDivergenciasEl.innerHTML = '';
-      } else {
-        listaDivergenciasEl.innerHTML = c.fornecedores
-          .filter(f => f.tem_diferenca)
-          .map(f => `
-            <div class="resultado-fornecedor">
-              <div class="resultado-fornecedor-header">
-                <i class="ti ti-truck" style="color:var(--cor-primaria)"></i>
-                <span>${escapeHtml(f.fornecedor)}</span>
+      const secoes = (c.fornecedores || []).map((f) => {
+        const produtosHtml = (f.produtos || []).map((p) => {
+          let badgeSituacao;
+          if (p.diferenca === 0 || p.situacao === 'sem_diferenca') {
+            badgeSituacao = '<span class="badge badge-sucesso"><i class="ti ti-check"></i> Sem diferença</span>';
+          } else if (p.diferenca > 0 || p.situacao === 'sobra') {
+            badgeSituacao = `<span class="badge badge-warning"><i class="ti ti-arrow-up"></i> Sobra de ${p.diferenca} un</span>`;
+          } else {
+            badgeSituacao = `<span class="badge badge-danger"><i class="ti ti-arrow-down"></i> Falta de ${Math.abs(p.diferenca)} un</span>`;
+          }
+
+          // Se for ADMINISTRADOR: mostra estoque de referência
+          // Se for FUNCIONÁRIO: NUNCA mostra estoque de referência
+          const colunaReferenciaAdmin = isAdmin
+            ? `<span>Estoque Ref: <strong>${p.estoque_referencia !== undefined ? p.estoque_referencia : '-'}</strong></span>`
+            : '';
+
+          return `
+            <div class="resultado-produto" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--cor-borda)">
+              <div class="info">
+                <strong>${escapeHtml(p.nome)}</strong>
+                <div style="font-size:0.8rem; color:var(--cor-texto-mutado)">SKU: <code>${escapeHtml(p.codigo)}</code></div>
               </div>
-              ${f.produtos.filter(p => !p.sem_diferenca && p.diferenca !== 0).map(p => `
-                <div class="resultado-produto">
-                  <div class="info">
-                    <strong>${escapeHtml(p.nome)}</strong>
-                    <div style="font-size:.75rem; color:var(--cor-texto-mudo)">Código: ${escapeHtml(p.codigo)}</div>
-                  </div>
-                  <div class="valores">
-                    <span>Tiny: ${p.qty_tiny}</span>
-                    <span>Contado: ${p.qty_contagem}</span>
-                    <span class="badge ${p.diferenca > 0 ? 'badge-success' : 'badge-danger'}">
-                      ${p.diferenca > 0 ? '+' : ''}${p.diferenca}
-                    </span>
-                  </div>
-                </div>
-              `).join('')}
+
+              <div class="valores" style="display:flex; align-items:center; gap:16px; font-size:0.875rem">
+                ${colunaReferenciaAdmin}
+                <span>Físico Contado: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
+                <div>${badgeSituacao}</div>
+              </div>
             </div>
-          `).join('');
-      }
+          `;
+        }).join('');
+
+        return `
+          <div class="resultado-fornecedor" style="margin-bottom:16px; border:1px solid var(--cor-borda); border-radius:8px; overflow:hidden">
+            <div class="resultado-fornecedor-header" style="background:var(--cor-fundo-cartao); padding:10px 14px; font-weight:700; display:flex; align-items:center; gap:8px">
+              <i class="ti ti-truck" style="color:var(--cor-primaria)"></i>
+              <span>${escapeHtml(f.fornecedor)}</span>
+            </div>
+            ${produtosHtml}
+          </div>
+        `;
+      }).join('');
+
+      listaDivergenciasEl.innerHTML = secoes;
     }
 
     showScreen('screen-resultado');

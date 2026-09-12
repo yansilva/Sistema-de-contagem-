@@ -11,7 +11,7 @@ const API = {
   },
 
   onRefreshed(token) {
-    this.refreshSubscribers.forEach(cb => cb(token));
+    this.refreshSubscribers.forEach((cb) => cb(token));
     this.refreshSubscribers = [];
   },
 
@@ -22,7 +22,7 @@ const API = {
     const token = sessionStorage.getItem('accessToken');
     const headers = {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     };
 
@@ -36,7 +36,6 @@ const API = {
       if (res.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/refresh')) {
         const novoToken = await this.refreshToken();
         if (novoToken) {
-          // Reexecuta a requisição original com o novo token
           headers['Authorization'] = `Bearer ${novoToken}`;
           return fetch(this.baseURL + path, { ...options, headers });
         } else {
@@ -61,8 +60,8 @@ const API = {
     if (!refreshToken) return null;
 
     if (this.isRefreshing) {
-      return new Promise(resolve => {
-        this.subscribeTokenRefresh(token => resolve(token));
+      return new Promise((resolve) => {
+        this.subscribeTokenRefresh((token) => resolve(token));
       });
     }
 
@@ -126,10 +125,59 @@ const API = {
     return res.json();
   },
 
+  async patch(path, data) {
+    const res = await this.request(path, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    });
+    if (!res) return null;
+    return res.json();
+  },
+
   async delete(path) {
     const res = await this.request(path, { method: 'DELETE' });
     if (!res) return null;
     return res.json();
+  },
+
+  /**
+   * Upload multipart/form-data (ex: relatórios PDF)
+   */
+  async upload(path, formData) {
+    const token = sessionStorage.getItem('accessToken');
+    const headers = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+
+    try {
+      const res = await fetch(this.baseURL + path, {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+
+      if (res.status === 401) {
+        const novoToken = await this.refreshToken();
+        if (novoToken) {
+          headers['Authorization'] = `Bearer ${novoToken}`;
+          const retryRes = await fetch(this.baseURL + path, {
+            method: 'POST',
+            headers,
+            body: formData
+          });
+          return retryRes.json();
+        } else {
+          Auth.deslogar();
+          return null;
+        }
+      }
+
+      return res.json();
+    } catch (err) {
+      console.error('[API UPLOAD ERROR]', path, err);
+      showToast('Erro de conexão ao enviar o arquivo.', 'error');
+      return null;
+    }
   },
 
   /**
@@ -139,7 +187,7 @@ const API = {
     const token = sessionStorage.getItem('accessToken');
     try {
       const res = await fetch(this.baseURL + path, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
 
       if (!res.ok) {

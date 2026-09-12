@@ -16,6 +16,14 @@ const Auth = {
     if (res && res.success && res.data) {
       this.usuario = res.data.usuario;
       this.empresa = res.data.empresa;
+
+      // Se o usuário precisa trocar a senha, redireciona
+      if (this.usuario.must_change_password) {
+        this.atualizarInterface();
+        showScreen('screen-troca-senha-obrigatoria');
+        return true;
+      }
+
       this.atualizarInterface();
       return true;
     }
@@ -48,7 +56,7 @@ const Auth = {
         return;
       }
 
-      const { accessToken, refreshToken, usuario, empresa } = res.data;
+      const { accessToken, refreshToken, usuario, empresa, mustChangePassword } = res.data;
       sessionStorage.setItem('accessToken', accessToken);
       localStorage.setItem('refreshToken', refreshToken);
 
@@ -56,6 +64,14 @@ const Auth = {
       this.empresa = empresa;
 
       this.atualizarInterface();
+
+      // Redireciona para troca obrigatória de senha se necessário
+      if (mustChangePassword) {
+        showToast('Você precisa definir uma nova senha antes de continuar.', 'warning');
+        showScreen('screen-troca-senha-obrigatoria');
+        return;
+      }
+
       showToast(`Bem-vindo, ${usuario.nome}!`, 'success');
       showScreen('screen-home');
     } catch (err) {
@@ -67,7 +83,7 @@ const Auth = {
   },
 
   /**
-   * Cadastro de nova empresa e usuário gestor
+   * Cadastro de nova empresa e usuário administrador
    */
   async fazerRegistro() {
     const empresa_nome = document.getElementById('reg-empresa').value.trim();
@@ -130,44 +146,65 @@ const Auth = {
   },
 
   /**
-   * Login temporário de demonstração (sandbox segura)
+   * Troca obrigatória de senha (primeiro acesso com senha temporária)
    */
-  async loginGuest() {
-    const btn = document.getElementById('btn-guest');
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Acessando demo...';
+  async trocarSenhaObrigatoria() {
+    const novaSenha = document.getElementById('troca-nova-senha').value;
+    const confirmar = document.getElementById('troca-confirmar-senha').value;
+    const feedback = document.getElementById('troca-senha-error');
+    const btn = document.getElementById('btn-troca-senha');
+
+    feedback.textContent = '';
+
+    if (!novaSenha || !confirmar) {
+      feedback.textContent = 'Preencha todos os campos.';
+      return;
     }
 
+    if (novaSenha !== confirmar) {
+      feedback.textContent = 'As senhas não coincidem.';
+      return;
+    }
+
+    if (novaSenha.length < 8) {
+      feedback.textContent = 'A nova senha deve ter pelo menos 8 caracteres.';
+      return;
+    }
+
+    // Validação: maiúscula, minúscula e número
+    if (!/[A-Z]/.test(novaSenha) || !/[a-z]/.test(novaSenha) || !/[0-9]/.test(novaSenha)) {
+      feedback.textContent = 'A senha deve conter maiúscula, minúscula e número.';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Salvando...';
+
     try {
-      const res = await API.get('/auth/guest');
+      const res = await API.put('/auth/senha', { novaSenha, forceTroca: true });
+
       if (!res || !res.success) {
-        showToast(res?.message || 'Não foi possível acessar a demonstração.', 'error');
+        feedback.textContent = res?.message || 'Erro ao alterar senha.';
         return;
       }
 
-      const { accessToken, usuario, empresa } = res.data;
-      sessionStorage.setItem('accessToken', accessToken);
-      localStorage.removeItem('refreshToken'); // Guest não possui refresh token persistido
+      // Atualiza flag local
+      if (this.usuario) {
+        this.usuario.must_change_password = false;
+      }
 
-      this.usuario = usuario;
-      this.empresa = empresa;
-
-      this.atualizarInterface();
-      showToast('Acesso de demonstração ativado (modo sandbox).', 'info');
+      showToast('Senha definida com sucesso! Bem-vindo(a)!', 'success');
       showScreen('screen-home');
     } catch (err) {
-      showToast('Erro ao iniciar acesso de demonstração.', 'error');
+      feedback.textContent = 'Erro ao conectar com o servidor.';
     } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-player-play"></i> Testar sem cadastro (Demo)';
-      }
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-check"></i> Definir Nova Senha';
     }
   },
 
   /**
-   * Altera a senha do usuário autenticado
+   * Altera a senha do usuário autenticado (via configurações)
    */
   async alterarSenha() {
     const senhaAtual = document.getElementById('senha-atual').value;
@@ -245,13 +282,22 @@ const Auth = {
       }
       if (badgeEl) badgeEl.style.display = 'flex';
 
-      // Mostra botão de back-office apenas para gestores ou admin
+      // Mostra botão de back-office para administrador, gestor ou admin
       if (btnBackoffice) {
-        btnBackoffice.style.display = (this.usuario.papel === 'gestor' || this.usuario.papel === 'admin') ? 'inline-flex' : 'none';
+        const papel = this.usuario.papel;
+        const isGestor = ['gestor', 'admin', 'administrador'].includes(papel);
+        btnBackoffice.style.display = isGestor ? 'inline-flex' : 'none';
       }
     } else {
       if (badgeEl) badgeEl.style.display = 'none';
       if (btnBackoffice) btnBackoffice.style.display = 'none';
     }
+  },
+
+  /**
+   * Verifica se o usuário logado é administrador/gestor
+   */
+  isAdmin() {
+    return ['gestor', 'admin', 'administrador'].includes(this.usuario?.papel);
   }
 };

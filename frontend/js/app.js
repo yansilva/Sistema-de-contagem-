@@ -70,7 +70,7 @@ async function carregarDashboard() {
 }
 
 /**
- * Alterna abas dentro do Back-office (Produtos, Histórico, Configurações)
+ * Alterna abas dentro do Back-office
  * @param {string} tabId 
  */
 function switchTab(tabId) {
@@ -83,10 +83,15 @@ function switchTab(tabId) {
   if (btn) btn.classList.add('active');
   if (content) content.classList.add('active');
 
+  // Carregamento contextual por aba
   if (tabId === 'produtos') {
     Produtos.carregar();
   } else if (tabId === 'historico') {
     Historico.carregar();
+  } else if (tabId === 'usuarios' && typeof Usuarios !== 'undefined') {
+    Usuarios.carregar();
+  } else if (tabId === 'estoque' && typeof StockImport !== 'undefined') {
+    StockImport.carregarHistorico();
   }
 }
 
@@ -138,13 +143,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       Produtos.fecharModal();
+      if (typeof Usuarios !== 'undefined') Usuarios.fecharModal();
     }
   });
 
   // 5. Restaurar sessão ativa ou exibir login
   const logado = await Auth.restaurarSessao();
   if (logado) {
-    showScreen('screen-home');
+    // Se mustChangePassword, a tela já foi redirecionada em restaurarSessao()
+    if (!Auth.usuario?.must_change_password) {
+      showScreen('screen-home');
+    }
   } else {
     showScreen('screen-login');
   }

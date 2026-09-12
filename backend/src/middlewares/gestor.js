@@ -9,10 +9,13 @@ function gestor(req, res, next) {
     return next(new UnauthorizedError('Autenticação necessária.', 'NAO_AUTENTICADO'));
   }
 
-  if (req.usuario.papel !== 'gestor' && req.usuario.papel !== 'admin') {
+  const papel = (req.usuario.papel || '').toLowerCase();
+  const isAdmin = papel === 'administrador' || papel === 'gestor' || papel === 'admin';
+
+  if (!isAdmin) {
     return next(
       new ForbiddenError(
-        'Permissão restrita. Apenas gestores podem realizar esta ação.',
+        'Permissão restrita. Apenas administradores podem realizar esta ação.',
         'ACESSO_RESTRITO_GESTOR'
       )
     );

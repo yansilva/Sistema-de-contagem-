@@ -6,8 +6,8 @@ const { ConflictError } = require('../errors/AppError');
 const SALT_ROUNDS = 12;
 
 /**
- * POST /api/empresas/registrar
- * Onboarding: cria empresa + primeiro usuário gestor
+ * POST /api/empresas/registrar ou POST /api/auth/registro
+ * Onboarding: cria empresa + primeiro usuário administrador
  * Retorna tokens + dados do usuário e empresa
  */
 async function registrar(req, res, next) {
@@ -32,13 +32,13 @@ async function registrar(req, res, next) {
       );
     }
 
-    // Criar empresa com 14 dias de trial
+    // Criar empresa com 30 dias de trial ativo
     const trialExpira = new Date();
-    trialExpira.setDate(trialExpira.getDate() + 14);
+    trialExpira.setDate(trialExpira.getDate() + 30);
 
     const empresaResult = await query(
       `INSERT INTO empresas (nome, email_contato, plano, trial_expira_em)
-       VALUES ($1, $2, 'trial', $3)
+       VALUES ($1, $2, 'ativo', $3)
        RETURNING id, nome, plano`,
       [empresa_nome.trim(), emailNorm, trialExpira]
     );
@@ -47,11 +47,11 @@ async function registrar(req, res, next) {
     // Hash da senha com bcrypt
     const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
 
-    // Criar usuário gestor
+    // Criar usuário administrador inicial
     const usuarioResult = await query(
-      `INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel)
-       VALUES ($1, $2, $3, $4, 'gestor')
-       RETURNING id, nome, email, papel`,
+      `INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel, ativo, must_change_password)
+       VALUES ($1, $2, $3, $4, 'administrador', TRUE, FALSE)
+       RETURNING id, nome, email, papel, ativo, must_change_password`,
       [empresa.id, nome.trim(), emailNorm, senhaHash]
     );
     const usuario = usuarioResult.rows[0];
@@ -73,11 +73,14 @@ async function registrar(req, res, next) {
       data: {
         accessToken,
         refreshToken: rawRefreshToken,
+        mustChangePassword: false,
         usuario: {
           id: usuario.id,
           nome: usuario.nome,
           email: usuario.email,
-          papel: usuario.papel
+          papel: usuario.papel,
+          ativo: usuario.ativo,
+          mustChangePassword: false
         },
         empresa: {
           id: empresa.id,

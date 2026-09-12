@@ -26,7 +26,7 @@ const Produtos = {
 
     if (!res || !res.success || !res.data) {
       if (listaEl) {
-        listaEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--cor-texto-mudo)">Erro ao carregar produtos.</div>';
+        listaEl.innerHTML = '<div style="text-align:center; padding:20px; color:var(--cor-texto-mutado)">Erro ao carregar produtos.</div>';
       }
       return;
     }
@@ -47,12 +47,14 @@ const Produtos = {
     }
 
     // Renderização segura com escapeHtml para prevenir XSS
-    listaEl.innerHTML = produtos.map(p => `
+    listaEl.innerHTML = produtos.map((p) => `
       <div class="produto-item" id="prod-card-${escapeHtml(p.id)}">
         <div class="produto-header">
           <div>
             <span class="produto-nome">${escapeHtml(p.nome)}</span>
-            <div class="produto-codigo">Cód: ${escapeHtml(p.codigo)} • Fornecedor: <strong>${escapeHtml(p.fornecedor)}</strong></div>
+            <div class="produto-codigo">
+              SKU: <code>${escapeHtml(p.codigo)}</code> &bull; Produtor: <strong>${escapeHtml(p.fornecedor)}</strong> &bull; Estoque Atual: <strong style="color:var(--cor-primaria)">${p.estoque_atual !== undefined ? p.estoque_atual : 0} un</strong>
+            </div>
           </div>
           <div style="display:flex; gap:6px">
             <button class="btn btn-outline btn-sm" onclick="Produtos.abrirEdicao('${escapeHtml(p.id)}')">
@@ -100,17 +102,18 @@ const Produtos = {
     const codigo = document.getElementById('prod-codigo').value.trim();
     const nome = document.getElementById('prod-nome').value.trim();
     const fornecedor = document.getElementById('prod-fornecedor').value.trim();
+    const estoque_atual = parseInt(document.getElementById('prod-estoque-atual').value, 10) || 0;
 
     if (!codigo || !nome || !fornecedor) {
-      showToast('Preencha código, nome e fornecedor.', 'error');
+      showToast('Preencha código/SKU, nome e produtor/fornecedor.', 'error');
       return;
     }
 
     let res;
     if (id) {
-      res = await API.put(`/produtos/${id}`, { codigo, nome, fornecedor });
+      res = await API.put(`/produtos/${id}`, { codigo, nome, fornecedor, estoque_atual });
     } else {
-      res = await API.post('/produtos', { codigo, nome, fornecedor });
+      res = await API.post('/produtos', { codigo, nome, fornecedor, estoque_atual });
     }
 
     if (!res || !res.success) {
@@ -129,11 +132,12 @@ const Produtos = {
     document.getElementById('prod-codigo').value = '';
     document.getElementById('prod-nome').value = '';
     document.getElementById('prod-fornecedor').value = '';
+    document.getElementById('prod-estoque-atual').value = '0';
     document.getElementById('modal-produto').style.display = 'flex';
   },
 
   abrirEdicao(id) {
-    const p = this.produtosCache.find(item => item.id === id);
+    const p = this.produtosCache.find((item) => item.id === id);
     if (!p) return;
 
     document.getElementById('modal-produto-titulo').textContent = 'Editar Produto';
@@ -141,6 +145,7 @@ const Produtos = {
     document.getElementById('prod-codigo').value = p.codigo;
     document.getElementById('prod-nome').value = p.nome;
     document.getElementById('prod-fornecedor').value = p.fornecedor;
+    document.getElementById('prod-estoque-atual').value = p.estoque_atual !== undefined ? p.estoque_atual : 0;
     document.getElementById('modal-produto').style.display = 'flex';
   },
 
@@ -165,7 +170,7 @@ const Produtos = {
   },
 
   /**
-   * Importação de planilha Excel (.xlsx) com seleção de modo e confirmação
+   * Importação de catálogo Excel (.xlsx)
    */
   async importarExcel(fileInput) {
     const file = fileInput.files[0];
@@ -188,16 +193,18 @@ const Produtos = {
         const produtosValidados = [];
         for (const row of rows) {
           const keys = Object.keys(row);
-          const colCodigo = keys.find(k => /codigo|código|sku/i.test(k));
-          const colNome = keys.find(k => /nome|produto|descri/i.test(k));
-          const colFornecedor = keys.find(k => /fornecedor|produtor|marca/i.test(k));
+          const colCodigo = keys.find((k) => /codigo|código|sku/i.test(k));
+          const colNome = keys.find((k) => /nome|produto|descri/i.test(k));
+          const colFornecedor = keys.find((k) => /fornecedor|produtor|marca/i.test(k));
+          const colEstoque = keys.find((k) => /estoque|saldo|qtd/i.test(k));
 
           const codigo = colCodigo ? String(row[colCodigo]).trim() : '';
           const nome = colNome ? String(row[colNome]).trim() : '';
           const fornecedor = colFornecedor ? String(row[colFornecedor]).trim() : '';
+          const estoque_atual = colEstoque ? parseInt(row[colEstoque], 10) || 0 : 0;
 
           if (codigo && nome && fornecedor) {
-            produtosValidados.push({ codigo, nome, fornecedor });
+            produtosValidados.push({ codigo, nome, fornecedor, estoque_atual });
           }
         }
 

@@ -6,15 +6,15 @@ const {
   logout,
   me,
   alterarSenha,
-  guest
+  registro
 } = require('../controllers/authController');
 const auth = require('../middlewares/auth');
 const validate = require('../middlewares/validate');
 const { loginLimiter } = require('../middlewares/rateLimiter');
-const { loginSchema, refreshSchema, alterarSenhaSchema } = require('../validators/schemas');
+const { loginSchema, refreshSchema, alterarSenhaSchema, registroSchema } = require('../validators/schemas');
 
-// GET /api/auth/guest — login de demonstração (sandbox Loja Demo)
-router.get('/guest', guest);
+// POST /api/auth/registro — Onboarding inicial da empresa + primeiro administrador
+router.post('/registro', loginLimiter, validate(registroSchema), registro);
 
 // POST /api/auth/login — autenticar email e senha
 router.post('/login', loginLimiter, validate(loginSchema), login);

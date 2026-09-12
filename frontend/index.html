@@ -54,7 +54,7 @@
 
         <div class="form-group">
           <label for="login-email">Email</label>
-          <input type="email" id="login-email" placeholder="admin@demo.com" autocomplete="email">
+          <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
         </div>
 
         <div class="form-group">
@@ -67,12 +67,6 @@
 
         <button class="btn btn-primary btn-block btn-lg" onclick="Auth.fazerLogin()" id="btn-login" style="margin-top:12px">
           <i class="ti ti-login"></i> Entrar
-        </button>
-
-        <div class="auth-divider">ou experimente</div>
-
-        <button class="btn btn-outline btn-block" onclick="Auth.loginGuest()" id="btn-guest">
-          <i class="ti ti-player-play"></i> Testar sem cadastro (Demo)
         </button>
 
         <div class="auth-link">
@@ -97,12 +91,12 @@
 
         <div class="form-group">
           <label for="reg-nome">Seu Nome Completo</label>
-          <input type="text" id="reg-nome" placeholder="Gestor Silva">
+          <input type="text" id="reg-nome" placeholder="Nome do Administrador">
         </div>
 
         <div class="form-group">
           <label for="reg-email">Email de Acesso</label>
-          <input type="email" id="reg-email" placeholder="gestor@minhaloja.com">
+          <input type="email" id="reg-email" placeholder="admin@minhaloja.com">
         </div>
 
         <div class="form-group">
@@ -129,11 +123,39 @@
     </div>
   </section>
 
+  <!-- ==================== TELA: TROCA OBRIGATÓRIA DE SENHA ==================== -->
+  <section id="screen-troca-senha-obrigatoria" class="screen">
+    <div class="auth-wrapper">
+      <div class="auth-card">
+        <div class="auth-logo"><i class="ti ti-shield-lock"></i></div>
+        <h2>Defina sua Nova Senha</h2>
+        <p class="subtitle">Sua senha atual é temporária. Para sua segurança, defina uma nova senha pessoal antes de continuar.</p>
+
+        <div class="form-group">
+          <label for="troca-nova-senha">Nova Senha (mín. 8 caracteres, maiúscula, minúscula e número)</label>
+          <input type="password" id="troca-nova-senha" placeholder="Sua nova senha pessoal">
+        </div>
+
+        <div class="form-group">
+          <label for="troca-confirmar-senha">Confirmar Nova Senha</label>
+          <input type="password" id="troca-confirmar-senha" placeholder="Repita a nova senha"
+                 onkeydown="if(event.key==='Enter') Auth.trocarSenhaObrigatoria()">
+        </div>
+
+        <div class="auth-error" id="troca-senha-error"></div>
+
+        <button class="btn btn-primary btn-block btn-lg" onclick="Auth.trocarSenhaObrigatoria()" id="btn-troca-senha" style="margin-top:12px">
+          <i class="ti ti-check"></i> Definir Nova Senha
+        </button>
+      </div>
+    </div>
+  </section>
+
   <!-- ==================== TELA: HOME (DASHBOARD) ==================== -->
   <section id="screen-home" class="screen">
     <div class="container">
       
-      <!-- HEADER DO DASHBOARD (ESTILO MOCKUP) -->
+      <!-- HEADER DO DASHBOARD -->
       <div class="dash-header">
         <div class="dash-welcome">
           <h2>Bem-vindo(a) de volta, <span id="home-user-name">Usuário</span> 👋</h2>
@@ -155,7 +177,7 @@
             <span class="kpi-title">Catálogo Total</span>
             <div class="kpi-icon"><i class="ti ti-packages"></i></div>
           </div>
-          <div class="kpi-value" id="kpi-total-produtos">8</div>
+          <div class="kpi-value" id="kpi-total-produtos">0</div>
           <div class="kpi-badge positive"><i class="ti ti-trending-up"></i> Produtos ativos</div>
         </div>
 
@@ -165,7 +187,7 @@
             <span class="kpi-title">Fornecedores</span>
             <div class="kpi-icon"><i class="ti ti-truck-delivery"></i></div>
           </div>
-          <div class="kpi-value" id="kpi-total-fornecedores">3</div>
+          <div class="kpi-value" id="kpi-total-fornecedores">0</div>
           <div class="kpi-badge neutral"><i class="ti ti-building-store"></i> Parceiros ativos</div>
         </div>
 
@@ -210,20 +232,27 @@
           
           <div class="quick-card" onclick="Contagens.iniciarNovaSessao()">
             <div class="quick-icon primary"><i class="ti ti-barcode"></i></div>
-            <h4>Nova Conferência Física</h4>
-            <p>Selecione um fornecedor, bipe ou digite as quantidades e apure as divergências.</p>
+            <h4>Nova Contagem Cega</h4>
+            <p>Contagem física sem visualizar estoque do sistema — resultados comparados após finalizar.</p>
             <span class="quick-link">Iniciar contagem <i class="ti ti-arrow-right"></i></span>
           </div>
 
+          <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('estoque')">
+            <div class="quick-icon secondary"><i class="ti ti-file-type-pdf"></i></div>
+            <h4>Importar Estoque (Tiny PDF)</h4>
+            <p>Importe relatórios de estoque do Tiny ERP em PDF para atualizar automaticamente as quantidades.</p>
+            <span class="quick-link">Importar relatório <i class="ti ti-arrow-right"></i></span>
+          </div>
+
           <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('produtos')">
-            <div class="quick-icon secondary"><i class="ti ti-file-spreadsheet"></i></div>
+            <div class="quick-icon success"><i class="ti ti-file-spreadsheet"></i></div>
             <h4>Gestão de Produtos & Excel</h4>
             <p>Cadastre novos SKUs ou importe planilhas completas com substituição ou mescla.</p>
             <span class="quick-link">Gerenciar catálogo <i class="ti ti-arrow-right"></i></span>
           </div>
 
           <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('historico')">
-            <div class="quick-icon success"><i class="ti ti-report-analytics"></i></div>
+            <div class="quick-icon warning"><i class="ti ti-report-analytics"></i></div>
             <h4>Histórico & Exportação</h4>
             <p>Consulte relatórios detalhados e exporte relatórios consolidados em .XLSX.</p>
             <span class="quick-link">Ver relatórios <i class="ti ti-arrow-right"></i></span>
@@ -235,21 +264,44 @@
     </div>
   </section>
 
-  <!-- ==================== TELA: CONTAGEM ATIVA ==================== -->
+  <!-- ==================== TELA: CONTAGEM CEGA ATIVA ==================== -->
   <section id="screen-contagem" class="screen">
     <div class="container">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
         <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-home')">
           <i class="ti ti-arrow-left"></i> Voltar ao Início
         </button>
-        <button class="btn btn-danger btn-sm" id="btn-finalizar-contagem" onclick="Contagens.finalizarSessao()" disabled>
-          <i class="ti ti-flag-check"></i> Finalizar Contagem (<span id="total-fornecedores-contados">0</span>)
-        </button>
+        <div style="display:flex; align-items:center; gap:12px">
+          <button class="btn btn-outline btn-sm" id="btn-salvar-progresso" onclick="Contagens.salvarProgresso()" style="display:none">
+            <i class="ti ti-device-floppy"></i> Salvar Progresso
+          </button>
+          <button class="btn btn-danger btn-sm" id="btn-finalizar-contagem" onclick="Contagens.finalizarSessao()" disabled>
+            <i class="ti ti-flag-check"></i> Finalizar Contagem
+          </button>
+        </div>
+      </div>
+
+      <!-- Indicador de Progresso da Contagem Cega -->
+      <div class="card contagem-progresso" id="contagem-progresso" style="display:none; margin-bottom:16px">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
+          <div style="display:flex; align-items:center; gap:8px">
+            <i class="ti ti-eye-off" style="color:var(--cor-primaria); font-size:1.3rem"></i>
+            <strong>Contagem Cega</strong>
+            <span class="badge badge-info" style="font-size:0.75rem">Estoque oculto</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:12px; font-size:0.9rem; color:var(--cor-texto-secundario)">
+            <span><i class="ti ti-checkbox"></i> <span id="contagem-contados">0</span> de <span id="contagem-total">0</span> contados</span>
+            <span class="badge badge-neutral" id="contagem-porcentagem">0%</span>
+          </div>
+        </div>
+        <div style="margin-top:8px; background:var(--cor-borda); border-radius:8px; height:6px; overflow:hidden">
+          <div id="contagem-barra-progresso" style="height:100%; background:var(--cor-primaria); transition:width 0.3s ease; width:0%"></div>
+        </div>
       </div>
 
       <div class="step-indicator">
         <i class="ti ti-info-circle"></i>
-        <span>Selecione um fornecedor para registrar os itens contados:</span>
+        <span>Selecione um fornecedor e registre as quantidades encontradas fisicamente:</span>
       </div>
 
       <!-- Campo de Busca de Fornecedor com Autocomplete -->
@@ -261,16 +313,9 @@
         <div class="sugestoes" id="sugestoes-fornecedor"></div>
       </div>
 
-      <!-- Bloco de Produtos do Fornecedor -->
+      <!-- Bloco de Produtos do Fornecedor (Contagem Cega) -->
       <div class="bloco-produtos" id="bloco-produtos">
-        <!-- Checkbox: Sem divergência -->
-        <div class="sem-diferenca-row" id="row-sem-dif" onclick="document.getElementById('check-sem-diferenca').click()">
-          <input type="checkbox" id="check-sem-diferenca" class="custom-check" checked
-                 onclick="event.stopPropagation(); Contagens.toggleSemDiferenca(this.checked)">
-          <label for="check-sem-diferenca">Sem diferenças (Estoque físico confere 100% com o sistema)</label>
-        </div>
-
-        <!-- Lista de Produtos para Conferência -->
+        <!-- Lista de Produtos para Contagem Cega -->
         <div id="lista-produtos-contagem"></div>
 
         <button class="btn btn-primary btn-block btn-lg" id="btn-salvar-fornecedor" onclick="Contagens.salvarFornecedor()" style="margin-top:20px">
@@ -307,9 +352,9 @@
     </div>
   </section>
 
-  <!-- ==================== TELA: BACK-OFFICE (GESTOR) ==================== -->
+  <!-- ==================== TELA: BACK-OFFICE (ADMINISTRADOR/GESTOR) ==================== -->
   <section id="screen-backoffice" class="screen">
-    <div class="container" style="max-width:960px">
+    <div class="container" style="max-width:1060px">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
         <h2 style="font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:10px">
           <i class="ti ti-layout-dashboard" style="color:var(--cor-primaria)"></i> Painel de Gestão
@@ -324,8 +369,14 @@
         <button class="tab active" data-tab="produtos" onclick="switchTab('produtos')">
           <i class="ti ti-package"></i> Produtos
         </button>
+        <button class="tab" data-tab="estoque" onclick="switchTab('estoque')">
+          <i class="ti ti-file-type-pdf"></i> Importar Estoque
+        </button>
+        <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">
+          <i class="ti ti-users"></i> Funcionários
+        </button>
         <button class="tab" data-tab="historico" onclick="switchTab('historico')">
-          <i class="ti ti-history"></i> Histórico de Contagens
+          <i class="ti ti-history"></i> Histórico
         </button>
         <button class="tab" data-tab="config" onclick="switchTab('config')">
           <i class="ti ti-settings"></i> Configurações
@@ -364,7 +415,84 @@
         </div>
       </div>
 
-      <!-- ABA 2: HISTÓRICO -->
+      <!-- ABA 2: IMPORTAR ESTOQUE (TINY ERP PDF) -->
+      <div class="tab-content" id="tab-estoque">
+        <div class="card" style="margin-bottom:20px">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
+            <i class="ti ti-file-type-pdf" style="font-size:2rem; color:var(--cor-primaria)"></i>
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; margin:0">Importar Relatório de Estoque — Tiny ERP</h3>
+              <p style="font-size:0.85rem; color:var(--cor-texto-secundario); margin:4px 0 0">
+                Faça upload do relatório de estoque em PDF exportado do Tiny ERP. O sistema irá cruzar os SKUs com os produtos cadastrados e apresentar uma prévia antes de atualizar.
+              </p>
+            </div>
+          </div>
+
+          <div id="stock-upload-area" class="upload-area" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault(); this.classList.remove('drag-over'); StockImport.handleDrop(event)">
+            <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
+            <p style="font-weight:600; margin-bottom:4px">Arraste o PDF aqui ou clique para selecionar</p>
+            <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ERP</p>
+            <label class="btn btn-primary btn-sm" style="margin-top:12px; cursor:pointer">
+              <i class="ti ti-upload"></i> Selecionar Arquivo PDF
+              <input type="file" accept=".pdf" style="display:none" onchange="StockImport.handleFileSelect(this)">
+            </label>
+          </div>
+
+          <div id="stock-upload-status" style="display:none; margin-top:12px"></div>
+        </div>
+
+        <!-- Painel de Prévia da Importação -->
+        <div id="stock-preview-panel" style="display:none">
+          <div class="card" style="margin-bottom:16px">
+            <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px">
+              <i class="ti ti-list-check" style="color:var(--cor-sucesso)"></i> Prévia da Importação
+            </h3>
+            <div id="stock-preview-stats" class="kpi-grid" style="margin-bottom:16px"></div>
+            <div id="stock-preview-matched"></div>
+          </div>
+
+          <div id="stock-preview-unmatched-panel" class="card" style="margin-bottom:16px; display:none">
+            <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px; color:var(--cor-aviso)">
+              <i class="ti ti-alert-triangle"></i> SKUs Não Cadastrados (Pendências)
+            </h3>
+            <div id="stock-preview-unmatched"></div>
+          </div>
+
+          <div style="display:flex; justify-content:flex-end; gap:12px">
+            <button class="btn btn-outline" onclick="StockImport.cancelar()">
+              <i class="ti ti-x"></i> Cancelar
+            </button>
+            <button class="btn btn-primary" id="btn-confirmar-importacao" onclick="StockImport.confirmar()">
+              <i class="ti ti-check"></i> Confirmar Atualização de Estoque
+            </button>
+          </div>
+        </div>
+
+        <!-- Histórico de Importações -->
+        <div class="card" style="margin-top:20px">
+          <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px">
+            <i class="ti ti-history" style="color:var(--cor-texto-secundario)"></i> Histórico de Importações
+          </h3>
+          <div id="stock-import-historico"></div>
+        </div>
+      </div>
+
+      <!-- ABA 3: GESTÃO DE FUNCIONÁRIOS -->
+      <div class="tab-content" id="tab-usuarios">
+        <div class="table-toolbar">
+          <div style="display:flex; gap:10px; flex:1; max-width:400px">
+            <input type="text" id="filtro-busca-usuario" placeholder="Buscar funcionário por nome ou email..."
+                   oninput="Usuarios.filtrar(this.value)">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="Usuarios.abrirNovo()">
+            <i class="ti ti-user-plus"></i> Novo Funcionário
+          </button>
+        </div>
+
+        <div id="lista-usuarios"></div>
+      </div>
+
+      <!-- ABA 4: HISTÓRICO -->
       <div class="tab-content" id="tab-historico">
         <div class="historico-counter">
           Total de contagens finalizadas: <strong id="historico-counter-total">0</strong>
@@ -372,7 +500,7 @@
         <div id="lista-historico"></div>
       </div>
 
-      <!-- ABA 3: CONFIGURAÇÕES -->
+      <!-- ABA 5: CONFIGURAÇÕES -->
       <div class="tab-content" id="tab-config">
         <div class="card config-card">
           <h3><i class="ti ti-lock"></i> Alterar Senha de Acesso</h3>
@@ -413,9 +541,50 @@
         <label for="prod-fornecedor">Fornecedor / Produtor</label>
         <input type="text" id="prod-fornecedor" placeholder="Ex: Têxtil Sul">
       </div>
+      <div class="form-group">
+        <label for="prod-estoque">Estoque Atual (quantidade no sistema)</label>
+        <input type="number" id="prod-estoque" placeholder="Ex: 100" min="0" step="1">
+      </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
         <button class="btn btn-outline" onclick="Produtos.fecharModal()">Cancelar</button>
         <button class="btn btn-primary" onclick="Produtos.salvar()">Salvar Produto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: CRIAR / EDITAR USUÁRIO ==================== -->
+  <div id="modal-usuario" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+    <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+        <h3 id="modal-usuario-titulo" style="font-size:1.15rem; font-weight:700">Novo Funcionário</h3>
+        <button class="btn btn-ghost btn-sm" onclick="Usuarios.fecharModal()"><i class="ti ti-x"></i></button>
+      </div>
+      <input type="hidden" id="usr-id">
+      <div class="form-group">
+        <label for="usr-nome">Nome Completo</label>
+        <input type="text" id="usr-nome" placeholder="Ex: Maria Silva">
+      </div>
+      <div class="form-group">
+        <label for="usr-email">Email de Acesso</label>
+        <input type="email" id="usr-email" placeholder="Ex: maria@minhaloja.com">
+      </div>
+      <div class="form-group" id="usr-senha-group">
+        <label for="usr-senha">Senha Temporária (funcionário trocará no primeiro login)</label>
+        <input type="password" id="usr-senha" placeholder="Senha temporária de acesso">
+      </div>
+      <div class="form-group">
+        <label for="usr-papel">Papel</label>
+        <select id="usr-papel">
+          <option value="funcionario">Funcionário (operador de contagem)</option>
+          <option value="gestor">Gestor (acesso ao back-office)</option>
+        </select>
+      </div>
+      <div id="modal-usuario-error" class="auth-error"></div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
+        <button class="btn btn-outline" onclick="Usuarios.fecharModal()">Cancelar</button>
+        <button class="btn btn-primary" onclick="Usuarios.salvar()">
+          <i class="ti ti-check"></i> Salvar Funcionário
+        </button>
       </div>
     </div>
   </div>
@@ -427,6 +596,8 @@
   <script src="/js/produtos.js"></script>
   <script src="/js/contagens.js"></script>
   <script src="/js/historico.js"></script>
+  <script src="/js/usuarios.js"></script>
+  <script src="/js/stock-import.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
