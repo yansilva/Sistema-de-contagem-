@@ -180,6 +180,15 @@ describe('Gestão de Usuários e Troca Obrigatória de Senha', () => {
           }
         ]
       })
+      // checagem de papel e ativo do usuário alvo
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            papel: 'funcionario',
+            ativo: true
+          }
+        ]
+      })
       // update usuario ativo = false
       .mockResolvedValueOnce({
         rows: [

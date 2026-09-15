@@ -34,9 +34,11 @@ CREATE TABLE usuarios (
   papel VARCHAR(20) DEFAULT 'funcionario' NOT NULL,
   ativo BOOLEAN DEFAULT TRUE NOT NULL,
   must_change_password BOOLEAN DEFAULT FALSE NOT NULL,
+  criado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  atualizado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   criado_em TIMESTAMPTZ DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_usuarios_papel CHECK (papel IN ('administrador', 'funcionario', 'gestor', 'admin'))
+  CONSTRAINT chk_usuarios_papel CHECK (papel IN ('super_admin', 'administrador', 'funcionario', 'gestor', 'admin'))
 );
 
 CREATE INDEX idx_usuarios_empresa ON usuarios(empresa_id);
@@ -54,6 +56,8 @@ CREATE TABLE produtos (
   fornecedor VARCHAR(255) NOT NULL, -- Produtor / Fornecedor
   estoque_atual INTEGER DEFAULT 0 NOT NULL, -- Estoque atual importado do relatório Tiny
   ativo BOOLEAN DEFAULT TRUE NOT NULL,
+  criado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  atualizado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   criado_em TIMESTAMPTZ DEFAULT NOW(),
   atualizado_em TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(empresa_id, codigo)
@@ -71,6 +75,8 @@ CREATE TABLE historico_importacao_estoque (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  enviado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  confirmado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   nome_arquivo VARCHAR(255) NOT NULL,
   produtos_encontrados INTEGER DEFAULT 0 NOT NULL,
   produtos_atualizados INTEGER DEFAULT 0 NOT NULL,
@@ -89,6 +95,10 @@ CREATE TABLE contagens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   iniciado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  finalizado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  reaberto_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  motivo_reabertura VARCHAR(500),
+  revisao INTEGER DEFAULT 1 NOT NULL,
   iniciado_em TIMESTAMPTZ DEFAULT NOW(),
   finalizado_em TIMESTAMPTZ,
   tem_diferenca BOOLEAN DEFAULT FALSE NOT NULL,
@@ -129,6 +139,7 @@ CREATE TABLE contagem_itens (
   quantidade_contada INTEGER NULL, -- NULL = não contado; 0 = contado zero unidades
   diferenca INTEGER NULL, -- quantidade_contada - estoque_referencia
   situacao VARCHAR(30) NULL, -- 'sem_diferenca', 'sobra', 'falta'
+  contado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   contado_em TIMESTAMPTZ
 );
 
@@ -151,3 +162,61 @@ CREATE TABLE refresh_tokens (
 
 CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
 CREATE INDEX idx_refresh_tokens_usuario ON refresh_tokens(usuario_id);
+
+-- =============================================
+-- Tabela: audit_logs
+-- Trilha central de auditoria com integridade e escopos
+-- =============================================
+CREATE TABLE audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  escopo VARCHAR(16) NOT NULL
+    CHECK (escopo IN ('empresa', 'plataforma', 'seguranca')),
+  empresa_id UUID REFERENCES empresas(id) ON DELETE RESTRICT,
+
+  ator_tipo VARCHAR(24) NOT NULL
+    CHECK (ator_tipo IN ('usuario_empresa', 'usuario_plataforma', 'sistema', 'anonimo')),
+  ator_id UUID,
+  ator_papel VARCHAR(32),
+  ator_rotulo VARCHAR(160),
+  acao VARCHAR(80) NOT NULL,
+  entidade VARCHAR(64) NOT NULL,
+  entidade_id UUID,
+  resultado VARCHAR(16) NOT NULL
+    CHECK (resultado IN ('sucesso', 'falha', 'negado')),
+
+  dados_anteriores JSONB,
+  dados_novos JSONB,
+  metadados JSONB NOT NULL DEFAULT '{}'::jsonb,
+  motivo VARCHAR(500),
+  codigo_erro VARCHAR(64),
+  ip INET,
+  user_agent VARCHAR(512),
+  request_id UUID NOT NULL,
+  operacao_id UUID NOT NULL,
+  evento_chave VARCHAR(160) NOT NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+
+  CHECK ((escopo = 'empresa' AND empresa_id IS NOT NULL)
+      OR (escopo IN ('plataforma', 'seguranca') AND empresa_id IS NULL)),
+  CHECK ((ator_tipo IN ('usuario_empresa', 'usuario_plataforma')
+          AND ator_id IS NOT NULL)
+      OR (ator_tipo IN ('sistema', 'anonimo') AND ator_id IS NULL)),
+  CHECK (dados_anteriores IS NULL OR jsonb_typeof(dados_anteriores) = 'object'),
+  CHECK (dados_novos IS NULL OR jsonb_typeof(dados_novos) = 'object'),
+  CHECK (jsonb_typeof(metadados) = 'object'),
+  UNIQUE (operacao_id, evento_chave)
+);
+
+CREATE INDEX idx_audit_logs_empresa_data
+  ON audit_logs (empresa_id, criado_em DESC, id DESC)
+  WHERE escopo = 'empresa';
+CREATE INDEX idx_audit_logs_empresa_ator_data
+  ON audit_logs (empresa_id, ator_id, criado_em DESC, id DESC)
+  WHERE escopo = 'empresa';
+CREATE INDEX idx_audit_logs_empresa_entidade
+  ON audit_logs (empresa_id, entidade, entidade_id, criado_em DESC, id DESC);
+CREATE INDEX idx_audit_logs_request
+  ON audit_logs (request_id);
+CREATE INDEX idx_audit_logs_global_data
+  ON audit_logs (escopo, criado_em DESC, id DESC)
+  WHERE escopo <> 'empresa';

@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/db');
-const { NotFoundError, ConflictError, ValidationError } = require('../errors/AppError');
+const { NotFoundError, ConflictError, ValidationError, ForbiddenError } = require('../errors/AppError');
+const auditService = require('../services/auditService');
 
 const SALT_ROUNDS = 12;
 
@@ -66,6 +67,13 @@ async function criar(req, res, next) {
     const { nome, email, papel = 'funcionario', senha_temporaria } = req.body;
     const emailNorm = email.toLowerCase().trim();
 
+    if (papel && papel.toLowerCase() === 'super_admin') {
+      throw new ForbiddenError(
+        'Permissão negada: administradores de organização não podem conceder papel de super_admin.',
+        'CONCESSAO_SUPERADMIN_PROIBIDA'
+      );
+    }
+
     // Verificar unicidade global de email
     const emailExiste = await query('SELECT id FROM usuarios WHERE email = $1', [emailNorm]);
     if (emailExiste.rows.length > 0) {
@@ -88,6 +96,22 @@ async function criar(req, res, next) {
         usuario: result.rows[0]
       }
     });
+
+    // Auditoria: usuário criado (fora da transação pois a criação já foi commitada)
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'usuario_criado',
+        entidade: 'usuario',
+        entidadeId: result.rows[0].id,
+        dadosNovos: { nome: result.rows[0].nome, email: result.rows[0].email, papel: result.rows[0].papel },
+        whitelistCampos: ['nome', 'email', 'papel'],
+        eventoChave: `usuario_criado_${result.rows[0].id}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
   } catch (err) {
     next(err);
   }
@@ -119,6 +143,33 @@ async function editar(req, res, next) {
       updates.push(`nome = $${params.length}`);
     }
     if (papel) {
+      if (papel.toLowerCase() === 'super_admin') {
+        throw new ForbiddenError(
+          'Permissão negada: administradores de organização não podem conceder papel de super_admin.',
+          'CONCESSAO_SUPERADMIN_PROIBIDA'
+        );
+      }
+
+      const roleAtual = (userCheck.rows[0].papel || '').toLowerCase();
+      const isCurrentAdmin = ['administrador', 'gestor', 'admin'].includes(roleAtual);
+      const isNewAdmin = ['administrador', 'gestor', 'admin'].includes(papel.toLowerCase());
+
+      if (isCurrentAdmin && !isNewAdmin) {
+        const adminsAtivos = await query(
+          `SELECT COUNT(*)::int AS total
+           FROM usuarios
+           WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ('administrador', 'gestor', 'admin')`,
+          [req.empresaId]
+        );
+        const totalAdmins = adminsAtivos.rows[0]?.total || 0;
+        if (totalAdmins <= 1) {
+          throw new ConflictError(
+            'Operação não permitida: não é possível rebaixar o único administrador ativo da organização.',
+            'ULTIMO_ADMIN_PROIBIDO'
+          );
+        }
+      }
+
       params.push(papel);
       updates.push(`papel = $${params.length}`);
     }
@@ -145,6 +196,23 @@ async function editar(req, res, next) {
         usuario: result.rows[0]
       }
     });
+
+    // Auditoria: usuário editado
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'usuario_editado',
+        entidade: 'usuario',
+        entidadeId: id,
+        dadosAnteriores: { papel: userCheck.rows[0].papel },
+        dadosNovos: { nome: result.rows[0].nome, papel: result.rows[0].papel },
+        whitelistCampos: ['nome', 'papel'],
+        eventoChave: `usuario_editado_${id}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
   } catch (err) {
     next(err);
   }
@@ -164,6 +232,36 @@ async function alternarStatus(req, res, next) {
         'Você não pode desativar seu próprio usuário de administrador.',
         'AUTO_DESATIVACAO_PROIBIDA'
       );
+    }
+
+    if (ativo === false) {
+      const userCheck = await query(
+        'SELECT papel, ativo FROM usuarios WHERE id = $1 AND empresa_id = $2',
+        [id, req.empresaId]
+      );
+      if (userCheck.rows.length === 0) {
+        throw new NotFoundError('Usuário não encontrado nesta empresa.', 'USUARIO_NAO_ENCONTRADO');
+      }
+
+      const roleAtual = (userCheck.rows[0].papel || '').toLowerCase();
+      const isCurrentAdmin = ['administrador', 'gestor', 'admin'].includes(roleAtual);
+      const isUserAtivo = userCheck.rows[0].ativo !== false;
+
+      if (isCurrentAdmin && isUserAtivo) {
+        const adminsAtivos = await query(
+          `SELECT COUNT(*)::int AS total
+           FROM usuarios
+           WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ('administrador', 'gestor', 'admin')`,
+          [req.empresaId]
+        );
+        const totalAdmins = adminsAtivos.rows[0]?.total || 0;
+        if (totalAdmins <= 1) {
+          throw new ConflictError(
+            'Operação não permitida: não é possível desativar o único administrador ativo da organização.',
+            'ULTIMO_ADMIN_PROIBIDO'
+          );
+        }
+      }
     }
 
     const result = await query(
@@ -190,6 +288,22 @@ async function alternarStatus(req, res, next) {
         usuario: result.rows[0]
       }
     });
+
+    // Auditoria: status do usuário alterado
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: ativo ? 'usuario_ativado' : 'usuario_desativado',
+        entidade: 'usuario',
+        entidadeId: id,
+        dadosNovos: { ativo: Boolean(ativo), nome: result.rows[0].nome, papel: result.rows[0].papel },
+        whitelistCampos: ['ativo', 'nome', 'papel'],
+        eventoChave: `usuario_status_${id}_${Date.now()}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
   } catch (err) {
     next(err);
   }
@@ -225,6 +339,23 @@ async function resetarSenha(req, res, next) {
       success: true,
       message: 'Senha temporária redefinida com sucesso. O usuário precisará alterá-la no próximo acesso.'
     });
+
+    // Auditoria: senha redefinida pelo administrador
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        escopo: 'seguranca',
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'senha_redefinida',
+        entidade: 'usuario',
+        entidadeId: id,
+        resultado: 'sucesso',
+        metadados: { alvo_nome: result.rows[0].nome, alvo_email: result.rows[0].email },
+        eventoChave: `senha_redefinida_${id}_${Date.now()}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
   } catch (err) {
     next(err);
   }

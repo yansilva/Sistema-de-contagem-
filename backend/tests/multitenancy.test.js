@@ -2,11 +2,17 @@ const request = require('supertest');
 const db = require('../src/config/db');
 const { gerarAccessToken } = require('../src/config/jwt');
 
-jest.mock('../src/config/db', () => ({
-  query: jest.fn(),
-  getClient: jest.fn(),
-  pool: { connect: jest.fn().mockRejectedValue(new Error('no local db')) }
-}));
+jest.mock('../src/config/db', () => {
+  const queryFn = jest.fn();
+  return {
+    query: queryFn,
+    getClient: jest.fn(async () => ({
+      query: (...args) => Promise.resolve(queryFn(...args)),
+      release: jest.fn()
+    })),
+    pool: { connect: jest.fn().mockRejectedValue(new Error('no local db')) }
+  };
+});
 
 const crypto = require('crypto');
 const app = require('../src/app');

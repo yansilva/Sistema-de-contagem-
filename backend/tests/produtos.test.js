@@ -2,6 +2,12 @@ const request = require('supertest');
 const db = require('../src/config/db');
 const { gerarAccessToken } = require('../src/config/jwt');
 
+const mockClientQuery = jest.fn();
+const mockClient = {
+  query: mockClientQuery,
+  release: jest.fn()
+};
+
 jest.mock('../src/config/db', () => ({
   query: jest.fn(),
   getClient: jest.fn(),
@@ -26,6 +32,7 @@ describe('Produtos API (CRUD, Paginação e Permissões)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    db.getClient.mockResolvedValue(mockClient);
   });
 
   it('GET /api/produtos — deve listar produtos paginados com sucesso', async () => {
@@ -83,24 +90,32 @@ describe('Produtos API (CRUD, Paginação e Permissões)', () => {
             nome: 'Gestor',
             email: 'gestor@teste.com',
             papel: 'gestor',
+            ativo: true,
+            must_change_password: false,
             empresa_id: empresaId,
             empresa_nome: 'Empresa',
             plano: 'ativo'
           }
         ]
-      })
-      // Insert produto
-      .mockResolvedValueOnce({
-        rows: [
-          {
-            id: 'prod-new',
-            codigo: 'SKU-99',
-            nome: 'Novo Produto',
-            fornecedor: 'Fornecedor A',
-            criado_em: new Date().toISOString()
-          }
-        ]
       });
+
+    mockClientQuery.mockImplementation(async (sql) => {
+      if (typeof sql === 'string' && sql.includes('INSERT INTO produtos')) {
+        return {
+          rows: [
+            {
+              id: 'prod-new',
+              codigo: 'SKU-99',
+              nome: 'Novo Produto',
+              fornecedor: 'Fornecedor A',
+              estoque_atual: 0,
+              criado_em: new Date().toISOString()
+            }
+          ]
+        };
+      }
+      return { rows: [] };
+    });
 
     const res = await request(app)
       .post('/api/produtos')

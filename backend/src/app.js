@@ -4,6 +4,7 @@ const path = require('path');
 const swaggerUi = require('swagger-ui-express');
 const swaggerDocument = require('./docs/swagger.json');
 const { apiLimiter } = require('./middlewares/rateLimiter');
+const auditContext = require('./middlewares/auditContext');
 const errorHandler = require('./middlewares/errorHandler');
 const { pool } = require('./config/db');
 
@@ -33,6 +34,9 @@ app.use(
 
 // JSON parser (limite de 5MB para importações)
 app.use(express.json({ limit: '5mb' }));
+
+// Contexto de auditoria e rastreabilidade (request_id, operacao_id, IP e User-Agent)
+app.use(auditContext);
 
 // Rate limiting geral nas rotas da API
 app.use('/api', apiLimiter);

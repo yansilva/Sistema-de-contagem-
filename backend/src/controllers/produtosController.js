@@ -1,5 +1,6 @@
 const { query, getClient } = require('../config/db');
 const { NotFoundError, ConflictError } = require('../errors/AppError');
+const auditService = require('../services/auditService');
 
 /**
  * GET /api/produtos
@@ -107,24 +108,54 @@ async function listarFornecedores(req, res, next) {
  * Cria um produto (administrador only)
  */
 async function criar(req, res, next) {
+  const client = await getClient();
+  let inTransaction = false;
+
   try {
     const { codigo, nome, fornecedor, estoque_atual = 0 } = req.body;
 
-    const result = await query(
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    const result = await client.query(
       `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, codigo, nome, fornecedor, estoque_atual, criado_em, atualizado_em`,
       [req.empresaId, codigo.trim(), nome.trim(), fornecedor.trim(), parseInt(estoque_atual, 10) || 0]
     );
 
+    const produto = result.rows[0];
+
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'produto_criado',
+      entidade: 'produto',
+      entidadeId: produto.id,
+      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual },
+      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual'],
+      eventoChave: `produto_criado_${produto.id}`
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
     res.status(201).json({
       success: true,
       message: 'Produto cadastrado com sucesso.',
       data: {
-        produto: result.rows[0]
+        produto
       }
     });
   } catch (err) {
+    if (inTransaction && client) {
+      try {
+        const p = client.query('ROLLBACK');
+        if (p && typeof p.then === 'function') await p;
+      } catch (_) {}
+    }
     if (err.code === '23505') {
       return next(
         new ConflictError(
@@ -134,6 +165,10 @@ async function criar(req, res, next) {
       );
     }
     next(err);
+  } finally {
+    if (client && typeof client.release === 'function') {
+      client.release();
+    }
   }
 }
 
@@ -142,9 +177,22 @@ async function criar(req, res, next) {
  * Edita um produto (administrador only)
  */
 async function editar(req, res, next) {
+  const client = await getClient();
+  let inTransaction = false;
+
   try {
     const { id } = req.params;
     const { codigo, nome, fornecedor, estoque_atual } = req.body;
+
+    // Buscar estado anterior
+    const anteriorRes = await client.query(
+      'SELECT id, codigo, nome, fornecedor, estoque_atual FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
+      [id, req.empresaId]
+    );
+    if (!anteriorRes || !anteriorRes.rows || anteriorRes.rows.length === 0) {
+      throw new NotFoundError('Produto não encontrado ou inativo.', 'PRODUTO_NAO_ENCONTRADO');
+    }
+    const anterior = anteriorRes.rows[0];
 
     const updates = [];
     const params = [id, req.empresaId];
@@ -172,6 +220,9 @@ async function editar(req, res, next) {
 
     updates.push('atualizado_em = NOW()');
 
+    await client.query('BEGIN');
+    inTransaction = true;
+
     const sql = `
       UPDATE produtos
       SET ${updates.join(', ')}
@@ -179,26 +230,55 @@ async function editar(req, res, next) {
       RETURNING id, codigo, nome, fornecedor, estoque_atual, atualizado_em
     `;
 
-    const result = await query(sql, params);
+    const result = await client.query(sql, params);
 
     if (result.rows.length === 0) {
       throw new NotFoundError('Produto não encontrado ou inativo.', 'PRODUTO_NAO_ENCONTRADO');
     }
 
+    const produto = result.rows[0];
+
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'produto_editado',
+      entidade: 'produto',
+      entidadeId: produto.id,
+      dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, estoque_atual: anterior.estoque_atual },
+      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual },
+      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual'],
+      eventoChave: `produto_editado_${produto.id}`
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
+
     res.json({
       success: true,
       message: 'Produto atualizado com sucesso.',
       data: {
-        produto: result.rows[0]
+        produto
       }
     });
   } catch (err) {
+    if (inTransaction && client) {
+      try {
+        const p = client.query('ROLLBACK');
+        if (p && typeof p.then === 'function') await p;
+      } catch (_) {}
+    }
     if (err.code === '23505') {
       return next(
         new ConflictError('Já existe outro produto cadastrado com este código/SKU.', 'CODIGO_DUPLICADO')
       );
     }
     next(err);
+  } finally {
+    if (client && typeof client.release === 'function') {
+      client.release();
+    }
   }
 }
 
@@ -207,27 +287,65 @@ async function editar(req, res, next) {
  * Soft delete — desativa o produto (administrador only)
  */
 async function desativar(req, res, next) {
+  const client = await getClient();
+  let inTransaction = false;
+
   try {
     const { id } = req.params;
 
-    const result = await query(
+    // Buscar estado anterior para auditoria
+    const anteriorRes = await client.query(
+      'SELECT id, codigo, nome, fornecedor FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
+      [id, req.empresaId]
+    );
+    if (!anteriorRes || !anteriorRes.rows || anteriorRes.rows.length === 0) {
+      throw new NotFoundError('Produto não encontrado.', 'PRODUTO_NAO_ENCONTRADO');
+    }
+    const anterior = anteriorRes.rows[0];
+
+    await client.query('BEGIN');
+    inTransaction = true;
+
+    await client.query(
       `UPDATE produtos
        SET ativo = FALSE, atualizado_em = NOW()
-       WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
-       RETURNING id`,
+       WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE`,
       [id, req.empresaId]
     );
 
-    if (result.rows.length === 0) {
-      throw new NotFoundError('Produto não encontrado.', 'PRODUTO_NAO_ENCONTRADO');
-    }
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'produto_desativado',
+      entidade: 'produto',
+      entidadeId: anterior.id,
+      dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, ativo: true },
+      dadosNovos: { ativo: false },
+      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'ativo'],
+      eventoChave: `produto_desativado_${anterior.id}`
+    });
+
+    await client.query('COMMIT');
+    inTransaction = false;
 
     res.json({
       success: true,
       message: 'Produto desativado com sucesso.'
     });
   } catch (err) {
+    if (inTransaction && client) {
+      try {
+        const p = client.query('ROLLBACK');
+        if (p && typeof p.then === 'function') await p;
+      } catch (_) {}
+    }
     next(err);
+  } finally {
+    if (client && typeof client.release === 'function') {
+      client.release();
+    }
   }
 }
 
@@ -267,6 +385,21 @@ async function importar(req, res, next) {
     }
 
     await client.query('COMMIT');
+
+    // Auditoria: importação de catálogo finalizada
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'catalogo_importado',
+        entidade: 'produto',
+        resultado: 'sucesso',
+        metadados: { modo, total_processados: processados },
+        eventoChave: `catalogo_importado_${Date.now()}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
 
     res.json({
       success: true,

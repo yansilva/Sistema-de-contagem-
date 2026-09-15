@@ -1,5 +1,7 @@
 const { query, getClient } = require('../config/db');
 const { NotFoundError, ValidationError, ConflictError, ForbiddenError } = require('../errors/AppError');
+const auditService = require('../services/auditService');
+const { serializeContagemDetalhe } = require('../serializers/contagemSerializer');
 
 /**
  * Helper para verificar se usuário é administrador
@@ -82,6 +84,20 @@ async function iniciar(req, res, next) {
         );
       }
     }
+
+    // Auditoria: contagem iniciada
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'contagem_criada',
+      entidade: 'contagem',
+      entidadeId: contagem.id,
+      dadosNovos: { total_fornecedores: mapaFornecedores.size, total_produtos: produtos.length },
+      whitelistCampos: ['total_fornecedores', 'total_produtos'],
+      eventoChave: `contagem_criada_${contagem.id}`
+    });
 
     await client.query('COMMIT');
 
@@ -186,6 +202,19 @@ async function salvarProgresso(req, res, next) {
         }
       }
     }
+
+    // Auditoria: progresso salvo
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'contagem_progresso_salvo',
+      entidade: 'contagem',
+      entidadeId: id,
+      metadados: { fornecedor: fornecedor.trim(), itens_salvos: itensSalvos },
+      eventoChave: `progresso_${id}_${fornecedorId}`
+    });
 
     await client.query('COMMIT');
 
@@ -363,6 +392,20 @@ async function finalizar(req, res, next) {
       [temDiferencaGlobal, id]
     );
 
+    // Auditoria: contagem finalizada
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'contagem_finalizada',
+      entidade: 'contagem',
+      entidadeId: id,
+      dadosNovos: { tem_diferenca: temDiferencaGlobal, total_itens: itensRes.rows.length, fornecedores_com_diferenca: fornecedoresComDiferenca.size },
+      whitelistCampos: ['tem_diferenca', 'total_itens', 'fornecedores_com_diferenca'],
+      eventoChave: `contagem_finalizada_${id}`
+    });
+
     await client.query('COMMIT');
 
     res.json({
@@ -485,65 +528,16 @@ async function detalhe(req, res, next) {
 
     const fornecedoresRes = await query(sql, [id]);
 
-    // Sanitizar campos conforme RBAC e status (Blind Count Protection)
-    const fornecedoresSanitizados = fornecedoresRes.rows.map((forn) => {
-      const produtosSanitizados = forn.produtos.map((p) => {
-        // Base para todos
-        const base = {
-          id: p.id,
-          produto_id: p.produto_id,
-          codigo: p.codigo,
-          nome: p.nome,
-          quantidade_contada: p.quantidade_contada,
-          contado_em: p.contado_em
-        };
-
-        // Compatibilidade de campos
-        base.qty_contagem = p.quantidade_contada || 0;
-
-        if (!isFinalizada) {
-          // Durante a contagem: NENHUM usuário (nem funcionário) vê estoque de referência nem diferenças parciais
-          if (admin) {
-            // Admin pode ver estoque_referencia se quiser, mas funcionário NUNCA
-            base.estoque_referencia = p.estoque_referencia;
-          }
-          return base;
-        }
-
-        // Se finalizada:
-        if (admin) {
-          // Admin vê tudo
-          return {
-            ...base,
-            estoque_referencia: p.estoque_referencia,
-            diferenca: p.diferenca,
-            situacao: p.situacao,
-            sem_diferenca: p.diferenca === 0
-          };
-        }
-
-        // Funcionário após finalização: VÊ SOMENTE a diferença e a situação. NUNCA estoque_referencia!
-        return {
-          ...base,
-          diferenca: p.diferenca,
-          situacao: p.situacao,
-          sem_diferenca: p.diferenca === 0
-        };
-      });
-
-      return {
-        ...forn,
-        produtos: produtosSanitizados
-      };
-    });
+    const contagemSerializada = serializeContagemDetalhe(
+      contagem,
+      fornecedoresRes.rows,
+      req.usuario
+    );
 
     res.json({
       success: true,
       data: {
-        contagem: {
-          ...contagem,
-          fornecedores: fornecedoresSanitizados
-        }
+        contagem: contagemSerializada
       }
     });
   } catch (err) {

@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { query } = require('../config/db');
 const { gerarAccessToken, gerarRefreshToken, hashToken } = require('../config/jwt');
-const { ConflictError } = require('../errors/AppError');
+const { ConflictError, ForbiddenError } = require('../errors/AppError');
 
 const SALT_ROUNDS = 12;
 
@@ -12,6 +12,17 @@ const SALT_ROUNDS = 12;
  */
 async function registrar(req, res, next) {
   try {
+    const isPublicAllowed =
+      process.env.ALLOW_PUBLIC_REGISTRATION === 'true' ||
+      process.env.NODE_ENV === 'test';
+
+    if (!isPublicAllowed) {
+      throw new ForbiddenError(
+        'O cadastro público de organizações está desabilitado. O provisionamento é gerenciado pela administração da plataforma.',
+        'CADASTRO_PUBLICO_DESABILITADO'
+      );
+    }
+
     const { empresa_nome, nome, email, senha } = req.body;
     const emailNorm = email.toLowerCase().trim();
 

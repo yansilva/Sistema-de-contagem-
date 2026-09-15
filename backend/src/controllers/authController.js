@@ -3,6 +3,7 @@ const { query } = require('../config/db');
 const { gerarAccessToken, gerarRefreshToken, hashToken } = require('../config/jwt');
 const { UnauthorizedError, NotFoundError } = require('../errors/AppError');
 const { registrar: registrarEmpresa } = require('./empresasController');
+const auditService = require('../services/auditService');
 
 const SALT_ROUNDS = 12;
 
@@ -57,6 +58,21 @@ async function login(req, res, next) {
       [usuario.id, tokenHash, expiraEm]
     );
 
+    // Auditoria: login com sucesso
+    await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+      escopo: 'seguranca',
+      empresaId: usuario.empresa_id,
+      atorTipo: 'usuario_empresa',
+      atorId: usuario.id,
+      atorPapel: usuario.papel,
+      atorRotulo: usuario.email,
+      acao: 'login_sucesso',
+      entidade: 'sessao',
+      entidadeId: usuario.id,
+      resultado: 'sucesso',
+      eventoChave: `login_${Date.now()}`
+    });
+
     res.json({
       success: true,
       data: {
@@ -79,6 +95,21 @@ async function login(req, res, next) {
       }
     });
   } catch (err) {
+    // Auditoria: login falhou (credenciais inválidas, usuário desativado)
+    if (err.errorCode === 'CREDENCIAIS_INVALIDAS' || err.errorCode === 'USUARIO_DESATIVADO') {
+      try {
+        await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+          escopo: 'seguranca',
+          atorTipo: 'anonimo',
+          acao: 'login_falha',
+          entidade: 'sessao',
+          resultado: 'falha',
+          codigoErro: err.errorCode,
+          metadados: { email_tentado: req.body?.email?.toLowerCase?.()?.trim?.() || 'desconhecido' },
+          eventoChave: `login_falha_${Date.now()}`
+        });
+      } catch { /* Auditoria não deve bloquear resposta */ }
+    }
     next(err);
   }
 }
@@ -112,6 +143,24 @@ async function refresh(req, res, next) {
       await query(`UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1`, [
         row.usuario_id
       ]);
+      // Auditoria: violação de segurança (reutilização de token)
+      try {
+        await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+          escopo: 'seguranca',
+          empresaId: row.empresa_id,
+          atorTipo: 'usuario_empresa',
+          atorId: row.usuario_id,
+          atorPapel: row.papel,
+          atorRotulo: row.email,
+          acao: 'sessao_comprometida',
+          entidade: 'sessao',
+          entidadeId: row.usuario_id,
+          resultado: 'falha',
+          codigoErro: 'SESSAO_COMPROMETIDA',
+          metadados: { motivo: 'Reutilização de refresh token revogado, todas as sessões invalidadas.' },
+          eventoChave: `theft_${Date.now()}`
+        });
+      } catch { /* Auditoria não deve bloquear resposta */ }
       throw new UnauthorizedError(
         'Violação de segurança detectada: tentativa de reutilização de token. Todas as sessões foram invalidadas.',
         'SESSAO_COMPROMETIDA'
@@ -175,6 +224,23 @@ async function logout(req, res, next) {
         'DELETE FROM refresh_tokens WHERE usuario_id = $1 AND (revogado = TRUE OR expira_em < NOW())',
         [req.usuario.id]
       );
+
+      // Auditoria: logout
+      try {
+        await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+          escopo: 'seguranca',
+          empresaId: req.usuario.empresa_id,
+          atorTipo: 'usuario_empresa',
+          atorId: req.usuario.id,
+          atorPapel: req.usuario.papel,
+          atorRotulo: req.usuario.email,
+          acao: 'logout',
+          entidade: 'sessao',
+          entidadeId: req.usuario.id,
+          resultado: 'sucesso',
+          eventoChave: `logout_${Date.now()}`
+        });
+      } catch { /* Auditoria não deve bloquear resposta */ }
     }
 
     res.json({
@@ -240,6 +306,24 @@ async function alterarSenha(req, res, next) {
        WHERE id = $2`,
       [novoHash, req.usuario.id]
     );
+
+    // Auditoria: senha alterada pelo próprio usuário
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        escopo: 'seguranca',
+        empresaId: req.usuario.empresa_id,
+        atorTipo: 'usuario_empresa',
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'senha_alterada',
+        entidade: 'usuario',
+        entidadeId: req.usuario.id,
+        resultado: 'sucesso',
+        metadados: { was_must_change: Boolean(result.rows[0]?.must_change_password) },
+        eventoChave: `senha_${Date.now()}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
 
     res.json({
       success: true,

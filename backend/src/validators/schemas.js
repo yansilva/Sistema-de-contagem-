@@ -40,7 +40,7 @@ const criarUsuarioSchema = {
   body: z.object({
     nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').trim(),
     email: z.string().email('Email inválido').trim().toLowerCase(),
-    papel: z.enum(['administrador', 'funcionario']).default('funcionario'),
+    papel: z.enum(['administrador', 'funcionario', 'super_admin']).default('funcionario'),
     senha_temporaria: z.string().min(6, 'Senha temporária deve ter pelo menos 6 caracteres')
   })
 };
@@ -51,7 +51,7 @@ const editarUsuarioSchema = {
   }),
   body: z.object({
     nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').trim().optional(),
-    papel: z.enum(['administrador', 'funcionario']).optional()
+    papel: z.enum(['administrador', 'funcionario', 'super_admin']).optional()
   })
 };
 

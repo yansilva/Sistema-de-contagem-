@@ -1,6 +1,7 @@
 const { query, getClient } = require('../config/db');
 const { ValidationError, NotFoundError } = require('../errors/AppError');
 const { processarPdfEstoque } = require('../services/pdfStockImportService');
+const auditService = require('../services/auditService');
 
 /**
  * POST /api/estoque/upload-pdf
@@ -26,6 +27,25 @@ async function uploadPdf(req, res, next) {
       req.file.originalname,
       produtosDb.rows
     );
+
+    // Auditoria: PDF de estoque recebido e processado
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'estoque_pdf_recebido',
+        entidade: 'estoque',
+        resultado: 'sucesso',
+        metadados: {
+          nome_arquivo: req.file.originalname,
+          produtos_encontrados: previa.produtos_encontrados || 0,
+          linhas_ignoradas: previa.linhas_ignoradas || 0
+        },
+        eventoChave: `pdf_recebido_${Date.now()}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
 
     res.json({
       success: true,
@@ -93,6 +113,23 @@ async function confirmarAtualizacao(req, res, next) {
         linhas_ignoradas
       ]
     );
+
+    // Auditoria: confirmação de atualização de estoque (dentro da transação)
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'estoque_atualizado',
+      entidade: 'estoque',
+      resultado: 'sucesso',
+      metadados: {
+        nome_arquivo: nome_arquivo || 'relatorio_tiny.pdf',
+        produtos_atualizados: produtosAtualizados,
+        skus_pendentes: skus_nao_encontrados.length
+      },
+      eventoChave: `estoque_confirmado_${Date.now()}`
+    });
 
     await client.query('COMMIT');
 

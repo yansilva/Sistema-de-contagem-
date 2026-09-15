@@ -14,7 +14,8 @@ const state = {
   contagemFornecedores: [],
   contagemItens: [],
   historicoImportacaoEstoque: [],
-  refreshTokens: []
+  refreshTokens: [],
+  auditLogs: []
 };
 
 function resetMockDb() {
@@ -26,6 +27,7 @@ function resetMockDb() {
   state.contagemItens = [];
   state.historicoImportacaoEstoque = [];
   state.refreshTokens = [];
+  state.auditLogs = [];
 }
 
 async function executeMockQuery(sql, params = []) {
@@ -171,6 +173,19 @@ async function executeMockQuery(sql, params = []) {
     return { rows: user ? [user] : [] };
   }
 
+  // SELECT COUNT(*)::int AS total FROM usuarios WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ...
+  if (norm.includes('FROM usuarios WHERE empresa_id = $1 AND ativo = TRUE') && norm.includes('papel IN')) {
+    const empresaId = params[0];
+    const adminRoles = ['administrador', 'gestor', 'admin'];
+    const count = state.usuarios.filter(
+      (u) =>
+        u.empresa_id === empresaId &&
+        u.ativo !== false &&
+        adminRoles.includes((u.papel || '').toLowerCase())
+    ).length;
+    return { rows: [{ total: count }] };
+  }
+
   // SELECT usuarios da empresa (gestão de usuários)
   if (norm.includes('FROM usuarios WHERE empresa_id = $1') || norm.includes('SELECT id, nome, email, papel, ativo')) {
     const empresaId = params[0];
@@ -228,6 +243,19 @@ async function executeMockQuery(sql, params = []) {
       const empresaId = params[1];
       const user = state.usuarios.find((u) => u.id === userId && u.empresa_id === empresaId);
       if (user) {
+        if (norm.includes('papel = $')) {
+          const match = norm.match(/papel = \$(\d+)/);
+          if (match && params[parseInt(match[1], 10) - 1]) {
+            user.papel = params[parseInt(match[1], 10) - 1];
+          }
+        }
+        if (norm.includes('nome = $')) {
+          const match = norm.match(/nome = \$(\d+)/);
+          if (match && params[parseInt(match[1], 10) - 1]) {
+            user.nome = params[parseInt(match[1], 10) - 1];
+          }
+        }
+        user.atualizado_em = new Date().toISOString();
         return { rows: [user] };
       }
       return { rows: [] };
@@ -545,6 +573,57 @@ async function executeMockQuery(sql, params = []) {
     return { rows };
   }
 
+  // ===== AUDIT_LOGS =====
+  if (norm.startsWith('INSERT INTO audit_logs')) {
+    const log = {
+      id: crypto.randomUUID(),
+      escopo: params[0],
+      empresa_id: params[1],
+      ator_tipo: params[2],
+      ator_id: params[3],
+      ator_papel: params[4],
+      ator_rotulo: params[5],
+      acao: params[6],
+      entidade: params[7],
+      entidade_id: params[8],
+      resultado: params[9],
+      dados_anteriores: params[10] ? JSON.parse(params[10]) : null,
+      dados_novos: params[11] ? JSON.parse(params[11]) : null,
+      metadados: params[12] ? JSON.parse(params[12]) : {},
+      motivo: params[13],
+      codigo_erro: params[14],
+      ip: params[15],
+      user_agent: params[16],
+      request_id: params[17],
+      operacao_id: params[18],
+      evento_chave: params[19],
+      criado_em: new Date().toISOString()
+    };
+    // Verificar unicidade (operacao_id, evento_chave)
+    const dup = state.auditLogs.find(
+      (l) => l.operacao_id === log.operacao_id && l.evento_chave === log.evento_chave
+    );
+    if (dup) {
+      const err = new Error('duplicate key value violates unique constraint');
+      err.code = '23505';
+      throw err;
+    }
+    state.auditLogs.push(log);
+    return { rows: [{ id: log.id, criado_em: log.criado_em }] };
+  }
+
+  if (norm.includes('FROM audit_logs')) {
+    let logs = [...state.auditLogs];
+    if (norm.includes('empresa_id = $1')) {
+      logs = logs.filter((l) => l.empresa_id === params[0]);
+    }
+    if (norm.includes('COUNT(*)')) {
+      return { rows: [{ total: logs.length }] };
+    }
+    logs.sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em));
+    return { rows: logs };
+  }
+
   // Fallback genérico para BEGIN, COMMIT, ROLLBACK
   return { rows: [] };
 }
@@ -558,6 +637,8 @@ class MockClient {
 
 module.exports = {
   executeMockQuery,
+  query: executeMockQuery,
+  getClient: () => new MockClient(),
   getMockClient: () => new MockClient(),
   state,
   resetMockDb
