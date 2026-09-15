@@ -7,6 +7,18 @@
  * @param {string} screenId 
  */
 function showScreen(screenId) {
+  const publicScreens = ['screen-login', 'screen-troca-senha-obrigatoria'];
+  const employeeScreens = ['screen-home', 'screen-contagem', 'screen-resultado', 'screen-catalogo', 'screen-produtores', 'screen-historico-contagens'];
+  if (!Auth.usuario && screenId !== 'screen-login') {
+    screenId = 'screen-login';
+  } else if (Auth.usuario?.mustChangePassword && screenId !== 'screen-login') {
+    screenId = 'screen-troca-senha-obrigatoria';
+  } else if (!Auth.isAdmin() && !publicScreens.includes(screenId) && !employeeScreens.includes(screenId)) {
+    screenId = 'screen-home';
+  }
+  if (screenId === 'screen-registro' && Auth.usuario?.papel !== 'super_admin') {
+    screenId = Auth.usuario ? 'screen-home' : 'screen-login';
+  }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
   if (target) {
@@ -20,6 +32,12 @@ function showScreen(screenId) {
   } else if (screenId === 'screen-home') {
     Auth.atualizarInterface();
     carregarDashboard();
+  } else if (screenId === 'screen-catalogo') {
+    Consulta.carregarCatalogo();
+  } else if (screenId === 'screen-produtores') {
+    Consulta.carregarProdutores();
+  } else if (screenId === 'screen-historico-contagens') {
+    Consulta.carregarHistorico();
   }
 }
 
@@ -27,6 +45,10 @@ function showScreen(screenId) {
  * Carrega dados contextuais e KPIs do dashboard da Home
  */
 async function carregarDashboard() {
+  if (!Auth.isAdmin()) {
+    await Consulta.carregarResumo();
+    return;
+  }
   // 1. Atualiza dados de boas-vindas
   const homeUserEl = document.getElementById('home-user-name');
   if (homeUserEl) {
@@ -47,7 +69,7 @@ async function carregarDashboard() {
     const [resProd, resForn, resHist] = await Promise.all([
       API.get('/produtos?limit=1'),
       API.get('/produtos/fornecedores'),
-      API.get('/contagens/historico?limit=1')
+      API.get('/contagens?limit=100')
     ]);
 
     const kpiProd = document.getElementById('kpi-total-produtos');
@@ -74,6 +96,7 @@ async function carregarDashboard() {
  * @param {string} tabId 
  */
 function switchTab(tabId) {
+  if (!Auth.isAdmin() || Auth.usuario?.mustChangePassword) return;
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
 
@@ -92,6 +115,17 @@ function switchTab(tabId) {
     Usuarios.carregar();
   } else if (tabId === 'estoque' && typeof StockImport !== 'undefined') {
     StockImport.carregarHistorico();
+  } else if (tabId === 'atividades' && typeof Atividades !== 'undefined') {
+    Atividades.carregar();
+  }
+}
+
+function abrirHistoricoContagens() {
+  if (Auth.isAdmin()) {
+    showScreen('screen-backoffice');
+    switchTab('historico');
+  } else {
+    showScreen('screen-historico-contagens');
   }
 }
 
@@ -127,7 +161,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputBusca = document.getElementById('busca-fornecedor');
   if (inputBusca) {
     inputBusca.addEventListener('input', debounce((e) => {
-      Contagens.filtrarSugestoes(e.target.value);
+      Contagens.filtrarProdutores(e.target.value);
     }, 250));
   }
 
@@ -144,6 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Escape') {
       Produtos.fecharModal();
       if (typeof Usuarios !== 'undefined') Usuarios.fecharModal();
+      if (typeof Atividades !== 'undefined') Atividades.fecharModal();
     }
   });
 
@@ -151,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const logado = await Auth.restaurarSessao();
   if (logado) {
     // Se mustChangePassword, a tela já foi redirecionada em restaurarSessao()
-    if (!Auth.usuario?.must_change_password) {
+    if (!Auth.usuario?.mustChangePassword) {
       showScreen('screen-home');
     }
   } else {

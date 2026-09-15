@@ -8,7 +8,12 @@ echo ========================================================
 echo.
 
 :: Vai para a pasta do backend e inicia o servidor
-cd backend
+cd /d "%~dp0backend"
+if errorlevel 1 (
+    echo Nao foi possivel localizar a pasta backend.
+    pause
+    exit /b 1
+)
 call npm start
 
 :: Caso o servidor feche por algum erro, pausa para o usuario conseguir ler

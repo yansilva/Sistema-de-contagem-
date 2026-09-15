@@ -11,4 +11,4 @@ require('dotenv').config();
 
 console.log('🚀 Sistema configurado para operação limpa e produção.');
 console.log('ℹ️  Nenhuma credencial padrão ou empresa demo foi injetada.');
-console.log('👉 Acesse a aplicação web para criar a primeira empresa e conta de administrador.');
+console.log('👉 Configure o PostgreSQL e execute npm run seed:superadmin. Depois, entre como superadmin e use Nova empresa.');

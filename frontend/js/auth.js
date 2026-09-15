@@ -18,7 +18,7 @@ const Auth = {
       this.empresa = res.data.empresa;
 
       // Se o usuário precisa trocar a senha, redireciona
-      if (this.usuario.must_change_password) {
+      if (this.usuario.mustChangePassword) {
         this.atualizarInterface();
         showScreen('screen-troca-senha-obrigatoria');
         return true;
@@ -67,6 +67,7 @@ const Auth = {
 
       // Redireciona para troca obrigatória de senha se necessário
       if (mustChangePassword) {
+        document.getElementById('troca-senha-atual').value = senha;
         showToast('Você precisa definir uma nova senha antes de continuar.', 'warning');
         showScreen('screen-troca-senha-obrigatoria');
         return;
@@ -86,6 +87,10 @@ const Auth = {
    * Cadastro de nova empresa e usuário administrador
    */
   async fazerRegistro() {
+    if (this.usuario?.papel !== 'super_admin') {
+      showToast('Cadastro de empresas restrito ao superadmin.', 'warning');
+      return;
+    }
     const empresa_nome = document.getElementById('reg-empresa').value.trim();
     const nome = document.getElementById('reg-nome').value.trim();
     const email = document.getElementById('reg-email').value.trim();
@@ -115,7 +120,7 @@ const Auth = {
     btn.innerHTML = '<span class="spinner"></span> Criando conta...';
 
     try {
-      const res = await API.post('/empresas/registrar', {
+      const res = await API.post('/empresas', {
         empresa_nome,
         nome,
         email,
@@ -127,21 +132,16 @@ const Auth = {
         return;
       }
 
-      const { accessToken, refreshToken, usuario, empresa } = res.data;
-      sessionStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
-
-      this.usuario = usuario;
-      this.empresa = empresa;
-
-      this.atualizarInterface();
-      showToast('Conta criada com sucesso! 14 dias de teste ativados.', 'success');
+      for (const id of ['reg-empresa', 'reg-nome', 'reg-email', 'reg-senha', 'reg-confirmar']) {
+        document.getElementById(id).value = '';
+      }
+      showToast('Empresa cadastrada! O administrador deverá trocar a senha temporária no primeiro acesso.', 'success');
       showScreen('screen-home');
     } catch (err) {
       erroEl.textContent = 'Falha ao registrar empresa.';
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-user-plus"></i> Criar conta';
+      btn.innerHTML = '<i class="ti ti-building-store"></i> Cadastrar empresa';
     }
   },
 
@@ -149,6 +149,7 @@ const Auth = {
    * Troca obrigatória de senha (primeiro acesso com senha temporária)
    */
   async trocarSenhaObrigatoria() {
+    const senhaAtual = document.getElementById('troca-senha-atual').value;
     const novaSenha = document.getElementById('troca-nova-senha').value;
     const confirmar = document.getElementById('troca-confirmar-senha').value;
     const feedback = document.getElementById('troca-senha-error');
@@ -156,7 +157,7 @@ const Auth = {
 
     feedback.textContent = '';
 
-    if (!novaSenha || !confirmar) {
+    if (!senhaAtual || !novaSenha || !confirmar) {
       feedback.textContent = 'Preencha todos os campos.';
       return;
     }
@@ -181,7 +182,7 @@ const Auth = {
     btn.innerHTML = '<span class="spinner"></span> Salvando...';
 
     try {
-      const res = await API.put('/auth/senha', { novaSenha, forceTroca: true });
+      const res = await API.put('/auth/senha', { senhaAtual, novaSenha });
 
       if (!res || !res.success) {
         feedback.textContent = res?.message || 'Erro ao alterar senha.';
@@ -190,7 +191,10 @@ const Auth = {
 
       // Atualiza flag local
       if (this.usuario) {
-        this.usuario.must_change_password = false;
+        this.usuario.mustChangePassword = false;
+      }
+      for (const id of ['troca-senha-atual', 'troca-nova-senha', 'troca-confirmar-senha']) {
+        document.getElementById(id).value = '';
       }
 
       showToast('Senha definida com sucesso! Bem-vindo(a)!', 'success');
@@ -254,6 +258,10 @@ const Auth = {
     localStorage.removeItem('refreshToken');
     this.usuario = null;
     this.empresa = null;
+    this.atualizarInterface();
+    for (const id of ['login-senha', 'reg-senha', 'reg-confirmar', 'troca-senha-atual', 'troca-nova-senha', 'troca-confirmar-senha']) {
+      document.getElementById(id).value = '';
+    }
 
     showScreen('screen-login');
     showToast('Você saiu da sua conta.', 'info');
@@ -263,10 +271,20 @@ const Auth = {
    * Atualiza elementos da topbar com dados do usuário logado
    */
   atualizarInterface() {
+    const admin = this.isAdmin();
+    document.querySelectorAll('[data-admin-only]').forEach((element) => {
+      element.hidden = !admin;
+    });
+    const homeFuncionario = document.getElementById('home-funcionario');
+    if (homeFuncionario) homeFuncionario.hidden = !this.usuario || admin;
+    const funcionarioNome = document.getElementById('funcionario-home-nome');
+    if (funcionarioNome) funcionarioNome.textContent = this.usuario?.nome || 'equipe';
     const badgeEl = document.getElementById('topbar-user-badge');
     const avatarEl = document.getElementById('topbar-avatar');
     const nomeEl = document.getElementById('topbar-user-name');
     const btnBackoffice = document.getElementById('btn-nav-backoffice');
+    const btnNovaEmpresa = document.getElementById('btn-nova-empresa');
+    if (btnNovaEmpresa) btnNovaEmpresa.style.display = this.usuario?.papel === 'super_admin' ? 'inline-flex' : 'none';
 
     if (this.usuario) {
       const iniciais = (this.usuario.nome || 'U')
@@ -284,9 +302,7 @@ const Auth = {
 
       // Mostra botão de back-office para administrador, gestor ou admin
       if (btnBackoffice) {
-        const papel = this.usuario.papel;
-        const isGestor = ['gestor', 'admin', 'administrador'].includes(papel);
-        btnBackoffice.style.display = isGestor ? 'inline-flex' : 'none';
+        btnBackoffice.style.display = admin ? 'inline-flex' : 'none';
       }
     } else {
       if (badgeEl) badgeEl.style.display = 'none';
@@ -295,9 +311,9 @@ const Auth = {
   },
 
   /**
-   * Verifica se o usuário logado é administrador/gestor
+   * Verifica se o usuário logado é administrador/gestor/super_admin
    */
   isAdmin() {
-    return ['gestor', 'admin', 'administrador'].includes(this.usuario?.papel);
+    return ['gestor', 'admin', 'administrador', 'super_admin'].includes(this.usuario?.papel);
   }
 };

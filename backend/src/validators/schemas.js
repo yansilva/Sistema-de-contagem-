@@ -198,6 +198,67 @@ const adicionarFornecedorSchema = {
   })
 };
 
+// ===== AUDITORIA / ATIVIDADES SCHEMAS =====
+const listarAtividadesQuerySchema = {
+  query: z
+    .object({
+      page: z.coerce.number().int().positive().default(1),
+      limit: z.coerce.number().int().positive().max(100).default(20),
+      data_inicio: z.string().trim().optional(),
+      data_fim: z.string().trim().optional(),
+      ator_id: z.string().uuid('ID do ator inválido').optional(),
+      acao: z.string().trim().optional(),
+      entidade: z.string().trim().optional(),
+      resultado: z.enum(['sucesso', 'falha']).optional(),
+      search: z.string().trim().optional()
+    })
+    .refine(
+      (data) => {
+        if (data.data_inicio && data.data_fim) {
+          const inicio = new Date(data.data_inicio);
+          const fim = new Date(data.data_fim);
+          if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) return false;
+          const diffDays = (fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24);
+          return diffDays >= 0 && diffDays <= 31;
+        }
+        return true;
+      },
+      {
+        message: 'O intervalo entre data_inicio e data_fim deve ser válido e de no máximo 31 dias.',
+        path: ['data_fim']
+      }
+    )
+};
+
+const exportarAtividadesSchema = {
+  body: z
+    .object({
+      data_inicio: z.string().trim().optional(),
+      data_fim: z.string().trim().optional(),
+      ator_id: z.string().uuid('ID do ator inválido').optional(),
+      acao: z.string().trim().optional(),
+      entidade: z.string().trim().optional(),
+      resultado: z.enum(['sucesso', 'falha']).optional(),
+      search: z.string().trim().optional()
+    })
+    .refine(
+      (data) => {
+        if (data.data_inicio && data.data_fim) {
+          const inicio = new Date(data.data_inicio);
+          const fim = new Date(data.data_fim);
+          if (isNaN(inicio.getTime()) || isNaN(fim.getTime())) return false;
+          const diffDays = (fim.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24);
+          return diffDays >= 0 && diffDays <= 31;
+        }
+        return true;
+      },
+      {
+        message: 'O intervalo entre data_inicio e data_fim deve ser válido e de no máximo 31 dias.',
+        path: ['data_fim']
+      }
+    )
+};
+
 module.exports = {
   loginSchema,
   registroSchema,
@@ -215,5 +276,7 @@ module.exports = {
   confirmarAtualizacaoEstoqueSchema,
   iniciarContagemSchema,
   salvarProgressoContagemSchema,
-  adicionarFornecedorSchema
+  adicionarFornecedorSchema,
+  listarAtividadesQuerySchema,
+  exportarAtividadesSchema
 };

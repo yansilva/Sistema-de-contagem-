@@ -90,6 +90,12 @@ A aplicação permite que equipes de loja executem contagens físicas guiadas po
 
 Auditoria de segurança e conformidade contínua com **GitGuard**, garantindo proteção contra vulnerabilidades em dependências (CVEs), análise estática SAST e conformidade com os padrões OWASP.
 
+### Acesso do funcionário de contagem
+
+O perfil `funcionario` tem uma página inicial própria com **Iniciar nova contagem**, **Catálogo**, **Produtores** e **Histórico de contagens**. Catálogo, produtores e histórico são consultas sem edição ou exportação. O catálogo não informa o saldo do sistema, preservando a contagem cega.
+
+Back-office, sincronização, importação de estoque, gestão de produtos, funcionários e atividades ficam restritos à administração. A navegação bloqueia os atalhos administrativos e a API valida as permissões em cada requisição. O cadastro de empresas é exclusivo do `super_admin`.
+
 ### Rotação de Refresh Tokens & Detecção de Roubo
 
 A plataforma implementa a especificação de segurança recomendada pela [RFC 6749 / OWASP](https://owasp.org/):
@@ -178,12 +184,47 @@ npm install
 cp .env.example .env
 # Edite as credenciais do PostgreSQL no arquivo .env se necessário
 
-# 4. Execute a inicialização do banco de dados e seed
-npm run seed
+# 4. Crie o banco estoque_db no PostgreSQL e aplique sql/schema.sql
+# em um banco novo. Para bancos existentes, use as migrations aplicáveis.
+# Configure SUPER_ADMIN_EMAIL, SUPER_ADMIN_SENHA e SUPER_ADMIN_NOME no .env.
+npm run seed:superadmin
 
 # 5. Inicie em modo de desenvolvimento
 npm run dev
 ```
+
+---
+
+### Erro ao iniciar: `EADDRINUSE` na porta 3002
+
+Esse erro significa que outro processo já está usando a porta do servidor. Se uma instância do sistema já estiver rodando, acesse [http://localhost:3002](http://localhost:3002) sem iniciar novamente.
+
+Para identificar o processo no Windows:
+
+```powershell
+netstat -ano | findstr :3002
+# Use o PID da linha LISTENING no comando abaixo:
+Get-Process -Id <PID>
+```
+
+Para reiniciar o sistema, encerre a instância anterior com `Ctrl+C` no terminal em que ela foi iniciada e execute novamente `iniciar-servidor.bat` ou `npm start` na pasta `backend`. Se estiver usando Docker, encerre o serviço com `docker compose stop api` antes de iniciar o backend manualmente.
+
+### Primeiro acesso e cadastro de empresas
+
+1. Com o PostgreSQL conectado e o schema aplicado, execute `npm run seed:superadmin` no backend. O script lê as credenciais do `.env`, cria a organização interna e o usuário de plataforma em uma transação. Reexecutar o script preserva a senha de uma conta já existente.
+2. Entre com o email e a senha definidos em `SUPER_ADMIN_EMAIL` e `SUPER_ADMIN_SENHA`.
+3. Clique em **Nova empresa**. Informe a empresa, o nome e email do administrador e uma senha temporária forte. Sua sessão de superadmin é preservada.
+4. O administrador da empresa entra com a senha temporária e define sua própria senha antes de acessar os dados.
+
+`POST /api/empresas` exige `super_admin` e grava empresa, administrador e auditoria na mesma transação. O cadastro público permanece desabilitado por padrão (`ALLOW_PUBLIC_REGISTRATION=false`).
+
+### Banco local e diagnóstico de conexão
+
+O sistema operacional usa PostgreSQL; o banco em memória é exclusivo dos testes. Quando o PostgreSQL fica indisponível, a API retorna `503 BANCO_INDISPONIVEL` e `/api/health` responde `503` com `database: unreachable`, sem consultar uma base temporária vazia.
+
+Neste ambiente Windows, os binários locais ficam em `.local/pgsql`, e os dados persistentes em `.local/pgdata`. `npm start` e `npm run dev` iniciam essa instalação local quando ela está preparada e o `.env` aponta para `localhost:5432`. Instalações em outros computadores precisam preparar o PostgreSQL ou usar Docker. Os binários para Windows estão disponíveis na [página oficial indicada pelo PostgreSQL](https://www.postgresql.org/download/windows/).
+
+A pasta `.local` e o `.env` ficam fora do Git. Preserve os dados e mantenha backups com `pg_dump`; clonar o repositório não copia empresas, usuários ou contagens. Os logs locais do banco ficam em `.local/postgres.log`.
 
 ---
 

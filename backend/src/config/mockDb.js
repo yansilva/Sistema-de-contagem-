@@ -613,14 +613,98 @@ async function executeMockQuery(sql, params = []) {
   }
 
   if (norm.includes('FROM audit_logs')) {
-    let logs = [...state.auditLogs];
-    if (norm.includes('empresa_id = $1')) {
-      logs = logs.filter((l) => l.empresa_id === params[0]);
+    // Busca por ID específico
+    if (norm.includes('WHERE id = $1') || norm.includes('WHERE id = $')) {
+      const targetId = params[0];
+      const found = state.auditLogs.find((l) => l.id === targetId);
+      return { rows: found ? [found] : [] };
     }
+
+    let logs = [...state.auditLogs];
+
+    // Se houver filtros parametrizados
+    if (params && params.length > 0) {
+      if (norm.includes('empresa_id = $')) {
+        const m = norm.match(/empresa_id = \$(\d+)/);
+        if (m) {
+          const empId = params[parseInt(m[1], 10) - 1];
+          logs = logs.filter((l) => l.empresa_id === empId);
+        }
+      }
+      if (norm.includes('criado_em >= $')) {
+        const m = norm.match(/criado_em >= \$(\d+)/);
+        if (m) {
+          const d = new Date(params[parseInt(m[1], 10) - 1]);
+          logs = logs.filter((l) => new Date(l.criado_em) >= d);
+        }
+      }
+      if (norm.includes('criado_em <= $')) {
+        const m = norm.match(/criado_em <= \$(\d+)/);
+        if (m) {
+          const d = new Date(params[parseInt(m[1], 10) - 1]);
+          logs = logs.filter((l) => new Date(l.criado_em) <= d);
+        }
+      }
+      if (norm.includes('ator_id = $')) {
+        const m = norm.match(/ator_id = \$(\d+)/);
+        if (m) {
+          const atId = params[parseInt(m[1], 10) - 1];
+          logs = logs.filter((l) => l.ator_id === atId);
+        }
+      }
+      if (norm.includes('acao = $')) {
+        const m = norm.match(/acao = \$(\d+)/);
+        if (m) {
+          const ac = params[parseInt(m[1], 10) - 1];
+          logs = logs.filter((l) => l.acao === ac);
+        }
+      }
+      if (norm.includes('entidade = $')) {
+        const m = norm.match(/entidade = \$(\d+)/);
+        if (m) {
+          const ent = params[parseInt(m[1], 10) - 1];
+          logs = logs.filter((l) => l.entidade === ent);
+        }
+      }
+      if (norm.includes('resultado = $')) {
+        const m = norm.match(/resultado = \$(\d+)/);
+        if (m) {
+          const res = params[parseInt(m[1], 10) - 1];
+          logs = logs.filter((l) => l.resultado === res);
+        }
+      }
+      if (norm.includes('ILIKE $')) {
+        const m = norm.match(/ILIKE \$(\d+)/);
+        if (m) {
+          const term = String(params[parseInt(m[1], 10) - 1]).replace(/%/g, '').toLowerCase();
+          logs = logs.filter(
+            (l) =>
+              (l.ator_rotulo && l.ator_rotulo.toLowerCase().includes(term)) ||
+              (l.acao && l.acao.toLowerCase().includes(term)) ||
+              (l.motivo && l.motivo.toLowerCase().includes(term))
+          );
+        }
+      }
+    }
+
     if (norm.includes('COUNT(*)')) {
       return { rows: [{ total: logs.length }] };
     }
+
     logs.sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em));
+
+    // LIMIT e OFFSET
+    if (norm.includes('LIMIT $') && norm.includes('OFFSET $')) {
+      const matchLimit = norm.match(/LIMIT \$(\d+) OFFSET \$(\d+)/);
+      if (matchLimit) {
+        const limitVal = Number(params[parseInt(matchLimit[1], 10) - 1]);
+        const offsetVal = Number(params[parseInt(matchLimit[2], 10) - 1]);
+        logs = logs.slice(offsetVal, offsetVal + limitVal);
+      }
+    } else if (norm.includes('LIMIT 5000')) {
+      logs = logs.slice(0, 5000);
+    }
+
     return { rows: logs };
   }
 

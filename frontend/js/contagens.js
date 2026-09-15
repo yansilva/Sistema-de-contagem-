@@ -15,6 +15,7 @@ const Contagens = {
   itensFornecedor: [],
   produtoresConcluidos: new Set(),
   dadosSessao: null,
+  filtroProdutores: '',
 
   /**
    * Inicia uma nova sessão de contagem cega com snapshot do estoque atual
@@ -25,6 +26,9 @@ const Contagens = {
     this.itensFornecedor = [];
     this.produtoresConcluidos.clear();
     this.dadosSessao = null;
+    this.filtroProdutores = '';
+    document.getElementById('busca-fornecedor').value = '';
+    document.getElementById('bloco-produtos-contagem').style.display = 'none';
 
     const res = await API.post('/contagens', {});
     if (!res || !res.success || !res.data?.contagem) {
@@ -35,7 +39,7 @@ const Contagens = {
     this.contagemId = res.data.contagem.id;
     await this.carregarDadosContagem();
 
-    showToast('Sessão de contagem cega iniciada. O estoque de referência foi congelado.', 'info');
+    showToast('Contagem iniciada. Selecione um produtor para contar.', 'info');
     showScreen('screen-contagem');
   },
 
@@ -112,7 +116,9 @@ const Contagens = {
     const container = document.getElementById('lista-produtores-cards');
     if (!container || !this.dadosSessao) return;
 
-    const cards = (this.dadosSessao.fornecedores || []).map((f) => {
+    const cards = (this.dadosSessao.fornecedores || [])
+      .filter(f => f.fornecedor.toLocaleLowerCase('pt-BR').includes(this.filtroProdutores))
+      .map((f) => {
       const isAtivo = this.fornecedorAtual === f.fornecedor;
       const total = f.produtos?.length || 0;
       const contados = f.produtos?.filter((p) => p.quantidade_contada !== null && p.quantidade_contada !== undefined).length || 0;
@@ -123,17 +129,22 @@ const Contagens = {
         : (contados > 0 ? `<span class="badge badge-warning">${contados}/${total} contados</span>` : '<span class="badge badge-neutro">Não iniciado</span>');
 
       return `
-        <div class="quick-card ${isAtivo ? 'selected' : ''}" style="cursor:pointer; padding:14px; border:2px solid ${isAtivo ? 'var(--cor-primaria)' : 'var(--cor-borda)'}" onclick="Contagens.selecionarFornecedor('${escapeHtml(f.fornecedor)}')">
+        <button class="quick-card ${isAtivo ? 'selected' : ''}" style="cursor:pointer; padding:14px; border:2px solid ${isAtivo ? 'var(--cor-primaria)' : 'var(--cor-borda)'}" data-produtor="${escapeHtml(f.fornecedor)}" onclick="Contagens.selecionarFornecedor(this.dataset.produtor)">
           <div style="display:flex; justify-content:space-between; align-items:center">
             <h4 style="margin:0; font-size:1rem"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
             ${badge}
           </div>
           <p style="margin:6px 0 0 0; font-size:0.8rem; color:var(--cor-texto-mutado)">${contados} de ${total} produtos com contagem física registrada</p>
-        </div>
+        </button>
       `;
     }).join('');
 
-    container.innerHTML = cards;
+    container.innerHTML = cards || '<p class="consulta-vazio">Nenhum produtor encontrado nesta contagem.</p>';
+  },
+
+  filtrarProdutores(termo) {
+    this.filtroProdutores = termo.trim().toLocaleLowerCase('pt-BR');
+    this.renderizarListaProdutores();
   },
 
   /**
@@ -317,7 +328,7 @@ const Contagens = {
     }
 
     const c = res.data.contagem;
-    const isAdmin = Auth.usuario?.papel === 'administrador' || Auth.usuario?.papel === 'gestor' || Auth.usuario?.papel === 'admin';
+    const isAdmin = Auth.isAdmin();
 
     const cardEl = document.getElementById('resultado-status-card');
     const metricasEl = document.getElementById('resultado-metricas');

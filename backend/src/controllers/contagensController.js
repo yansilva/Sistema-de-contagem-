@@ -462,7 +462,7 @@ async function listar(req, res, next) {
     res.json({
       success: true,
       data: {
-        contagens: result.rows
+        contagens: result.rows.map(contagem => serializeContagemDetalhe(contagem, contagem.fornecedores || [], req.usuario))
       }
     });
   } catch (err) {

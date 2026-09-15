@@ -1,6 +1,7 @@
 const { query, getClient } = require('../config/db');
 const { NotFoundError, ConflictError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
+const { isAdministrador, serializeProdutos } = require('../serializers/produtoSerializer');
 
 /**
  * GET /api/produtos
@@ -47,12 +48,13 @@ async function listar(req, res, next) {
       estoque_atual: 'estoque_atual',
       criado_em: 'criado_em'
     };
-    const sortCol = sortFieldMap[sort] || 'fornecedor';
+    const admin = isAdministrador(req.usuario);
+    const sortCol = !admin && sort === 'estoque_atual' ? 'fornecedor' : (sortFieldMap[sort] || 'fornecedor');
     const sortDir = order.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
     params.push(limit, offset);
     const sql = `
-      SELECT id, codigo, nome, fornecedor, estoque_atual, criado_em, atualizado_em
+      SELECT id, codigo, nome, fornecedor, ${admin ? 'estoque_atual,' : ''} criado_em, atualizado_em
       FROM produtos
       ${whereClauses}
       ORDER BY ${sortCol} ${sortDir}, codigo ASC
@@ -64,7 +66,7 @@ async function listar(req, res, next) {
     res.json({
       success: true,
       data: {
-        produtos: result.rows,
+        produtos: serializeProdutos(result.rows, req.usuario),
         pagination: {
           page: Number(page),
           limit: Number(limit),

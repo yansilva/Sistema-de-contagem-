@@ -72,6 +72,10 @@
 }
 
 /* ===== SCREENS MANAGER ===== */
+[hidden] {
+  display: none !important;
+}
+
 .screen {
   display: none;
   min-height: calc(100vh - 64px);
@@ -131,6 +135,11 @@
   .topbar {
     padding: 0 14px;
   }
+  .topbar h1 span { display: none; }
+  .topbar-right { gap: 6px; min-width: 0; }
+  .user-badge { min-width: 0; padding: 6px 8px; }
+  .user-badge .avatar { flex-shrink: 0; }
+  #topbar-user-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .metricas-grid {
     grid-template-columns: 1fr;
   }

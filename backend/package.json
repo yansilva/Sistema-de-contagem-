@@ -4,7 +4,9 @@
   "description": "SaaS REST API for Inventory Management & Stock Reconciliation",
   "main": "src/server.js",
   "scripts": {
+    "prestart": "node src/scripts/startLocalDatabase.js",
     "start": "node src/server.js",
+    "predev": "node src/scripts/startLocalDatabase.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/seed.js",
     "seed:superadmin": "node src/scripts/bootstrapSuperAdmin.js",

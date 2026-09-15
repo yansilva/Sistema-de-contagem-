@@ -4,7 +4,7 @@ const app = require('./app');
 
 const PORT = process.env.PORT || 3002;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log('');
   console.log('  ╔══════════════════════════════════════════╗');
   console.log('  ║   🏪 Estoque SaaS — Servidor iniciado   ║');
@@ -14,4 +14,16 @@ app.listen(PORT, () => {
   console.log('  ║   Health:   /api/health                  ║');
   console.log('  ╚══════════════════════════════════════════╝');
   console.log('');
+});
+
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`\n[Servidor] A porta ${PORT} ja esta em uso.`);
+    console.error(`Se o sistema ja estiver aberto, acesse http://localhost:${PORT}.`);
+    console.error('Para reiniciar, encerre a instancia anterior com Ctrl+C no terminal dela.');
+    console.error(`No Windows, identifique o processo com: netstat -ano | findstr :${PORT}`);
+    process.exit(1);
+  }
+
+  throw error;
 });

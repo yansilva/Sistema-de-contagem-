@@ -16,6 +16,7 @@ const produtosRoutes = require('./routes/produtos');
 const estoqueRoutes = require('./routes/estoque');
 const contagensRoutes = require('./routes/contagens');
 const relatoriosRoutes = require('./routes/relatorios');
+const atividadesRoutes = require('./routes/atividades');
 
 // CSRF Defense: API stateless via JWT no header Authorization; cookies de sessão não utilizados (imune a CSRF por design).
 // nosemgrep: rules.javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage, express-check-csurf-middleware-usage
@@ -74,8 +75,8 @@ const healthHandler = async (req, res) => {
     dbStatus = 'unreachable';
   }
 
-  res.json({
-    status: 'ok',
+  res.status(dbStatus === 'connected' ? 200 : 503).json({
+    status: dbStatus === 'connected' ? 'ok' : 'degraded',
     app: 'Inventory Management System',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
@@ -94,6 +95,7 @@ app.use('/api/produtos', produtosRoutes);
 app.use('/api/estoque', estoqueRoutes);
 app.use('/api/contagens', contagensRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
+app.use('/api/atividades', atividadesRoutes);
 
 // ===== SPA FALLBACK — qualquer rota não-API retorna o frontend =====
 app.get('*', (req, res) => {

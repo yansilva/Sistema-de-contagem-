@@ -2,7 +2,7 @@ const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const bcrypt = require('bcryptjs');
-const { query } = require('../config/db');
+const { getClient } = require('../config/db');
 
 const SALT_ROUNDS = 12;
 
@@ -22,41 +22,65 @@ async function bootstrapSuperAdmin() {
   }
 
   const emailNorm = email.toLowerCase().trim();
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
 
-  // 1. Garantir organização interna da plataforma
-  const empresaPlataforma = await query(
-    "SELECT id FROM empresas WHERE email_contato = 'plataforma@sistemadecontagem.internal'"
-  );
-
-  let empresaId;
-  if (empresaPlataforma.rows.length === 0) {
-    const empRes = await query(
-      `INSERT INTO empresas (nome, email_contato, plano)
-       VALUES ('Plataforma Sistema de Contagem', 'plataforma@sistemadecontagem.internal', 'ativo')
-       RETURNING id`
+    // 1. Garantir organização interna da plataforma
+    const empresaPlataforma = await client.query(
+      'SELECT id FROM empresas WHERE email_contato = $1',
+      ['plataforma@sistemadecontagem.internal']
     );
-    empresaId = empRes.rows[0].id;
-  } else {
-    empresaId = empresaPlataforma.rows[0].id;
-  }
 
-  // 2. Verificar se usuário com este e-mail já existe
-  const userCheck = await query('SELECT id, papel FROM usuarios WHERE email = $1', [emailNorm]);
-  if (userCheck.rows.length > 0) {
-    console.log(`[BOOTSTRAP] Usuário ${emailNorm} já cadastrado (papel=${userCheck.rows[0].papel}).`);
-    return userCheck.rows[0];
-  }
+    let empresaId;
+    if (empresaPlataforma.rows.length === 0) {
+      const empRes = await client.query(
+        `INSERT INTO empresas (nome, email_contato, plano)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+        ['Plataforma Sistema de Contagem', 'plataforma@sistemadecontagem.internal', 'ativo']
+      );
+      empresaId = empRes.rows[0].id;
+    } else {
+      empresaId = empresaPlataforma.rows[0].id;
+    }
 
-  const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
-  const userRes = await query(
-    `INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel, ativo, must_change_password)
+    // 2. Verificar se usuário com este e-mail já existe
+    const userCheck = await client.query('SELECT id, email, papel FROM usuarios WHERE email = $1', [
+      emailNorm
+    ]);
+    if (userCheck.rows.length > 0) {
+      if (userCheck.rows[0].papel !== 'super_admin') {
+        throw new Error(
+          'O email informado já pertence a uma conta sem o papel super_admin. Use um email exclusivo da plataforma.'
+        );
+      }
+      await client.query('COMMIT');
+      console.log(
+        `[BOOTSTRAP] Usuário ${emailNorm} já cadastrado (papel=${userCheck.rows[0].papel}).`
+      );
+      return userCheck.rows[0];
+    }
+
+    const senhaHash = await bcrypt.hash(senha, SALT_ROUNDS);
+    const userRes = await client.query(
+      `INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel, ativo, must_change_password)
      VALUES ($1, $2, $3, $4, $5, TRUE, FALSE)
      RETURNING id, nome, email, papel`,
-    [empresaId, nome.trim(), emailNorm, senhaHash, 'super_admin']
-  );
+      [empresaId, nome.trim(), emailNorm, senhaHash, 'super_admin']
+    );
 
-  console.log(`[BOOTSTRAP] Super admin provisionado com sucesso: ID=${userRes.rows[0].id}, Email=${userRes.rows[0].email}`);
-  return userRes.rows[0];
+    await client.query('COMMIT');
+    console.log(
+      `[BOOTSTRAP] Super admin provisionado com sucesso: ID=${userRes.rows[0].id}, Email=${userRes.rows[0].email}`
+    );
+    return userRes.rows[0];
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 if (require.main === module) {
