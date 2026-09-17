@@ -30,7 +30,7 @@ async function runMigrations() {
       console.log(`[Migrate] [DRY-RUN] Lendo ${schemaFile}... OK`);
       if (fs.existsSync(migrationsDir)) {
         const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
-        console.log(`[Migrate] [DRY-RUN] ${files.length} migrações encontradas:`, files.join(', '));
+        console.log(`[Migrate] [DRY-RUN] ${files.length} migrações encontradas: ${files.join(', ')}`);
       }
       console.log('[Migrate] Simulação concluída com sucesso!');
       return;

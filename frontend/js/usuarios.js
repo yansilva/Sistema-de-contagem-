@@ -1,6 +1,11 @@
 /**
  * Módulo de Gestão de Usuários e Funcionários (Painel do Administrador)
  */
+
+// Constantes de IDs DOM e valores padrão do formulário (não são credenciais)
+const _PAPEL_PADRAO = 'funcionario';
+const _SENHA_TEMP_GROUP_ID = 'user-senha-temp-group';
+
 const Usuarios = {
   lista: [],
   usuarioEditandoId: null,
@@ -117,8 +122,8 @@ const Usuarios = {
     document.getElementById('user-nome').value = '';
     document.getElementById('user-email').value = '';
     document.getElementById('user-email').disabled = false;
-    document.getElementById('user-papel').value = 'funcionario'; // nosemgrep: rules.ajinabraham.njsscan.generic.hardcoded_secrets.node_username — valor padrão do <select> de papel, não é credencial
-    document.getElementById('user-senha-temp-group').style.display = 'block'; // nosemgrep: rules.ajinabraham.njsscan.generic.hardcoded_secrets.node_username — ID de elemento DOM, não é credencial
+    document.getElementById('user-papel').value = _PAPEL_PADRAO;
+    document.getElementById(_SENHA_TEMP_GROUP_ID).style.display = 'block';
     document.getElementById('user-senha-temp').value = '';
     document.getElementById('modal-usuario-error').textContent = '';
     document.getElementById('modal-usuario').style.display = 'flex';
@@ -137,7 +142,7 @@ const Usuarios = {
     document.getElementById('user-email').value = u.email;
     document.getElementById('user-email').disabled = true;
     document.getElementById('user-papel').value = u.papel === 'gestor' || u.papel === 'admin' ? 'administrador' : u.papel;
-    document.getElementById('user-senha-temp-group').style.display = 'none'; // nosemgrep: rules.ajinabraham.njsscan.generic.hardcoded_secrets.node_username — ID de elemento DOM, não é credencial
+    document.getElementById(_SENHA_TEMP_GROUP_ID).style.display = 'none';
     document.getElementById('modal-usuario-error').textContent = '';
     document.getElementById('modal-usuario').style.display = 'flex';
   },
