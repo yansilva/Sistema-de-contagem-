@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Inventory Management System — Controle de Estoque SaaS</title>
+  <title>Sistema de Estoque — Contagem e Controle</title>
   <meta name="description" content="Sistema SaaS profissional para controle, contagem e conciliação de inventário com exportação Excel e back-office para gestores.">
 
   <!-- Ícones Tabler com SRI -->
@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/layout.css">
   <link rel="stylesheet" href="/css/pages.css">
+  <link rel="stylesheet" href="/css/mobile.css">
 
   <!-- SheetJS para importação local de planilhas Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
@@ -24,7 +25,7 @@
   <header class="topbar">
     <h1>
       <i class="ti ti-building-warehouse"></i>
-      <span>Inventory Management System</span>
+      <span>Sistema de Estoque</span>
     </h1>
     <div class="topbar-right">
       <!-- Indicador de Usuário Autenticado -->
@@ -33,17 +34,25 @@
         <span id="topbar-user-name">Usuário</span>
       </div>
 
+      <button class="btn-theme" data-click="action-2" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
+      <button class="btn btn-outline mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-label="Abrir menu de navegação" aria-expanded="false" aria-controls="topbar-menu" hidden>
+        <i class="ti ti-menu-2" aria-hidden="true"></i>
+      </button>
+      <nav class="topbar-menu" id="topbar-menu" aria-label="Menu principal" hidden>
       <!-- Ações da Barra Superior -->
-      <button class="btn btn-ghost btn-sm" id="btn-nova-empresa" style="display:none" onclick="showScreen('screen-registro')">
+      <button class="btn btn-ghost btn-sm" id="btn-listar-empresas" style="display:none" data-click="action-86">
+        <i class="ti ti-building-community"></i> Empresas
+      </button>
+      <button class="btn btn-ghost btn-sm" id="btn-nova-empresa" style="display:none" data-click="action-0">
         <i class="ti ti-building-store"></i> Nova empresa
       </button>
-      <button class="btn btn-ghost btn-sm" id="btn-nav-backoffice" style="display:none" onclick="showScreen('screen-backoffice')">
+      <button class="btn btn-ghost btn-sm" id="btn-nav-backoffice" style="display:none" data-click="action-1">
         <i class="ti ti-layout-dashboard"></i> Back-office
       </button>
-      <button class="btn-theme" onclick="toggleTheme()" title="Alternar tema" aria-label="Alternar tema claro/escuro">🌙</button>
-      <button class="btn btn-ghost btn-sm" onclick="Auth.deslogar()" title="Sair da conta">
+      <button class="btn btn-ghost btn-sm" data-click="action-3" title="Sair da conta">
         <i class="ti ti-logout"></i> Sair
       </button>
+      </nav>
     </div>
   </header>
 
@@ -52,7 +61,7 @@
     <div class="auth-wrapper">
       <div class="auth-card">
         <div class="auth-logo"><i class="ti ti-building-warehouse"></i></div>
-        <h2>Inventory System</h2>
+        <h2>Sistema de Estoque</h2>
         <p class="subtitle">Acesse sua conta para gerenciar seu estoque</p>
 
         <div class="form-group">
@@ -63,12 +72,12 @@
         <div class="form-group">
           <label for="login-senha">Senha</label>
           <input type="password" id="login-senha" placeholder="Sua senha" autocomplete="current-password"
-                 onkeydown="if(event.key==='Enter') Auth.fazerLogin()">
+                 data-keydown="action-4">
         </div>
 
         <div class="auth-error" id="login-error"></div>
 
-        <button class="btn btn-primary btn-block btn-lg" onclick="Auth.fazerLogin()" id="btn-login" style="margin-top:12px">
+        <button class="btn btn-primary btn-block btn-lg" data-click="action-5" id="btn-login" style="margin-top:12px">
           <i class="ti ti-login"></i> Entrar
         </button>
 
@@ -110,19 +119,47 @@
         <div class="form-group">
           <label for="reg-confirmar">Confirmar Senha</label>
           <input type="password" id="reg-confirmar" placeholder="Repita a senha"
-                 onkeydown="if(event.key==='Enter') Auth.fazerRegistro()">
+                 data-keydown="action-6">
         </div>
 
         <div class="auth-error" id="reg-error"></div>
 
-        <button class="btn btn-primary btn-block btn-lg" onclick="Auth.fazerRegistro()" id="btn-registro" style="margin-top:12px">
+        <button class="btn btn-primary btn-block btn-lg" data-click="action-7" id="btn-registro" style="margin-top:12px">
           <i class="ti ti-building-store"></i> Cadastrar empresa
         </button>
 
         <div class="auth-link">
-          <a onclick="showScreen('screen-home')">Voltar ao painel</a>
+          <a data-click="action-8">Voltar ao painel</a>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ==================== TELA: EMPRESAS CADASTRADAS (SUPER ADMIN) ==================== -->
+  <section id="screen-empresas" class="screen">
+    <div class="container" style="max-width:1100px">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px">
+        <h2 style="font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:10px">
+          <i class="ti ti-building-community" style="color:var(--cor-primaria)"></i> Empresas Cadastradas
+        </h2>
+        <button class="btn btn-outline btn-sm" data-click="action-87">
+          <i class="ti ti-arrow-left"></i> Voltar ao Painel
+        </button>
+      </div>
+
+      <!-- KPIs de Empresas -->
+      <div class="kpi-grid" id="empresas-stats"></div>
+
+      <!-- Busca -->
+      <div class="table-toolbar" style="margin-top:20px">
+        <div style="display:flex; gap:10px; flex:1; max-width:400px">
+          <input type="text" id="empresas-busca" placeholder="Buscar por nome ou email da empresa..."
+                 data-input="action-88">
+        </div>
+      </div>
+
+      <!-- Tabela de Empresas -->
+      <div id="empresas-lista"></div>
     </div>
   </section>
 
@@ -147,12 +184,12 @@
         <div class="form-group">
           <label for="troca-confirmar-senha">Confirmar Nova Senha</label>
           <input type="password" id="troca-confirmar-senha" placeholder="Repita a nova senha"
-                 onkeydown="if(event.key==='Enter') Auth.trocarSenhaObrigatoria()">
+                 data-keydown="action-9">
         </div>
 
         <div class="auth-error" id="troca-senha-error"></div>
 
-        <button class="btn btn-primary btn-block btn-lg" onclick="Auth.trocarSenhaObrigatoria()" id="btn-troca-senha" style="margin-top:12px">
+        <button class="btn btn-primary btn-block btn-lg" data-click="action-10" id="btn-troca-senha" style="margin-top:12px">
           <i class="ti ti-check"></i> Definir Nova Senha
         </button>
       </div>
@@ -167,22 +204,22 @@
           <span class="contagem-home-icon"><i class="ti ti-clipboard-check"></i></span>
           <h2>Contagem de estoque</h2>
           <p>Olá, <span id="funcionario-home-nome">equipe</span>. Inicie a contagem e registre as quantidades físicas dos produtos.</p>
-          <button class="btn btn-primary btn-lg" id="btn-iniciar-contagem-funcionario" onclick="Contagens.iniciarNovaSessao()">
+          <button class="btn btn-primary btn-lg" id="btn-iniciar-contagem-funcionario" data-click="action-11">
             <i class="ti ti-plus"></i> Iniciar nova contagem
           </button>
         </div>
         <div class="consulta-home-grid">
-          <button class="kpi-card kpi-emerald consulta-home-card" onclick="Consulta.abrirCatalogo()">
+          <button class="kpi-card kpi-emerald consulta-home-card" data-click="action-12">
             <span class="kpi-top"><span class="kpi-title">Catálogo</span><i class="ti ti-packages"></i></span>
             <span class="kpi-value" id="funcionario-total-produtos">—</span>
             <span class="consulta-home-description">Consultar produtos e códigos</span>
           </button>
-          <button class="kpi-card kpi-indigo consulta-home-card" onclick="showScreen('screen-produtores')">
+          <button class="kpi-card kpi-indigo consulta-home-card" data-click="action-13">
             <span class="kpi-top"><span class="kpi-title">Produtores</span><i class="ti ti-truck"></i></span>
             <span class="kpi-value" id="funcionario-total-produtores">—</span>
             <span class="consulta-home-description">Consultar produtores do catálogo</span>
           </button>
-          <button class="kpi-card kpi-amber consulta-home-card" onclick="showScreen('screen-historico-contagens')">
+          <button class="kpi-card kpi-amber consulta-home-card" data-click="action-14">
             <span class="kpi-top"><span class="kpi-title">Histórico de contagens</span><i class="ti ti-history"></i></span>
             <span class="consulta-home-action">Ver contagens <i class="ti ti-arrow-right"></i></span>
             <span class="consulta-home-description">Consultar sessões e quantidades registradas</span>
@@ -197,7 +234,7 @@
           <p class="dash-date" id="home-current-date"><i class="ti ti-calendar"></i> Carregando data...</p>
         </div>
         <div class="dash-actions">
-          <button class="btn btn-primary" onclick="Contagens.iniciarNovaSessao()">
+          <button class="btn btn-primary" data-click="action-15">
             <i class="ti ti-plus"></i> Iniciar Nova Contagem
           </button>
         </div>
@@ -207,7 +244,7 @@
       <div class="kpi-grid">
         
         <!-- KPI 1: PRODUTOS CADASTRADOS -->
-        <div class="kpi-card kpi-emerald" onclick="showScreen('screen-backoffice'); switchTab('produtos')">
+        <div class="kpi-card kpi-emerald" data-click="action-16">
           <div class="kpi-top">
             <span class="kpi-title">Catálogo Total</span>
             <div class="kpi-icon"><i class="ti ti-packages"></i></div>
@@ -217,7 +254,7 @@
         </div>
 
         <!-- KPI 2: FORNECEDORES -->
-        <div class="kpi-card kpi-indigo" onclick="showScreen('screen-backoffice'); switchTab('produtos')">
+        <div class="kpi-card kpi-indigo" data-click="action-17">
           <div class="kpi-top">
             <span class="kpi-title">Fornecedores</span>
             <div class="kpi-icon"><i class="ti ti-truck-delivery"></i></div>
@@ -227,7 +264,7 @@
         </div>
 
         <!-- KPI 3: CONTAGENS REALIZADAS -->
-        <div class="kpi-card kpi-amber" onclick="showScreen('screen-backoffice'); switchTab('historico')">
+        <div class="kpi-card kpi-amber" data-click="action-18">
           <div class="kpi-top">
             <span class="kpi-title">Contagens Realizadas</span>
             <div class="kpi-icon"><i class="ti ti-clipboard-check"></i></div>
@@ -258,35 +295,35 @@
               <p>Conferência física rápida por fornecedor com identificação de sobras e faltas</p>
             </div>
           </div>
-          <button class="btn btn-outline btn-sm" onclick="showScreen('screen-backoffice')">
+          <button class="btn btn-outline btn-sm" data-click="action-19">
             <i class="ti ti-settings"></i> Acessar Back-office
           </button>
         </div>
 
         <div class="quick-cards-grid">
           
-          <div class="quick-card" onclick="Contagens.iniciarNovaSessao()">
+          <div class="quick-card" data-click="action-20">
             <div class="quick-icon primary"><i class="ti ti-barcode"></i></div>
             <h4>Nova Contagem Cega</h4>
             <p>Contagem física sem visualizar estoque do sistema — resultados comparados após finalizar.</p>
             <span class="quick-link">Iniciar contagem <i class="ti ti-arrow-right"></i></span>
           </div>
 
-          <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('estoque')">
+          <div class="quick-card" data-click="action-21">
             <div class="quick-icon secondary"><i class="ti ti-file-type-pdf"></i></div>
             <h4>Importar Estoque (Tiny PDF)</h4>
             <p>Importe relatórios de estoque do Tiny ERP em PDF para atualizar automaticamente as quantidades.</p>
             <span class="quick-link">Importar relatório <i class="ti ti-arrow-right"></i></span>
           </div>
 
-          <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('produtos')">
+          <div class="quick-card" data-click="action-22">
             <div class="quick-icon success"><i class="ti ti-file-spreadsheet"></i></div>
             <h4>Gestão de Produtos & Excel</h4>
             <p>Cadastre novos SKUs ou importe planilhas completas com substituição ou mescla.</p>
             <span class="quick-link">Gerenciar catálogo <i class="ti ti-arrow-right"></i></span>
           </div>
 
-          <div class="quick-card" onclick="showScreen('screen-backoffice'); switchTab('historico')">
+          <div class="quick-card" data-click="action-23">
             <div class="quick-icon warning"><i class="ti ti-report-analytics"></i></div>
             <h4>Histórico & Exportação</h4>
             <p>Consulte relatórios detalhados e exporte relatórios consolidados em .XLSX.</p>
@@ -304,22 +341,22 @@
     <div class="container consulta-container">
       <div class="table-toolbar">
         <h2>Catálogo de produtos</h2>
-        <button class="btn btn-outline btn-sm" onclick="showScreen('screen-home')"><i class="ti ti-arrow-left"></i> Voltar ao início</button>
+        <button class="btn btn-outline btn-sm" data-click="action-24"><i class="ti ti-arrow-left"></i> Voltar ao início</button>
       </div>
       <p class="consulta-description">Consulte os códigos, nomes e produtores dos produtos cadastrados.</p>
       <div class="form-group">
         <label for="consulta-catalogo-busca">Buscar por código ou nome</label>
-        <input id="consulta-catalogo-busca" type="search" placeholder="Digite o código ou nome do produto" oninput="Consulta.buscarCatalogo(this.value)">
+        <input id="consulta-catalogo-busca" type="search" placeholder="Digite o código ou nome do produto" data-input="action-25">
       </div>
       <div class="table-toolbar" id="consulta-produtor-filtro" hidden>
         <span id="consulta-produtor-selecionado"></span>
-        <button class="btn btn-ghost btn-sm" onclick="Consulta.abrirCatalogo()">Limpar produtor</button>
+        <button class="btn btn-ghost btn-sm" data-click="action-26">Limpar produtor</button>
       </div>
       <div id="consulta-catalogo-lista" class="consulta-lista" aria-live="polite"></div>
       <div class="pagination-controls">
-        <button class="btn btn-outline btn-sm" id="consulta-catalogo-anterior" onclick="Consulta.mudarPaginaCatalogo(-1)">Anterior</button>
+        <button class="btn btn-outline btn-sm" id="consulta-catalogo-anterior" data-click="action-27">Anterior</button>
         <span id="consulta-catalogo-pagina"></span>
-        <button class="btn btn-outline btn-sm" id="consulta-catalogo-proxima" onclick="Consulta.mudarPaginaCatalogo(1)">Próxima</button>
+        <button class="btn btn-outline btn-sm" id="consulta-catalogo-proxima" data-click="action-28">Próxima</button>
       </div>
     </div>
   </section>
@@ -328,11 +365,11 @@
     <div class="container consulta-container">
       <div class="table-toolbar">
         <h2>Produtores</h2>
-        <button class="btn btn-outline btn-sm" onclick="showScreen('screen-home')"><i class="ti ti-arrow-left"></i> Voltar ao início</button>
+        <button class="btn btn-outline btn-sm" data-click="action-29"><i class="ti ti-arrow-left"></i> Voltar ao início</button>
       </div>
       <div class="form-group">
         <label for="consulta-produtores-busca">Buscar produtor</label>
-        <input id="consulta-produtores-busca" type="search" placeholder="Nome do produtor" oninput="Consulta.renderizarProdutores()">
+        <input id="consulta-produtores-busca" type="search" placeholder="Nome do produtor" data-input="action-30">
       </div>
       <div id="consulta-produtores-lista" class="consulta-lista" aria-live="polite"></div>
     </div>
@@ -342,13 +379,13 @@
     <div class="container consulta-container">
       <div class="table-toolbar">
         <h2>Histórico de contagens</h2>
-        <button class="btn btn-outline btn-sm" onclick="showScreen('screen-home')"><i class="ti ti-arrow-left"></i> Voltar ao início</button>
+        <button class="btn btn-outline btn-sm" data-click="action-31"><i class="ti ti-arrow-left"></i> Voltar ao início</button>
       </div>
       <div id="consulta-historico-lista" class="consulta-lista" aria-live="polite"></div>
       <div class="pagination-controls">
-        <button class="btn btn-outline btn-sm" id="consulta-historico-anterior" onclick="Consulta.mudarPaginaHistorico(-1)">Anterior</button>
+        <button class="btn btn-outline btn-sm" id="consulta-historico-anterior" data-click="action-32">Anterior</button>
         <span id="consulta-historico-pagina"></span>
-        <button class="btn btn-outline btn-sm" id="consulta-historico-proxima" onclick="Consulta.mudarPaginaHistorico(1)">Próxima</button>
+        <button class="btn btn-outline btn-sm" id="consulta-historico-proxima" data-click="action-33">Próxima</button>
       </div>
       <div id="consulta-historico-detalhe" class="consulta-detalhe" hidden aria-live="polite"></div>
     </div>
@@ -358,11 +395,11 @@
   <section id="screen-contagem" class="screen">
     <div class="container">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
-        <button class="btn btn-ghost btn-sm" onclick="showScreen('screen-home')">
+        <button class="btn btn-ghost btn-sm" data-click="action-34">
           <i class="ti ti-arrow-left"></i> Voltar ao Início
         </button>
         <div style="display:flex; align-items:center; gap:12px">
-          <button class="btn btn-danger btn-sm" id="btn-finalizar-contagem" onclick="Contagens.finalizarSessao()" disabled>
+          <button class="btn btn-danger btn-sm" id="btn-finalizar-contagem" data-click="action-35" disabled>
             <i class="ti ti-flag-check"></i> Finalizar Contagem
           </button>
         </div>
@@ -371,7 +408,7 @@
       <!-- Indicador de Progresso da Contagem Cega -->
       <div class="card contagem-progresso" id="contagem-progresso" style="margin-bottom:16px">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
-          <div style="display:flex; align-items:center; gap:8px">
+          <div class="contagem-progresso-titulo" style="display:flex; align-items:center; gap:8px">
             <i class="ti ti-eye-off" style="color:var(--cor-primaria); font-size:1.3rem"></i>
             <strong>Contagem Cega</strong>
             <span class="badge badge-info" style="font-size:0.75rem">Estoque oculto</span>
@@ -405,7 +442,7 @@
         <!-- Lista de Produtos para Contagem Cega -->
         <div id="lista-produtos-produtor"></div>
 
-        <button class="btn btn-primary btn-block btn-lg" id="btn-salvar-progresso-produtor" onclick="Contagens.salvarProgressoAtual()" style="margin-top:20px">
+        <button class="btn btn-primary btn-block btn-lg" id="btn-salvar-progresso-produtor" data-click="action-36" style="margin-top:20px">
           <i class="ti ti-device-floppy"></i> Salvar progresso deste produtor
         </button>
       </div>
@@ -422,10 +459,10 @@
       <div id="resultado-divergencias"></div>
 
       <div style="display:flex; justify-content:center; gap:12px; margin-top:24px">
-        <button class="btn btn-outline" onclick="showScreen('screen-home')">
+        <button class="btn btn-outline" data-click="action-37">
           <i class="ti ti-home"></i> Voltar ao Início
         </button>
-        <button class="btn btn-primary" onclick="abrirHistoricoContagens()">
+        <button class="btn btn-primary" data-click="action-38">
           <i class="ti ti-history"></i> Ver no Histórico
         </button>
       </div>
@@ -439,29 +476,29 @@
         <h2 style="font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:10px">
           <i class="ti ti-layout-dashboard" style="color:var(--cor-primaria)"></i> Painel de Gestão
         </h2>
-        <button class="btn btn-outline btn-sm" onclick="showScreen('screen-home')">
+        <button class="btn btn-outline btn-sm" data-click="action-39">
           <i class="ti ti-arrow-left"></i> Voltar à Contagem
         </button>
       </div>
 
       <!-- Abas de Navegação -->
       <nav class="tabs">
-        <button class="tab active" data-tab="produtos" onclick="switchTab('produtos')">
+        <button class="tab active" data-tab="produtos" data-click="action-40">
           <i class="ti ti-package"></i> Produtos
         </button>
-        <button class="tab" data-tab="estoque" onclick="switchTab('estoque')">
+        <button class="tab" data-tab="estoque" data-click="action-41">
           <i class="ti ti-file-type-pdf"></i> Importar Estoque
         </button>
-        <button class="tab" data-tab="usuarios" onclick="switchTab('usuarios')">
+        <button class="tab" data-tab="usuarios" data-click="action-42">
           <i class="ti ti-users"></i> Funcionários
         </button>
-        <button class="tab" data-tab="historico" onclick="switchTab('historico')">
+        <button class="tab" data-tab="historico" data-click="action-43">
           <i class="ti ti-history"></i> Histórico
         </button>
-        <button class="tab" data-tab="atividades" onclick="switchTab('atividades')">
+        <button class="tab" data-tab="atividades" data-click="action-44">
           <i class="ti ti-shield-check"></i> Atividades
         </button>
-        <button class="tab" data-tab="config" onclick="switchTab('config')">
+        <button class="tab" data-tab="config" data-click="action-45">
           <i class="ti ti-settings"></i> Configurações
         </button>
       </nav>
@@ -471,14 +508,14 @@
         <div class="table-toolbar">
           <div style="display:flex; gap:10px; flex:1; max-width:400px">
             <input type="text" id="filtro-busca-produto" placeholder="Buscar código ou nome..."
-                   oninput="Produtos.aplicarFiltroBusca(this.value)">
+                   data-input="action-46">
           </div>
           <div style="display:flex; gap:8px">
             <label class="btn btn-outline btn-sm" title="Importar planilha Excel">
               <i class="ti ti-file-upload"></i> Importar Excel (.xlsx)
-              <input type="file" accept=".xlsx,.xls" style="display:none" onchange="Produtos.importarExcel(this)">
+              <input type="file" accept=".xlsx,.xls" style="display:none" data-change="action-47">
             </label>
-            <button class="btn btn-primary btn-sm" onclick="Produtos.abrirNovo()">
+            <button class="btn btn-primary btn-sm" data-click="action-48">
               <i class="ti ti-plus"></i> Novo Produto
             </button>
           </div>
@@ -488,11 +525,11 @@
 
         <!-- Controles de Paginação -->
         <div class="pagination-controls" id="produtos-pagination" style="display:none">
-          <button class="btn btn-outline btn-sm" id="btn-pag-anterior" onclick="Produtos.mudarPagina(-1)">
+          <button class="btn btn-outline btn-sm" id="btn-pag-anterior" data-click="action-49">
             <i class="ti ti-chevron-left"></i> Anterior
           </button>
           <span id="paginacao-info">Página 1</span>
-          <button class="btn btn-outline btn-sm" id="btn-pag-proxima" onclick="Produtos.mudarPagina(1)">
+          <button class="btn btn-outline btn-sm" id="btn-pag-proxima" data-click="action-50">
             Próxima <i class="ti ti-chevron-right"></i>
           </button>
         </div>
@@ -517,7 +554,7 @@
             <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ERP</p>
             <label class="btn btn-primary btn-sm" style="margin-top:12px; cursor:pointer">
               <i class="ti ti-upload"></i> Selecionar Arquivo PDF
-              <input type="file" accept=".pdf" style="display:none" onchange="StockImport.handleFileSelect(this)">
+              <input type="file" accept=".pdf" style="display:none" data-change="action-51">
             </label>
           </div>
 
@@ -542,10 +579,10 @@
           </div>
 
           <div style="display:flex; justify-content:flex-end; gap:12px">
-            <button class="btn btn-outline" onclick="StockImport.cancelar()">
+            <button class="btn btn-outline" data-click="action-52">
               <i class="ti ti-x"></i> Cancelar
             </button>
-            <button class="btn btn-primary" id="btn-confirmar-importacao" onclick="StockImport.confirmar()">
+            <button class="btn btn-primary" id="btn-confirmar-importacao" data-click="action-53">
               <i class="ti ti-check"></i> Confirmar Atualização de Estoque
             </button>
           </div>
@@ -565,9 +602,9 @@
         <div class="table-toolbar">
           <div style="display:flex; gap:10px; flex:1; max-width:400px">
             <input type="text" id="filtro-busca-usuario" placeholder="Buscar funcionário por nome ou email..."
-                   oninput="Usuarios.filtrar(this.value)">
+                   data-input="action-54">
           </div>
-          <button class="btn btn-primary btn-sm" onclick="Usuarios.abrirModalCriar()">
+          <button class="btn btn-primary btn-sm" data-click="action-55">
             <i class="ti ti-user-plus"></i> Novo Funcionário
           </button>
         </div>
@@ -595,7 +632,7 @@
             <label for="senha-nova">Nova Senha (mín. 8 caracteres, letras e números)</label>
             <input type="password" id="senha-nova">
           </div>
-          <button class="btn btn-primary" onclick="Auth.alterarSenha()">
+          <button class="btn btn-primary" data-click="action-56">
             <i class="ti ti-check"></i> Salvar Nova Senha
           </button>
           <div id="msg-senha" class="msg-feedback"></div>
@@ -628,14 +665,14 @@
               <option value="falha">Falha</option>
             </select>
             <input type="text" id="filtro-audit-busca" placeholder="Buscar por ator, ação ou motivo..." style="min-width:200px">
-            <button class="btn btn-primary btn-sm" onclick="Atividades.aplicarFiltros()">
+            <button class="btn btn-primary btn-sm" data-click="action-57">
               <i class="ti ti-filter"></i> Filtrar
             </button>
-            <button class="btn btn-outline btn-sm" onclick="Atividades.limparFiltros()">
+            <button class="btn btn-outline btn-sm" data-click="action-58">
               <i class="ti ti-refresh"></i> Limpar
             </button>
           </div>
-          <button class="btn btn-outline btn-sm" id="btn-audit-exportar" onclick="Atividades.exportarCsv()">
+          <button class="btn btn-outline btn-sm" id="btn-audit-exportar" data-click="action-59">
             <i class="ti ti-file-export"></i> Exportar CSV
           </button>
         </div>
@@ -644,11 +681,11 @@
 
         <!-- Controles de Paginação -->
         <div class="pagination-controls" id="audit-pagination" style="display:none; margin-top:16px">
-          <button class="btn btn-outline btn-sm" id="btn-audit-ant" onclick="Atividades.mudarPagina(-1)">
+          <button class="btn btn-outline btn-sm" id="btn-audit-ant" data-click="action-60">
             <i class="ti ti-chevron-left"></i> Anterior
           </button>
           <span id="audit-paginacao-info">Página 1</span>
-          <button class="btn btn-outline btn-sm" id="btn-audit-prox" onclick="Atividades.mudarPagina(1)">
+          <button class="btn btn-outline btn-sm" id="btn-audit-prox" data-click="action-61">
             Próxima <i class="ti ti-chevron-right"></i>
           </button>
         </div>
@@ -657,11 +694,11 @@
   </section>
 
   <!-- ==================== MODAL: CRIAR / EDITAR PRODUTO ==================== -->
-  <div id="modal-produto" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-produto" class="app-modal" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
         <h3 id="modal-produto-titulo" style="font-size:1.15rem; font-weight:700">Produto</h3>
-        <button class="btn btn-ghost btn-sm" onclick="Produtos.fecharModal()"><i class="ti ti-x"></i></button>
+        <button class="btn btn-ghost btn-sm" data-click="action-62"><i class="ti ti-x"></i></button>
       </div>
       <input type="hidden" id="prod-id">
       <div class="form-group">
@@ -681,18 +718,18 @@
         <input type="number" id="prod-estoque-atual" placeholder="Ex: 100" min="0" step="1">
       </div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
-        <button class="btn btn-outline" onclick="Produtos.fecharModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="Produtos.salvar()">Salvar Produto</button>
+        <button class="btn btn-outline" data-click="action-63">Cancelar</button>
+        <button class="btn btn-primary" data-click="action-64">Salvar Produto</button>
       </div>
     </div>
   </div>
 
   <!-- ==================== MODAL: CRIAR / EDITAR USUÁRIO ==================== -->
-  <div id="modal-usuario" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-usuario" class="app-modal" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
         <h3 id="modal-usuario-titulo" style="font-size:1.15rem; font-weight:700">Novo Funcionário</h3>
-        <button class="btn btn-ghost btn-sm" onclick="Usuarios.fecharModal()"><i class="ti ti-x"></i></button>
+        <button class="btn btn-ghost btn-sm" data-click="action-65"><i class="ti ti-x"></i></button>
       </div>
       <div class="form-group">
         <label for="user-nome">Nome Completo</label>
@@ -715,8 +752,8 @@
       </div>
       <div id="modal-usuario-error" class="auth-error"></div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
-        <button class="btn btn-outline" onclick="Usuarios.fecharModal()">Cancelar</button>
-        <button class="btn btn-primary" onclick="Usuarios.salvar()">
+        <button class="btn btn-outline" data-click="action-66">Cancelar</button>
+        <button class="btn btn-primary" data-click="action-67">
           <i class="ti ti-check"></i> Salvar Funcionário
         </button>
       </div>
@@ -724,13 +761,13 @@
   </div>
 
   <!-- ==================== MODAL: DETALHES DE ATIVIDADE & DIFF ==================== -->
-  <div id="modal-audit-detalhe" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-audit-detalhe" class="app-modal" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div class="card" style="width:100%; max-width:760px; max-height:90vh; overflow-y:auto; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--cor-borda); padding-bottom:12px">
         <h3 style="font-size:1.15rem; font-weight:700; display:flex; align-items:center; gap:8px">
           <i class="ti ti-shield-search" style="color:var(--cor-primaria)"></i> Detalhes da Operação de Auditoria
         </h3>
-        <button class="btn btn-ghost btn-sm" onclick="Atividades.fecharModal()"><i class="ti ti-x"></i></button>
+        <button class="btn btn-ghost btn-sm" data-click="action-68"><i class="ti ti-x"></i></button>
       </div>
 
       <div class="audit-meta-grid">
@@ -793,7 +830,7 @@
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid var(--cor-borda); padding-top:12px">
         <span style="font-size:0.75rem; color:var(--cor-texto-mudo)">Log ID: <span id="audit-det-id" style="font-family:monospace"></span></span>
-        <button class="btn btn-outline" onclick="Atividades.fecharModal()">Fechar</button>
+        <button class="btn btn-outline" data-click="action-69">Fechar</button>
       </div>
     </div>
   </div>
@@ -809,6 +846,9 @@
   <script src="/js/usuarios.js"></script>
   <script src="/js/stock-import.js"></script>
   <script src="/js/atividades.js"></script>
+  <script src="/js/empresas.js"></script>
+  <script src="/js/events.js"></script>
+  <script src="/js/mobile-nav.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>

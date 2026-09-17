@@ -56,7 +56,9 @@ const API = {
    * Renova o access token usando o refresh token com rotação de segurança
    */
   async refreshToken() {
-    const refreshToken = localStorage.getItem('refreshToken');
+    // Descarta sessões persistentes legadas; exige novo login nessa aba.
+    localStorage.removeItem('refreshToken');
+    const refreshToken = sessionStorage.getItem('refreshToken');
     if (!refreshToken) return null;
 
     if (this.isRefreshing) {
@@ -75,6 +77,7 @@ const API = {
       });
 
       if (!res.ok) {
+        sessionStorage.removeItem('refreshToken');
         localStorage.removeItem('refreshToken');
         sessionStorage.removeItem('accessToken');
         return null;
@@ -88,7 +91,8 @@ const API = {
         sessionStorage.setItem('accessToken', novoAccessToken);
       }
       if (novoRefreshToken) {
-        localStorage.setItem('refreshToken', novoRefreshToken);
+        sessionStorage.setItem('refreshToken', novoRefreshToken);
+        localStorage.removeItem('refreshToken');
       }
 
       this.onRefreshed(novoAccessToken);
@@ -98,6 +102,8 @@ const API = {
       return null;
     } finally {
       this.isRefreshing = false;
+      // Libera também requisições concorrentes quando a renovação falha.
+      this.onRefreshed(null);
     }
   },
 

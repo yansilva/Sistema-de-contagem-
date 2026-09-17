@@ -129,7 +129,7 @@ const Contagens = {
         : (contados > 0 ? `<span class="badge badge-warning">${contados}/${total} contados</span>` : '<span class="badge badge-neutro">Não iniciado</span>');
 
       return `
-        <button class="quick-card ${isAtivo ? 'selected' : ''}" style="cursor:pointer; padding:14px; border:2px solid ${isAtivo ? 'var(--cor-primaria)' : 'var(--cor-borda)'}" data-produtor="${escapeHtml(f.fornecedor)}" onclick="Contagens.selecionarFornecedor(this.dataset.produtor)">
+        <button class="quick-card ${isAtivo ? 'selected' : ''}" style="cursor:pointer; padding:14px; border:2px solid ${isAtivo ? 'var(--cor-primaria)' : 'var(--cor-borda)'}" data-produtor="${escapeHtml(f.fornecedor)}" data-click="action-73">
           <div style="display:flex; justify-content:space-between; align-items:center">
             <h4 style="margin:0; font-size:1rem"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
             ${badge}
@@ -195,21 +195,21 @@ const Contagens = {
         : '<span class="badge badge-neutro">Pendente</span>';
 
       return `
-        <div class="produto-item" id="item-contagem-${index}" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--cor-borda)">
-          <div style="flex:1">
+        <div class="produto-item contagem-item" id="item-contagem-${index}" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--cor-borda)">
+          <div class="contagem-item-info" style="flex:1">
             <div style="font-weight:700; font-size:1rem; color:var(--cor-texto)">${escapeHtml(p.nome)}</div>
             <div style="font-size:0.8rem; color:var(--cor-texto-mutado)">SKU: <code>${escapeHtml(p.codigo)}</code> &bull; Produtor: <strong>${escapeHtml(this.fornecedorAtual)}</strong></div>
           </div>
 
-          <div style="display:flex; align-items:center; gap:12px">
+          <div class="contagem-item-controls" style="display:flex; align-items:center; gap:12px">
             <div>${statusItem}</div>
             <div style="width:130px">
-              <label style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mutado)">Qtd Física:</label>
-              <input type="number" min="0" step="1"
+              <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">Qtd Física:</label>
+              <input id="qtd-fisica-${index}" type="number" inputmode="numeric" min="0" step="1"
                      placeholder="Não contado"
                      value="${valorInput}"
                      class="input-qtd-fisica"
-                     oninput="Contagens.atualizarQuantidadeItem(${index}, this.value)">
+                     data-input="action-74" data-arg-0="${escapeHtml(String(index))}">
             </div>
           </div>
         </div>
@@ -346,7 +346,7 @@ const Contagens = {
           : 'A contagem física conferiu exatamente com o estoque registrado no sistema.'}
         </p>
         ${isAdmin ? `
-          <button class="btn btn-primary" onclick="Contagens.baixarExcelDiferencas('${escapeHtml(c.id)}')">
+          <button class="btn btn-primary" data-click="action-75" data-arg-0="${escapeHtml(c.id)}">
             <i class="ti ti-file-spreadsheet"></i> Exportar Relatório Excel (.xlsx)
           </button>
         ` : ''}

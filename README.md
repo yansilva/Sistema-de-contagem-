@@ -14,9 +14,9 @@
 ![Swagger](https://img.shields.io/badge/API_Docs-Swagger_3.0-85EA2D?style=for-the-badge&logo=swagger&logoColor=black)
 ![Coverage](https://img.shields.io/badge/Tests-100%25%20Passing-success?style=for-the-badge&logo=jest&logoColor=white)
 
-**Plataforma SaaS Multi-Tenant corporativa para reconciliação de estoques, contagem física e auditoria de inventário em tempo real integrada a ERPs.**
+**Plataforma SaaS multi-tenant para reconciliação de estoques, contagem física e auditoria de inventário, com importação de catálogo/estoque a partir de arquivos de ERP (Tiny, Bling, etc.).**
 
-[Demo Ao Vivo](#-acesso-rápido--modo-demonstração) • [Arquitetura](#-arquitetura-do-sistema) • [Segurança](#-segurança--autenticação) • [Instalação](#-instalação--execução-local) • [Swagger API](#-documentação-da-api-swagger)
+[Instalação](#-instalação--execução-local) • [Arquitetura](#-arquitetura-do-sistema) • [Segurança](#-segurança--autenticação) • [Swagger API](#-documentação-da-api-swagger)
 
 ---
 
@@ -30,7 +30,7 @@
 
 O **Inventory Management System** é uma solução SaaS completa desenhada para empresas do comércio varejista e centros de distribuição que enfrentam divergências entre o estoque físico e os registros do ERP (Tiny ERP, Bling, etc.).
 
-A aplicação permite que equipes de loja executem contagens físicas guiadas por leitor de código de barras ou manual, enquanto compara automaticamente com a base de produtos em estoque, destacando faltas, sobras, acurácia percentual e emitindo relatórios executivos em planilhas **Excel (.xlsx)** formatadas.
+A aplicação permite que equipes de loja executem contagens físicas guiadas (digitação ou código de barras no campo de SKU), comparando com o snapshot importado do catálogo, destacando faltas, sobras e emitindo relatórios em planilhas **Excel (.xlsx)**.
 
 ### 🌟 Destaques de Engenharia & Portfólio
 
@@ -58,9 +58,12 @@ A aplicação permite que equipes de loja executem contagens físicas guiadas po
 │  [Rate Limiting] ──► [Helmet Security Headers] ──► [CORS Restritivo]             │
 │                                                                                  │
 │  [Rotas da Aplicação]                                                            │
-│    ├── /api/auth          (Login, Refresh com Rotação, Logout, Guest Sandbox)   │
+│    ├── /api/auth          (Login, Refresh com Rotação, Logout, senha)           │
+│    ├── /api/empresas      (Provisionamento por super_admin)                     │
 │    ├── /api/produtos      (CRUD, Catálogo, Importação Excel mesclar/substituir)  │
-│    ├── /api/contagens     (Registro, Divergências, Agrupamentos JSON nativos)    │
+│    ├── /api/estoque       (Importação PDF de saldo de referência)              │
+│    ├── /api/contagens     (Contagem cega, divergências, snapshot)              │
+│    ├── /api/atividades    (Trilha de auditoria para administradores)           │
 │    ├── /api/relatorios    (Exportação de Planilhas Excel com ExcelJS)            │
 │    ├── /api/docs          (Swagger UI OpenAPI 3.0 interativo)                    │
 │    └── /health            (Health Check com sonda de conexão ao banco)           │
@@ -111,17 +114,16 @@ Invasor (reúso)  ───► POST /api/auth/refresh [Token A] ───► ALE
 
 ---
 
-## 🚀 Acesso Rápido — Modo Demonstração
+## 🚀 Primeiro acesso
 
-Para avaliar a aplicação sem necessidade de configurar um banco de dados local imediatamente:
+Não existe login de convidado. O cadastro público de empresas está desligado por padrão (`ALLOW_PUBLIC_REGISTRATION=false`).
 
-1. Inicie a aplicação via Docker ou Node.
-2. Na tela de login, clique no botão **"Entrar como Convidado (Modo Demonstração)"**.
-3. A API emitirá um token de sessão isolado para a **Loja Demo**, com dados pré-populados de fornecedores e produtos para simular conferências completas.
+1. Suba o PostgreSQL e aplique o schema.
+2. Configure `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_SENHA` e `SUPER_ADMIN_NOME` no `.env` do backend.
+3. Execute `npm run seed:superadmin`.
+4. Entre com essas credenciais e use **Nova empresa** para provisionar o primeiro administrador da loja.
 
-> **Credenciais de Administrador Padrão (Seed):**
-> - **E-mail:** `admin@demo.com`
-> - **Senha:** `AdminDemo@2026!`
+O seed opcional (`npm run seed` / `seed.sql`) pode criar dados de demonstração em ambiente local — não use essas senhas em produção.
 
 ---
 
@@ -150,14 +152,16 @@ Para avaliar a aplicação sem necessidade de configurar um banco de dados local
 
 ### Opção 1: Execução com Docker (Recomendado)
 
-Clone o repositório e suba todo o ecossistema (PostgreSQL + Migrations + Seed + Backend + Frontend) com apenas um comando:
+Clone o repositório, crie um `.env` na **raiz** (veja `.env.example`) com `POSTGRES_PASSWORD` e `JWT_SECRET` (mínimo 32 caracteres) e suba o ecossistema:
 
 ```bash
 # Clonar o repositório
 git clone https://github.com/yansilva/Sistema-de-contagem-.git
 cd Sistema-de-contagem-
 
-# Iniciar containers orquestrados
+# Copie o exemplo e preencha os segredos — o compose recusa subir sem eles
+cp .env.example .env
+
 docker compose up --build -d
 
 # Visualizar logs em tempo real
@@ -260,8 +264,9 @@ A API possui documentação OpenAPI 3.0 navegável e testável diretamente pelo 
 |---|---|---|---|
 | `POST` | `/api/auth/login` | Público | Autenticação com e-mail e senha, retorna access + refresh token |
 | `POST` | `/api/auth/refresh` | Público | Rotação atômica de refresh token com detecção de roubo |
-| `GET` | `/api/auth/guest` | Público | Emite sessão para a sandbox oficial da Loja Demo |
 | `POST` | `/api/auth/logout` | Autenticado | Revoga tokens ativos da sessão do usuário |
+| `POST` | `/api/empresas` | super_admin | Provisiona empresa e administrador |
+| `GET` | `/api/atividades` | Admin | Lista a trilha de auditoria do tenant |
 | `GET` | `/api/produtos` | JWT | Lista catálogo com paginação e busca por termo/fornecedor |
 | `POST` | `/api/produtos` | Gestor | Cadastra novo produto no catálogo do tenant |
 | `POST` | `/api/produtos/importar` | Gestor | Importa catálogo em lote com modos `mesclar` ou `substituir` |

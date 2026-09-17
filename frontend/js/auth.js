@@ -58,7 +58,8 @@ const Auth = {
 
       const { accessToken, refreshToken, usuario, empresa, mustChangePassword } = res.data;
       sessionStorage.setItem('accessToken', accessToken);
-      localStorage.setItem('refreshToken', refreshToken);
+      sessionStorage.setItem('refreshToken', refreshToken);
+      localStorage.removeItem('refreshToken');
 
       this.usuario = usuario;
       this.empresa = empresa;
@@ -249,12 +250,13 @@ const Auth = {
    * Encerra a sessão do usuário
    */
   async deslogar() {
-    const refreshToken = localStorage.getItem('refreshToken');
+    const refreshToken = sessionStorage.getItem('refreshToken');
     if (refreshToken) {
       await API.post('/auth/logout', { refreshToken });
     }
 
     sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
     localStorage.removeItem('refreshToken');
     this.usuario = null;
     this.empresa = null;
@@ -272,6 +274,10 @@ const Auth = {
    */
   atualizarInterface() {
     const admin = this.isAdmin();
+    for (const id of ['mobile-nav-toggle', 'topbar-menu']) {
+      const element = document.getElementById(id);
+      if (element) element.hidden = !this.usuario;
+    }
     document.querySelectorAll('[data-admin-only]').forEach((element) => {
       element.hidden = !admin;
     });
@@ -285,6 +291,8 @@ const Auth = {
     const btnBackoffice = document.getElementById('btn-nav-backoffice');
     const btnNovaEmpresa = document.getElementById('btn-nova-empresa');
     if (btnNovaEmpresa) btnNovaEmpresa.style.display = this.usuario?.papel === 'super_admin' ? 'inline-flex' : 'none';
+    const btnListarEmpresas = document.getElementById('btn-listar-empresas');
+    if (btnListarEmpresas) btnListarEmpresas.style.display = this.usuario?.papel === 'super_admin' ? 'inline-flex' : 'none';
 
     if (this.usuario) {
       const iniciais = (this.usuario.nome || 'U')

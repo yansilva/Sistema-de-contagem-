@@ -1,5 +1,14 @@
 require('dotenv').config();
 
+const { obterJwtSecret } = require('./config/jwt');
+
+try {
+  obterJwtSecret();
+} catch (error) {
+  console.error(`[Servidor] ${error.message}`);
+  process.exit(1);
+}
+
 const app = require('./app');
 
 const PORT = process.env.PORT || 3002;

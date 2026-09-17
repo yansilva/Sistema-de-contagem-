@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { loadFrontendEvents } = require('./helpers/frontendEvents');
 const frontend = path.resolve(__dirname, '../../frontend');
 const html = fs.readFileSync(path.join(frontend, 'index.html'), 'utf8');
 
@@ -10,6 +11,7 @@ describe('Área do funcionário de contagem', () => {
   let api;
   let auth;
   let consulta;
+  let dispatch;
 
   beforeEach(() => {
     elements = new Map();
@@ -72,6 +74,7 @@ describe('Área do funcionário de contagem', () => {
       context
     );
     context.showToast = jest.fn();
+    dispatch = loadFrontendEvents(context);
     auth = context.auth;
     consulta = context.consulta;
     auth.usuario = { nome: 'Equipe', papel: 'funcionario', mustChangePassword: false };
@@ -145,8 +148,9 @@ describe('Área do funcionário de contagem', () => {
     const rendered = elements.get('consulta-produtores-lista').innerHTML;
     expect(rendered).toContain('D&#039;Água');
     expect(rendered).not.toContain('Outro');
-    expect(rendered).toContain('this.dataset.produtor');
-    consulta.abrirCatalogo("D'Água");
+    expect(rendered).not.toMatch(/\bonclick=/);
+    const button = rendered.match(/<button\b[^>]*>/)[0];
+    dispatch('click', button, { fromChild: true });
     expect(consulta.produtorFiltro).toBe("D'Água");
     expect(elements.get('screen-catalogo').classes.has('active')).toBe(true);
   });

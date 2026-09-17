@@ -57,10 +57,10 @@ const Produtos = {
             </div>
           </div>
           <div style="display:flex; gap:6px">
-            <button class="btn btn-outline btn-sm" onclick="Produtos.abrirEdicao('${escapeHtml(p.id)}')">
+            <button class="btn btn-outline btn-sm" data-click="action-78" data-arg-0="${escapeHtml(p.id)}">
               <i class="ti ti-edit"></i> Editar
             </button>
-            <button class="btn btn-danger btn-sm" onclick="Produtos.remover('${escapeHtml(p.id)}')">
+            <button class="btn btn-danger btn-sm" data-click="action-79" data-arg-0="${escapeHtml(p.id)}">
               <i class="ti ti-trash"></i>
             </button>
           </div>

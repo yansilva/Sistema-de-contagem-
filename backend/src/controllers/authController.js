@@ -6,6 +6,8 @@ const { registrar: registrarEmpresa } = require('./empresasController');
 const auditService = require('../services/auditService');
 
 const SALT_ROUNDS = 12;
+// Hash bcrypt válido só para equalizar tempo quando o e-mail não existe.
+const DUMMY_BCRYPT_HASH = bcrypt.hashSync('dummy-login-comparison-only', SALT_ROUNDS);
 
 /**
  * POST /api/auth/login
@@ -26,23 +28,10 @@ async function login(req, res, next) {
       [emailNorm]
     );
 
-    if (result.rows.length === 0) {
-      throw new UnauthorizedError('Credenciais inválidas.', 'CREDENCIAIS_INVALIDAS');
-    }
-    const usuario = result.rows[0];
+    const usuario = result.rows[0] || null;
+    const senhaValida = await bcrypt.compare(senha, usuario?.senha_hash || DUMMY_BCRYPT_HASH);
 
-    // Verificar se usuário está ativo
-    if (usuario.ativo === false) {
-      throw new UnauthorizedError(
-        'Este usuário foi desativado pelo administrador da empresa.',
-        'USUARIO_DESATIVADO'
-      );
-    }
-
-    // Validação estrita via bcrypt (SEM senhas padrão 123456 ou AdminDemo)
-    const senhaValida = await bcrypt.compare(senha, usuario.senha_hash);
-
-    if (!senhaValida) {
+    if (!usuario || !senhaValida || usuario.ativo === false) {
       throw new UnauthorizedError('Credenciais inválidas.', 'CREDENCIAIS_INVALIDAS');
     }
 
@@ -96,7 +85,7 @@ async function login(req, res, next) {
     });
   } catch (err) {
     // Auditoria: login falhou (credenciais inválidas, usuário desativado)
-    if (err.errorCode === 'CREDENCIAIS_INVALIDAS' || err.errorCode === 'USUARIO_DESATIVADO') {
+    if (err.code === 'CREDENCIAIS_INVALIDAS') {
       try {
         await auditService.registrarForaDaTransacao(req.auditContext || {}, {
           escopo: 'seguranca',
@@ -104,7 +93,7 @@ async function login(req, res, next) {
           acao: 'login_falha',
           entidade: 'sessao',
           resultado: 'falha',
-          codigoErro: err.errorCode,
+          codigoErro: err.code,
           metadados: { email_tentado: req.body?.email?.toLowerCase?.()?.trim?.() || 'desconhecido' },
           eventoChave: `login_falha_${Date.now()}`
         });

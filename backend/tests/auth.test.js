@@ -170,7 +170,8 @@ describe('Autenticação, Onboarding & Refresh Token com Rotação', () => {
 
     expect(res.statusCode).toBe(401);
     expect(res.body.success).toBe(false);
-    expect(res.body.code).toBe('USUARIO_DESATIVADO');
+    expect(res.body.code).toBe('CREDENCIAIS_INVALIDAS');
+    expect(res.body.message).toBe('Credenciais inválidas.');
   });
 
   it('POST /api/auth/refresh — deve rotacionar refresh token e invalidar o anterior', async () => {

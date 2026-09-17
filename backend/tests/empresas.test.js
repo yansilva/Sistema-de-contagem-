@@ -146,4 +146,52 @@ describe('Provisionamento de empresas pela plataforma', () => {
       log.mockRestore();
     }
   });
+
+  describe('GET /api/empresas — Listagem para Super Admin', () => {
+    it('bloqueia requisição sem autenticação com 401', async () => {
+      const res = await request(app).get('/api/empresas');
+      expect(res.status).toBe(401);
+    });
+
+    it('bloqueia administrador empresarial com 403', async () => {
+      const res = await request(app)
+        .get('/api/empresas')
+        .set('Authorization', `Bearer ${adminToken}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('permite super_admin listar empresas com estatísticas', async () => {
+      const res = await request(app)
+        .get('/api/empresas')
+        .set('Authorization', `Bearer ${superToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.empresas).toBeDefined();
+      expect(res.body.data.total).toBe(state.empresas.length);
+      const plataforma = res.body.data.empresas.find((e) => e.id === empresaId);
+      expect(plataforma).toBeDefined();
+      expect(plataforma.nome).toBe('Plataforma');
+      expect(plataforma.total_usuarios).toBeGreaterThanOrEqual(1);
+    });
+
+    it('conta apenas usuários e produtos ativos por empresa, incluindo empresas vazias', async () => {
+      state.empresas.push({ id: 'empresa-vazia', nome: 'Vazia', plano: 'trial' });
+      state.usuarios.push({ id: 'inativo', empresa_id: empresaId, ativo: false });
+      state.produtos.push(
+        { id: 'p1', empresa_id: empresaId, ativo: true },
+        { id: 'p2', empresa_id: empresaId, ativo: true },
+        { id: 'p3', empresa_id: empresaId, ativo: true },
+        { id: 'p4', empresa_id: empresaId, ativo: false }
+      );
+      const res = await request(app)
+        .get('/api/empresas')
+        .set('Authorization', `Bearer ${superToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.data.total).toBe(2);
+      expect(res.body.data.empresas).toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: empresaId, total_usuarios: 2, total_produtos: 3 }),
+        expect.objectContaining({ id: 'empresa-vazia', total_usuarios: 0, total_produtos: 0 })
+      ]));
+    });
+  });
 });

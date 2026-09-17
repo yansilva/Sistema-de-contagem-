@@ -64,7 +64,7 @@ const Historico = {
 
       return `
         <div class="hist-card" id="hist-card-${escapeHtml(c.id)}">
-          <div class="hist-card-header" onclick="Historico.toggleDetalhes('${escapeHtml(c.id)}')">
+          <div class="hist-card-header" data-click="action-76" data-arg-0="${escapeHtml(c.id)}">
             <i class="ti ${statusIcon} status-icon" style="color:${statusColor}"></i>
             <div class="hist-card-info">
               <div class="data">${dataFormatada}</div>
@@ -83,7 +83,7 @@ const Historico = {
             <div class="hist-actions">
               ${temDif ? `
                 <button class="btn btn-outline btn-sm" title="Baixar relatório Excel"
-                        onclick="event.stopPropagation(); Historico.baixarExcel('${escapeHtml(c.id)}')">
+                        data-click="action-77" data-arg-0="${escapeHtml(c.id)}">
                   <i class="ti ti-file-spreadsheet"></i> Excel
                 </button>
               ` : ''}

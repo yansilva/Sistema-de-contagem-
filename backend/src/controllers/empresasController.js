@@ -176,4 +176,50 @@ async function provisionar(req, res, next) {
   }
 }
 
-module.exports = { registrar, provisionar };
+/**
+ * GET /api/empresas
+ * Lista todas as empresas cadastradas com estatísticas (total de usuários e produtos).
+ * Restrito a super_admin.
+ */
+async function listar(req, res, next) {
+  try {
+    const result = await query(
+      `SELECT e.id, e.nome, e.email_contato, e.plano, e.trial_expira_em, e.criado_em,
+              COALESCE(u.total_usuarios, 0) AS total_usuarios,
+              COALESCE(p.total_produtos, 0) AS total_produtos
+       FROM empresas e
+       LEFT JOIN (
+         SELECT empresa_id, COUNT(*) AS total_usuarios
+         FROM usuarios WHERE ativo = TRUE GROUP BY empresa_id
+       ) u ON u.empresa_id = e.id
+       LEFT JOIN (
+         SELECT empresa_id, COUNT(*) AS total_produtos
+         FROM produtos WHERE ativo = TRUE GROUP BY empresa_id
+       ) p ON p.empresa_id = e.id
+       ORDER BY e.criado_em DESC`
+    );
+
+    const empresas = result.rows.map((row) => ({
+      id: row.id,
+      nome: row.nome,
+      email_contato: row.email_contato,
+      plano: row.plano,
+      trial_expira_em: row.trial_expira_em,
+      criado_em: row.criado_em,
+      total_usuarios: Number(row.total_usuarios),
+      total_produtos: Number(row.total_produtos)
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        empresas,
+        total: empresas.length
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { registrar, provisionar, listar };

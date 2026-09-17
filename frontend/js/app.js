@@ -16,7 +16,7 @@ function showScreen(screenId) {
   } else if (!Auth.isAdmin() && !publicScreens.includes(screenId) && !employeeScreens.includes(screenId)) {
     screenId = 'screen-home';
   }
-  if (screenId === 'screen-registro' && Auth.usuario?.papel !== 'super_admin') {
+  if ((screenId === 'screen-registro' || screenId === 'screen-empresas') && Auth.usuario?.papel !== 'super_admin') {
     screenId = Auth.usuario ? 'screen-home' : 'screen-login';
   }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -32,6 +32,8 @@ function showScreen(screenId) {
   } else if (screenId === 'screen-home') {
     Auth.atualizarInterface();
     carregarDashboard();
+  } else if (screenId === 'screen-empresas') {
+    Empresas.carregar();
   } else if (screenId === 'screen-catalogo') {
     Consulta.carregarCatalogo();
   } else if (screenId === 'screen-produtores') {

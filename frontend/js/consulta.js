@@ -95,7 +95,7 @@ const Consulta = {
     document.getElementById('consulta-produtores-lista').innerHTML = produtores.map(nome => `
       <article class="consulta-item table-toolbar">
         <strong>${escapeHtml(nome)}</strong>
-        <button class="btn btn-outline btn-sm" data-produtor="${escapeHtml(nome)}" onclick="Consulta.abrirCatalogo(this.dataset.produtor)">Ver produtos</button>
+        <button class="btn btn-outline btn-sm" data-produtor="${escapeHtml(nome)}" data-click="action-71">Ver produtos</button>
       </article>`).join('');
   },
 
@@ -130,7 +130,7 @@ const Consulta = {
           <span class="badge badge-neutro">${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span></div>
         <p>Iniciada por: ${escapeHtml(c.iniciado_por_nome || 'Usuário')}</p>
         <p>Produtores: ${(c.fornecedores || []).length}</p>
-        <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" onclick="Consulta.detalharContagem(this.dataset.id)">Ver contagem</button>
+        <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-72">Ver contagem</button>
       </article>`).join('');
   },
 

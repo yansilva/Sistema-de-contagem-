@@ -16,7 +16,7 @@ services:
       - /run/postgresql
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env da raiz}
       POSTGRES_DB: estoque_db
     ports:
       - "5432:5432"
@@ -54,8 +54,8 @@ services:
     environment:
       PORT: 3002
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:postgrespassword@db:5432/estoque_db
-      JWT_SECRET: super_secret_jwt_production_key_inventory_management_system_2026_sha256
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/estoque_db
+      JWT_SECRET: ${JWT_SECRET:?Defina JWT_SECRET no .env da raiz (mínimo 32 caracteres)}
       JWT_EXPIRA_EM: 15m
       REFRESH_TOKEN_EXPIRA_DIAS: 30
       FRONTEND_URL: http://localhost:3002

@@ -50,7 +50,8 @@ const Atividades = {
     try {
       const res = await API.get(`/atividades?${queryParams.toString()}`);
       if (!res || !res.success) {
-        container.innerHTML = `<div class="card" style="color:var(--cor-perigo); text-align:center; padding:20px">${res?.message || 'Erro ao carregar atividades.'}</div>`;
+        const mensagem = escapeHtml(res?.message || 'Erro ao carregar atividades.');
+        container.innerHTML = `<div class="card" style="color:var(--cor-perigo); text-align:center; padding:20px">${mensagem}</div>`;
         return;
       }
 
@@ -91,22 +92,24 @@ const Atividades = {
         ? '<span class="badge-audit sucesso"><i class="ti ti-check"></i> Sucesso</span>'
         : '<span class="badge-audit falha"><i class="ti ti-x"></i> Falha</span>';
 
-      const acaoBadge = `<span class="badge-audit acao">${log.acao}</span>`;
-      const atorLabel = log.ator?.rotulo || 'Sistema';
-      const atorPapel = log.ator?.papel ? `(${log.ator.papel})` : '';
+      const acaoBadge = `<span class="badge-audit acao">${escapeHtml(log.acao || '')}</span>`;
+      const atorLabel = escapeHtml(log.ator?.rotulo || 'Sistema');
+      const atorPapel = log.ator?.papel ? `(${escapeHtml(log.ator.papel)})` : '';
+      const entidade = escapeHtml(log.entidade || '—');
+      const logId = escapeHtml(log.id || '');
 
       rowsHtml += `
         <tr>
-          <td style="white-space:nowrap; font-size:0.8rem; color:var(--cor-texto-secundario)">${dataFormatada}</td>
+          <td style="white-space:nowrap; font-size:0.8rem; color:var(--cor-texto-secundario)">${escapeHtml(dataFormatada)}</td>
           <td>
             <strong>${atorLabel}</strong>
             <span style="font-size:0.75rem; color:var(--cor-texto-mudo); display:block">${atorPapel}</span>
           </td>
           <td>${acaoBadge}</td>
-          <td><span style="font-size:0.85rem; font-weight:500">${log.entidade || '—'}</span></td>
+          <td><span style="font-size:0.85rem; font-weight:500">${entidade}</span></td>
           <td>${statusBadge}</td>
           <td style="text-align:right">
-            <button class="btn btn-ghost btn-sm" title="Ver detalhes e diff" onclick="Atividades.abrirDetalhes('${log.id}')">
+            <button class="btn btn-ghost btn-sm" title="Ver detalhes e diff" data-click="action-70" data-arg-0="${escapeHtml(String(logId))}">
               <i class="ti ti-eye"></i> Detalhes
             </button>
           </td>

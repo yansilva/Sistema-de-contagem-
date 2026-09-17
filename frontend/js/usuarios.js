@@ -36,7 +36,7 @@ const Usuarios = {
         <div class="empty-state">
           <i class="ti ti-users" style="font-size:2.5rem; color:var(--cor-texto-mutado)"></i>
           <p>Nenhum funcionário cadastrado ainda.</p>
-          <button class="btn btn-primary btn-sm" onclick="Usuarios.abrirModalCriar()">
+          <button class="btn btn-primary btn-sm" data-click="action-82">
             <i class="ti ti-user-plus"></i> Cadastrar Primeiro Funcionário
           </button>
         </div>
@@ -60,11 +60,11 @@ const Usuarios = {
 
       const btnStatus = isEu
         ? ''
-        : `<button class="btn btn-ghost btn-sm" onclick="Usuarios.alternarStatus('${u.id}', ${u.ativo})" title="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}">
+        : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}">
             <i class="ti ti-${u.ativo ? 'user-x' : 'user-check'}"></i>
           </button>`;
 
-      const btnReset = `<button class="btn btn-ghost btn-sm" onclick="Usuarios.abrirModalReset('${u.id}', '${escapeHtml(u.nome)}')" title="Redefinir Senha Temporária">
+      const btnReset = `<button class="btn btn-ghost btn-sm" data-click="action-84" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(u.nome)}" title="Redefinir Senha Temporária">
         <i class="ti ti-rotate-2"></i>
       </button>`;
 
@@ -78,7 +78,7 @@ const Usuarios = {
           <td>${statusBadge} ${trocaPendente}</td>
           <td style="text-align:right">
             <div style="display:inline-flex; gap:4px">
-              <button class="btn btn-ghost btn-sm" onclick="Usuarios.abrirModalEditar('${u.id}')" title="Editar dados">
+              <button class="btn btn-ghost btn-sm" data-click="action-85" data-arg-0="${escapeHtml(String(u.id))}" title="Editar dados">
                 <i class="ti ti-edit"></i>
               </button>
               ${btnReset}
@@ -90,6 +90,7 @@ const Usuarios = {
     }).join('');
 
     container.innerHTML = `
+      <div class="table-scroll" role="region" aria-label="Lista de funcionários" tabindex="0">
       <table class="data-table">
         <thead>
           <tr>
@@ -103,6 +104,7 @@ const Usuarios = {
           ${rows}
         </tbody>
       </table>
+      </div>
     `;
   },
 

@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const { criarUsuarioSchema } = require('../src/validators/schemas');
+const { loadFrontendEvents } = require('./helpers/frontendEvents');
 
 // Usa os IDs e eventos do HTML real para detectar divergências entre a tela e o módulo.
 const html = fs.readFileSync(path.resolve(__dirname, '../../frontend/index.html'), 'utf8');
@@ -12,6 +13,7 @@ describe('Formulário de funcionários no frontend', () => {
   let context;
   let usuarios;
   let api;
+  let dispatch;
 
   beforeEach(() => {
     elements = new Map(
@@ -31,18 +33,22 @@ describe('Formulário de funcionários no frontend', () => {
       put: jest.fn().mockResolvedValue({ success: true })
     };
     context = vm.createContext({
-      document: { getElementById: (id) => elements.get(id) || null },
+      document: {
+        getElementById: (id) => elements.get(id) || null,
+        addEventListener: jest.fn()
+      },
       API: api,
       showToast: jest.fn()
     });
     vm.runInContext(script + '\nglobalThis.usuarios = Usuarios;', context);
     usuarios = context.usuarios;
     usuarios.carregar = jest.fn();
+    dispatch = loadFrontendEvents(context);
   });
 
   it('o botão Novo Funcionário abre o formulário vazio com senha temporária', () => {
-    const handler = html.match(/onclick="([^"]+)"[^>]*>\s*<i[^>]*><\/i> Novo Funcionário/)[1];
-    vm.runInContext(handler, context);
+    const button = html.match(/<button\b[^>]*>\s*<i[^>]*><\/i> Novo Funcionário/)[0];
+    dispatch('click', button, { fromChild: true });
     expect(elements.get('modal-usuario').style.display).toBe('flex');
     expect(elements.get('user-nome').value).toBe('');
     expect(elements.get('user-email').disabled).toBe(false);
@@ -52,8 +58,8 @@ describe('Formulário de funcionários no frontend', () => {
 
   it('o botão da lista vazia também abre o formulário', () => {
     usuarios.renderizar();
-    const handler = elements.get('lista-usuarios').innerHTML.match(/onclick="([^"]+)"/)[1];
-    vm.runInContext(handler, context);
+    const button = elements.get('lista-usuarios').innerHTML.match(/<button\b[^>]*>/)[0];
+    dispatch('click', button);
     expect(elements.get('modal-usuario').style.display).toBe('flex');
   });
 

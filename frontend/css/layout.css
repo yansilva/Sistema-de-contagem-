@@ -55,7 +55,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--cor-primaria), #7c3aed);
+  background: var(--gradiente-primario);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -83,7 +83,7 @@
 
 .screen.active {
   display: block;
-  animation: fadeIn .3s ease;
+  animation: fadeIn .22s ease;
 }
 
 /* ===== TABS (BACK-OFFICE) ===== */
@@ -104,12 +104,13 @@
   background: none;
   font-family: inherit;
   position: relative;
-  transition: color var(--transicao);
+  transition: color var(--transicao), border-color var(--transicao), background-color var(--transicao);
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
 }
 
 .tab:hover {
+  background: var(--cor-superficie2);
   color: var(--cor-texto);
 }
 

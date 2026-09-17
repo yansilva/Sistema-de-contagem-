@@ -101,8 +101,8 @@ const StockImport = {
             <p style="margin:4px 0 0 0; color:var(--cor-texto-mutado); font-size:0.875rem">Arquivo: <strong>${escapeHtml(nome_arquivo)}</strong></p>
           </div>
           <div style="display:flex; gap:8px">
-            <button class="btn btn-outline" onclick="StockImport.cancelarPrevia()">Cancelar</button>
-            <button class="btn btn-primary" id="btn-confirmar-estoque" onclick="StockImport.confirmarAtualizacao()">
+            <button class="btn btn-outline" data-click="action-80">Cancelar</button>
+            <button class="btn btn-primary" id="btn-confirmar-estoque" data-click="action-81">
               <i class="ti ti-check"></i> Confirmar Atualização (${produtos_correspondentes} produtos)
             </button>
           </div>

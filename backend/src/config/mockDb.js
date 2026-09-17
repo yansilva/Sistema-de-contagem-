@@ -77,6 +77,23 @@ async function executeMockQuery(sql, params = []) {
           : []
       };
     }
+    if (norm.includes('FROM empresas e') && norm.includes('AS total_usuarios') && norm.includes('AS total_produtos')) {
+      const rows = state.empresas.map((e) => {
+        const totalUsuarios = state.usuarios.filter((u) => u.empresa_id === e.id && u.ativo !== false).length;
+        const totalProdutos = state.produtos.filter((p) => p.empresa_id === e.id && p.ativo !== false).length;
+        return {
+          id: e.id,
+          nome: e.nome,
+          email_contato: e.email_contato,
+          plano: e.plano,
+          trial_expira_em: e.trial_expira_em,
+          criado_em: e.criado_em,
+          total_usuarios: totalUsuarios,
+          total_produtos: totalProdutos
+        };
+      });
+      return { rows };
+    }
   }
 
   // ===== USUARIOS =====

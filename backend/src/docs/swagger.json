@@ -3,7 +3,7 @@
   "info": {
     "title": "Inventory Management System API",
     "version": "1.0.0",
-    "description": "API REST profissional para SaaS de controle e contagem de inventário de estoque com suporte multi-tenant, autenticação JWT, rotação de refresh tokens e conciliação em tempo real."
+    "description": "API REST para SaaS de contagem física e reconciliação de estoque, com multi-tenant, JWT e rotação de refresh tokens. O saldo do ERP entra por importação de arquivo (Excel/PDF), não por integração ao vivo."
   },
   "servers": [
     {
@@ -33,8 +33,8 @@
         "type": "object",
         "required": ["email", "senha"],
         "properties": {
-          "email": { "type": "string", "format": "email", "example": "admin@demo.com" },
-          "senha": { "type": "string", "example": "AdminDemo@2026!" }
+          "email": { "type": "string", "format": "email", "example": "admin@empresa.com" },
+          "senha": { "type": "string", "example": "SenhaForte@123" }
         }
       },
       "RegisterRequest": {
@@ -118,14 +118,6 @@
         "responses": {
           "200": { "description": "Novo par de tokens gerado" },
           "401": { "description": "Token inválido ou expirado" }
-        }
-      }
-    },
-    "/api/auth/guest": {
-      "get": {
-        "summary": "Login de Demonstração (Sandbox Loja Demo)",
-        "responses": {
-          "200": { "description": "Token de demonstração emitido" }
         }
       }
     },
