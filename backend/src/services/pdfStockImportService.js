@@ -1,4 +1,10 @@
-const pdfParse = require('pdf-parse');
+// Lazy-load: pdf-parse usa DOMMatrix (API de navegador) na inicialização,
+// o que causa crash em ambientes serverless (Vercel). Carregamos sob demanda.
+let _pdfParse;
+function getPdfParse() {
+  if (!_pdfParse) _pdfParse = require('pdf-parse');
+  return _pdfParse;
+}
 
 /**
  * Serviço de Importação e Atualização de Estoque via Relatório PDF do Tiny ERP
@@ -103,7 +109,7 @@ function extrairLinhaTiny(linha) {
  * @param {Array} produtosCadastrados - Lista de produtos da empresa já no banco
  */
 async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) {
-  const data = await pdfParse(pdfBuffer);
+  const data = await getPdfParse()(pdfBuffer);
   const textoCompleto = data.text || '';
   const linhas = textoCompleto.split(/\r?\n/);
 
