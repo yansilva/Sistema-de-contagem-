@@ -107,10 +107,53 @@ const API = {
     }
   },
 
+    /**
+   * Processa a resposta do servidor de maneira segura
+   */
+  async parseResponse(res) {
+    if (!res) {
+      return {
+        success: false,
+        message: 'Não foi possível conectar ao servidor. Verifique se o backend está ativo.'
+      };
+    }
+
+    try {
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        return await res.json();
+      }
+
+      if (res.status === 404) {
+        return {
+          success: false,
+          message: 'Endpoint de API não encontrado (HTTP 404).'
+        };
+      }
+
+      if (res.status >= 500) {
+        return {
+          success: false,
+          message: 'Erro interno no servidor (HTTP ' + res.status + '). Verifique se DATABASE_URL e JWT_SECRET estão configurados na Vercel e faça um Redeploy.'
+        };
+      }
+
+      const text = await res.text();
+      return {
+        success: false,
+        message: text || ('Erro na requisição (HTTP ' + res.status + ').')
+      };
+    } catch (e) {
+      return {
+        success: false,
+        message: 'Falha ao interpretar resposta do servidor (HTTP ' + res.status + ').'
+      };
+    }
+  },
+
   async get(path) {
     const res = await this.request(path, { method: 'GET' });
-    if (!res) return null;
-    return res.json();
+    return this.parseResponse(res);
   },
 
   async post(path, data) {
@@ -118,8 +161,7 @@ const API = {
       method: 'POST',
       body: JSON.stringify(data)
     });
-    if (!res) return null;
-    return res.json();
+    return this.parseResponse(res);
   },
 
   async put(path, data) {
@@ -127,8 +169,7 @@ const API = {
       method: 'PUT',
       body: JSON.stringify(data)
     });
-    if (!res) return null;
-    return res.json();
+    return this.parseResponse(res);
   },
 
   async patch(path, data) {
@@ -136,14 +177,12 @@ const API = {
       method: 'PATCH',
       body: JSON.stringify(data)
     });
-    if (!res) return null;
-    return res.json();
+    return this.parseResponse(res);
   },
 
   async delete(path) {
     const res = await this.request(path, { method: 'DELETE' });
-    if (!res) return null;
-    return res.json();
+    return this.parseResponse(res);
   },
 
   /**

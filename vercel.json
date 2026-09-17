@@ -1,6 +1,11 @@
 {
   "version": 2,
   "outputDirectory": "public",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "backend/**"
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",

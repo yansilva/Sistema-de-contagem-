@@ -77,7 +77,8 @@ const Auth = {
       showToast(`Bem-vindo, ${usuario.nome}!`, 'success');
       showScreen('screen-home');
     } catch (err) {
-      erroEl.textContent = 'Erro ao conectar com o servidor.';
+      console.error('[LOGIN_ERROR]', err);
+      erroEl.textContent = err?.message || 'Erro ao conectar com o servidor.';
     } finally {
       btn.disabled = false;
       btn.innerHTML = '<i class="ti ti-login"></i> Entrar';
