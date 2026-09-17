@@ -7,7 +7,7 @@
     "backend"
   ],
   "scripts": {
-    "build": "node -e \"console.log('[Build] Sistema de Contagem pronto para deploy na Vercel.')\"",
+    "build": "node -e \"const fs=require('fs'); fs.cpSync('frontend', 'public', {recursive: true}); console.log('[Build] Pasta public sincronizada com sucesso.');\"",
     "start": "npm --prefix backend start",
     "dev": "npm --prefix backend run dev",
     "test": "npm --prefix backend test",

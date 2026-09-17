@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Prévia de estilos · Sistema de Contagem</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.46.0/dist/tabler-icons.min.css" integrity="sha384-ND+q1IVc0KDElX60dZaqKc7Xl9cdxd2PpU2JfVUHcurCkFVtVLFdt9vJfxtHSL3p" crossorigin="anonymous">
+<link rel="stylesheet" href="/css/previa.css">
+<script src="/js/previa.js" defer></script>
+</head>
+<body>
+<div id="estoque-estilos" aria-label="Opções de aparência do sistema" data-theme="light">
+  <section class="preview-toolbar" aria-label="Controles da prévia">
+    <div class="preview-intro"><h1>Escolha o visual do seu sistema</h1><p>Experimente as cores e animações. Esta página usa dados ilustrativos.</p></div>
+    <label class="preview-field" for="preview-design">Estilo
+      <select id="preview-design">
+        <option value="sober">1 · Azul sóbrio</option>
+        <option value="depth" selected>2 · Azul com profundidade</option>
+        <option value="accents">3 · Cores por função</option>
+      </select>
+    </label>
+    <label class="preview-check"><input type="checkbox" id="preview-motion" checked> Animações suaves</label>
+    <a class="preview-back" href="/">Voltar ao sistema →</a>
+    <p id="preview-description" class="preview-description" aria-live="polite"></p>
+  </section>
+  <div class="es-window">
+    <div class="es-top"><div><div class="es-brand"><i class="ti ti-package" aria-hidden="true"></i> Controle de estoque</div><small>Prévia · dados ilustrativos</small></div><button type="button" id="es-theme">Alternar tema</button></div>
+    <div class="es-main">
+      <div class="es-heading"><div><h3>Painel de gestão</h3><p id="es-option">2 · Azul com profundidade</p></div><button type="button" class="es-primary" id="es-new"><i class="ti ti-plus" aria-hidden="true"></i> Nova contagem</button></div>
+      <div class="es-grid">
+        <div class="es-stat"><div class="es-stat-head">Produtos<span class="es-icon"><i class="ti ti-package" aria-hidden="true"></i></span></div><span class="es-value">248</span><span class="es-caption">No catálogo</span></div>
+        <div class="es-stat"><div class="es-stat-head">Produtores<span class="es-icon"><i class="ti ti-truck" aria-hidden="true"></i></span></div><span class="es-value">18</span><span class="es-caption">Cadastrados</span></div>
+        <div class="es-stat"><div class="es-stat-head">Contagens<span class="es-icon"><i class="ti ti-clipboard-check" aria-hidden="true"></i></span></div><span class="es-value">32</span><span class="es-caption">Finalizadas</span></div>
+      </div>
+      <div class="es-section"><strong>Acesso rápido</strong><span class="es-caption">Gestão do estoque</span></div>
+      <div class="es-actions">
+        <button type="button" class="es-action"><span class="es-icon"><i class="ti ti-packages" aria-hidden="true"></i></span><strong>Catálogo de produtos</strong><span>Consultar e organizar produtos →</span></button>
+        <button type="button" class="es-action"><span class="es-icon"><i class="ti ti-history" aria-hidden="true"></i></span><strong>Histórico de contagens</strong><span>Consultar os resultados →</span></button>
+      </div>
+      <div class="es-footer" id="es-feedback" aria-live="polite">Prévia de aparência</div>
+    </div>
+  </div>
+<dialog id="preview-dialog" aria-labelledby="preview-dialog-title"><h2 id="preview-dialog-title">Prévia</h2><p>Assim será a abertura de uma janela com o estilo escolhido. Nenhuma operação será salva.</p><button type="button" id="preview-close" class="es-primary">Fechar prévia</button></dialog>
+</div>
+</body>
+</html>
