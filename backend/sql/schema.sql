@@ -9,7 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- =============================================
 -- Tabela: empresas
 -- =============================================
-CREATE TABLE empresas (
+CREATE TABLE IF NOT EXISTS empresas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome VARCHAR(255) NOT NULL,
   email_contato VARCHAR(255) UNIQUE NOT NULL,
@@ -19,13 +19,13 @@ CREATE TABLE empresas (
   CONSTRAINT chk_empresas_plano CHECK (plano IN ('trial', 'ativo', 'suspenso'))
 );
 
-CREATE INDEX idx_empresas_plano ON empresas(plano);
-CREATE INDEX idx_empresas_email_contato ON empresas(email_contato);
+CREATE INDEX IF NOT EXISTS idx_empresas_plano ON empresas(plano);
+CREATE INDEX IF NOT EXISTS idx_empresas_email_contato ON empresas(email_contato);
 
 -- =============================================
 -- Tabela: usuarios
 -- =============================================
-CREATE TABLE usuarios (
+CREATE TABLE IF NOT EXISTS usuarios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   nome VARCHAR(255) NOT NULL,
@@ -41,14 +41,14 @@ CREATE TABLE usuarios (
   CONSTRAINT chk_usuarios_papel CHECK (papel IN ('super_admin', 'administrador', 'funcionario', 'gestor', 'admin'))
 );
 
-CREATE INDEX idx_usuarios_empresa ON usuarios(empresa_id);
-CREATE INDEX idx_usuarios_email ON usuarios(email);
-CREATE INDEX idx_usuarios_empresa_ativo ON usuarios(empresa_id, ativo);
+CREATE INDEX IF NOT EXISTS idx_usuarios_empresa ON usuarios(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
+CREATE INDEX IF NOT EXISTS idx_usuarios_empresa_ativo ON usuarios(empresa_id, ativo);
 
 -- =============================================
 -- Tabela: produtos
 -- =============================================
-CREATE TABLE produtos (
+CREATE TABLE IF NOT EXISTS produtos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   codigo VARCHAR(100) NOT NULL, -- SKU do Tiny / Produto
@@ -63,15 +63,15 @@ CREATE TABLE produtos (
   UNIQUE(empresa_id, codigo)
 );
 
-CREATE INDEX idx_produtos_empresa_ativo ON produtos(empresa_id, ativo);
-CREATE INDEX idx_produtos_empresa_fornecedor ON produtos(empresa_id, fornecedor) WHERE ativo = TRUE;
-CREATE INDEX idx_produtos_codigo ON produtos(empresa_id, codigo);
+CREATE INDEX IF NOT EXISTS idx_produtos_empresa_ativo ON produtos(empresa_id, ativo);
+CREATE INDEX IF NOT EXISTS idx_produtos_empresa_fornecedor ON produtos(empresa_id, fornecedor) WHERE ativo = TRUE;
+CREATE INDEX IF NOT EXISTS idx_produtos_codigo ON produtos(empresa_id, codigo);
 
 -- =============================================
 -- Tabela: historico_importacao_estoque
 -- Auditoria de uploads de relatórios PDF do Tiny ERP
 -- =============================================
-CREATE TABLE historico_importacao_estoque (
+CREATE TABLE IF NOT EXISTS historico_importacao_estoque (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -86,12 +86,12 @@ CREATE TABLE historico_importacao_estoque (
   criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_historico_estoque_empresa ON historico_importacao_estoque(empresa_id, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_historico_estoque_empresa ON historico_importacao_estoque(empresa_id, criado_em DESC);
 
 -- =============================================
 -- Tabela: contagens
 -- =============================================
-CREATE TABLE contagens (
+CREATE TABLE IF NOT EXISTS contagens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE CASCADE,
   iniciado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -106,14 +106,14 @@ CREATE TABLE contagens (
   CONSTRAINT chk_contagens_status CHECK (status IN ('nao_iniciada', 'em_andamento', 'finalizada', 'cancelada'))
 );
 
-CREATE INDEX idx_contagens_empresa ON contagens(empresa_id);
-CREATE INDEX idx_contagens_empresa_status ON contagens(empresa_id, status);
-CREATE INDEX idx_contagens_finalizado_em ON contagens(empresa_id, finalizado_em DESC) WHERE status = 'finalizada';
+CREATE INDEX IF NOT EXISTS idx_contagens_empresa ON contagens(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_contagens_empresa_status ON contagens(empresa_id, status);
+CREATE INDEX IF NOT EXISTS idx_contagens_finalizado_em ON contagens(empresa_id, finalizado_em DESC) WHERE status = 'finalizada';
 
 -- =============================================
 -- Tabela: contagem_fornecedores
 -- =============================================
-CREATE TABLE contagem_fornecedores (
+CREATE TABLE IF NOT EXISTS contagem_fornecedores (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   contagem_id UUID NOT NULL REFERENCES contagens(id) ON DELETE CASCADE,
   fornecedor VARCHAR(255) NOT NULL,
@@ -123,13 +123,13 @@ CREATE TABLE contagem_fornecedores (
   CONSTRAINT uq_contagem_fornecedor UNIQUE (contagem_id, fornecedor)
 );
 
-CREATE INDEX idx_contagem_fornecedores_contagem ON contagem_fornecedores(contagem_id);
+CREATE INDEX IF NOT EXISTS idx_contagem_fornecedores_contagem ON contagem_fornecedores(contagem_id);
 
 -- =============================================
 -- Tabela: contagem_itens
 -- Contagem cega: estoque_referencia é snapshot interno
 -- =============================================
-CREATE TABLE contagem_itens (
+CREATE TABLE IF NOT EXISTS contagem_itens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   contagem_fornecedor_id UUID NOT NULL REFERENCES contagem_fornecedores(id) ON DELETE CASCADE,
   produto_id UUID REFERENCES produtos(id) ON DELETE SET NULL,
@@ -143,14 +143,14 @@ CREATE TABLE contagem_itens (
   contado_em TIMESTAMPTZ
 );
 
-CREATE INDEX idx_contagem_itens_fornecedor ON contagem_itens(contagem_fornecedor_id);
-CREATE INDEX idx_contagem_itens_situacao ON contagem_itens(contagem_fornecedor_id, situacao);
+CREATE INDEX IF NOT EXISTS idx_contagem_itens_fornecedor ON contagem_itens(contagem_fornecedor_id);
+CREATE INDEX IF NOT EXISTS idx_contagem_itens_situacao ON contagem_itens(contagem_fornecedor_id, situacao);
 
 -- =============================================
 -- Tabela: refresh_tokens
 -- Armazenamento seguro de hash SHA-256 e rotação
 -- =============================================
-CREATE TABLE refresh_tokens (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
   token_hash VARCHAR(64) UNIQUE NOT NULL,
@@ -160,14 +160,14 @@ CREATE TABLE refresh_tokens (
   criado_em TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_refresh_tokens_hash ON refresh_tokens(token_hash);
-CREATE INDEX idx_refresh_tokens_usuario ON refresh_tokens(usuario_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_usuario ON refresh_tokens(usuario_id);
 
 -- =============================================
 -- Tabela: audit_logs
 -- Trilha central de auditoria com integridade e escopos
 -- =============================================
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   escopo VARCHAR(16) NOT NULL
     CHECK (escopo IN ('empresa', 'plataforma', 'seguranca')),
@@ -207,16 +207,16 @@ CREATE TABLE audit_logs (
   UNIQUE (operacao_id, evento_chave)
 );
 
-CREATE INDEX idx_audit_logs_empresa_data
+CREATE INDEX IF NOT EXISTS idx_audit_logs_empresa_data
   ON audit_logs (empresa_id, criado_em DESC, id DESC)
   WHERE escopo = 'empresa';
-CREATE INDEX idx_audit_logs_empresa_ator_data
+CREATE INDEX IF NOT EXISTS idx_audit_logs_empresa_ator_data
   ON audit_logs (empresa_id, ator_id, criado_em DESC, id DESC)
   WHERE escopo = 'empresa';
-CREATE INDEX idx_audit_logs_empresa_entidade
+CREATE INDEX IF NOT EXISTS idx_audit_logs_empresa_entidade
   ON audit_logs (empresa_id, entidade, entidade_id, criado_em DESC, id DESC);
-CREATE INDEX idx_audit_logs_request
+CREATE INDEX IF NOT EXISTS idx_audit_logs_request
   ON audit_logs (request_id);
-CREATE INDEX idx_audit_logs_global_data
+CREATE INDEX IF NOT EXISTS idx_audit_logs_global_data
   ON audit_logs (escopo, criado_em DESC, id DESC)
   WHERE escopo <> 'empresa';
