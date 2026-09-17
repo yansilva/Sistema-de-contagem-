@@ -24,6 +24,11 @@ const atividadesRoutes = require('./routes/atividades');
 // nosem: rules.javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage, express-check-csurf-middleware-usage
 const app = express(); // nosemgrep // nosem
 
+// Confia em proxy reverso (Vercel edge routers, Nginx, Cloudflare)
+if (process.env.VERCEL || process.env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', 1);
+}
+
 // ===== MIDDLEWARES GLOBAIS =====
 
 app.use(
@@ -51,7 +56,11 @@ app.use(
 // CORS Defense
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3002',
+    origin: (origin, callback) => {
+      if (!origin || process.env.FRONTEND_URL === '*' || origin === process.env.FRONTEND_URL) return callback(null, true);
+      if (['http://localhost:3002', 'http://localhost:3000'].includes(origin) || origin.endsWith('.vercel.app')) return callback(null, true);
+      callback(null, false);
+    },
     credentials: true
   })
 );

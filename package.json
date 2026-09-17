@@ -1,0 +1,33 @@
+{
+  "name": "sistema-de-contagem",
+  "version": "1.0.0",
+  "description": "SaaS para controle, contagem e conciliação de estoque com conciliação cega e integração Tiny ERP",
+  "private": true,
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "build": "node -e \"console.log('[Build] Sistema de Contagem pronto para deploy na Vercel.')\"",
+    "start": "npm --prefix backend start",
+    "dev": "npm --prefix backend run dev",
+    "test": "npm --prefix backend test",
+    "lint": "npm --prefix backend run lint",
+    "migrate": "node backend/src/scripts/migrate.js",
+    "seed:superadmin": "npm --prefix backend run seed:superadmin"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.0",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.3.0",
+    "pdf-parse": "^2.4.5",
+    "pg": "^8.13.0",
+    "swagger-ui-express": "^5.0.1",
+    "zod": "^3.23.8"
+  }
+}

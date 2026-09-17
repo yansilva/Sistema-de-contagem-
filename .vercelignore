@@ -1,0 +1,10 @@
+.local/
+graphify-out/
+.agents/
+.vscode/
+tests/
+backend/tests/
+iniciar-servidor.bat
+docker-compose.yml
+Dockerfile
+*.log

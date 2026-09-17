@@ -4,6 +4,23 @@ const { AppError } = require('../errors/AppError');
 // Dados em memória são exclusivos dos testes. Nunca substituem o banco operacional.
 const isTest = process.env.NODE_ENV === 'test';
 const mockDb = isTest ? require('./mockDb') : null;
+// Detectar necessidade de SSL para bancos gerenciados na nuvem (Neon, Supabase, Vercel Postgres, AWS RDS)
+const isRemoteUrl =
+  Boolean(process.env.DATABASE_URL) &&
+  !process.env.DATABASE_URL.includes('localhost') &&
+  !process.env.DATABASE_URL.includes('127.0.0.1');
+
+const useSsl =
+  process.env.DATABASE_SSL === 'true' ||
+  isRemoteUrl ||
+  (process.env.NODE_ENV === 'production' &&
+    process.env.DB_HOST &&
+    !['localhost', '127.0.0.1'].includes(process.env.DB_HOST));
+
+const ssl = useSsl
+  ? { rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true' }
+  : undefined;
+
 const pool = isTest
   ? null
   : new pg.Pool({
@@ -16,7 +33,10 @@ const pool = isTest
             user: process.env.DB_USER || 'postgres',
             password: process.env.DB_PASSWORD
           }),
-      connectionTimeoutMillis: 3000
+      ssl,
+      max: Number(process.env.DB_POOL_MAX || (process.env.VERCEL ? 3 : 10)),
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000
     });
 
 function databaseError(error) {

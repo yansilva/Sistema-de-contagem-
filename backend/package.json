@@ -10,6 +10,7 @@
     "dev": "node --watch src/server.js",
     "seed": "node src/seed.js",
     "seed:superadmin": "node src/scripts/bootstrapSuperAdmin.js",
+    "migrate": "node src/scripts/migrate.js",
     "test": "jest --runInBand",
     "lint": "eslint src/ tests/",
     "format": "prettier --write \"src/**/*.js\" \"tests/**/*.js\""

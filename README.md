@@ -16,7 +16,7 @@
 
 **Plataforma SaaS multi-tenant para reconciliação de estoques, contagem física e auditoria de inventário, com importação de catálogo/estoque a partir de arquivos de ERP (Tiny, Bling, etc.).**
 
-[Instalação](#-instalação--execução-local) • [Arquitetura](#-arquitetura-do-sistema) • [Segurança](#-segurança--autenticação) • [Swagger API](#-documentação-da-api-swagger)
+[Instalação](#-instalação--execução-local) • [Deploy na Vercel](#-deploy-na-vercel) • [Arquitetura](#-arquitetura-do-sistema) • [Segurança](#-segurança--autenticação) • [Swagger API](#-documentação-da-api-swagger)
 
 ---
 
@@ -229,6 +229,19 @@ O sistema operacional usa PostgreSQL; o banco em memória é exclusivo dos teste
 Neste ambiente Windows, os binários locais ficam em `.local/pgsql`, e os dados persistentes em `.local/pgdata`. `npm start` e `npm run dev` iniciam essa instalação local quando ela está preparada e o `.env` aponta para `localhost:5432`. Instalações em outros computadores precisam preparar o PostgreSQL ou usar Docker. Os binários para Windows estão disponíveis na [página oficial indicada pelo PostgreSQL](https://www.postgresql.org/download/windows/).
 
 A pasta `.local` e o `.env` ficam fora do Git. Preserve os dados e mantenha backups com `pg_dump`; clonar o repositório não copia empresas, usuários ou contagens. Os logs locais do banco ficam em `.local/postgres.log`.
+
+---
+
+## ☁️ Deploy na Vercel
+
+O projeto está totalmente preparado para ser implantado na **Vercel** como um único projeto (Fullstack Serverless Express API + Frontend SPA estático na CDN global).
+
+- Ponto de entrada serverless: `api/index.js`
+- Roteamento e segurança: `vercel.json`
+- Suporte a SSL no PostgreSQL gerenciado (Neon, Supabase, Vercel Postgres)
+- Script de migração remota automatizada: `npm run migrate`
+
+👉 **Consulte o passo a passo detalhado no [Guia de Deploy na Vercel](docs/VERCEL_DEPLOYMENT.md).**
 
 ---
 
