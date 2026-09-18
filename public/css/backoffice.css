@@ -163,7 +163,7 @@
   background: var(--cor-primaria-bg);
   color: var(--cor-primaria);
   font-weight: 600;
-  border-color: rgba(72, 100, 134, 0.15);
+  border-color: rgba(79, 70, 229, 0.2);
 }
 
 .bo-nav-item.active i {
@@ -171,9 +171,10 @@
 }
 
 [data-theme="dark"] .bo-nav-item.active {
-  background: rgba(169, 193, 223, 0.12);
+  background: var(--cor-primaria-bg);
   color: var(--cor-primaria);
-  border-color: rgba(169, 193, 223, 0.2);
+  border-color: rgba(129, 140, 248, 0.25);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.12);
 }
 
 /* Sidebar Footer */
@@ -271,8 +272,9 @@
 }
 
 .bo-kpi-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-2.5px);
   box-shadow: var(--sombra-md);
+  border-color: var(--cor-borda-forte);
 }
 
 .bo-kpi-icon {

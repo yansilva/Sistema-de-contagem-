@@ -5,7 +5,7 @@
   justify-content: center;
   min-height: 100vh;
   padding: 20px;
-  background: linear-gradient(135deg, var(--cor-fundo), var(--cor-primaria-bg));
+  background: radial-gradient(ellipse at 50% 0%, var(--cor-primaria-bg) 0%, var(--cor-fundo) 70%);
 }
 
 
@@ -17,7 +17,8 @@
   border-radius: var(--raio-lg);
   padding: 40px 36px;
   border: 1px solid var(--cor-borda);
-  box-shadow: var(--sombra-lg);
+  box-shadow: var(--sombra-lg), 0 0 40px rgba(99, 102, 241, 0.08);
+  animation: screenEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 
@@ -165,7 +166,15 @@
 
 
 
-.kpi-card { background: var(--gradiente-cartao); }
+.kpi-card {
+  background: var(--cor-superficie);
+  transition: transform var(--transicao), box-shadow var(--transicao), border-color var(--transicao);
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-md);
+  border-color: var(--cor-borda-forte);
+}
 .kpi-card::before { background: var(--cor-borda); height: 1px; }
 .kpi-icon { background: var(--cor-primaria-bg); color: var(--cor-primaria); }
 
@@ -290,14 +299,27 @@
 }
 
 .quick-card {
-  background: var(--gradiente-acao);
+  background: var(--cor-superficie);
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio);
-  padding: 22px;
-  transition: background-color var(--transicao), border-color var(--transicao), box-shadow var(--transicao), transform var(--transicao);
+  padding: 24px;
+  transition: transform var(--transicao), box-shadow var(--transicao), border-color var(--transicao), background-color var(--transicao);
   cursor: pointer;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--sombra);
+  position: relative;
+  overflow: hidden;
+}
+
+.quick-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--cor-primaria);
+  box-shadow: var(--sombra-lg), var(--sombra-glow);
+}
+
+.quick-card:active {
+  transform: translateY(-1px) scale(0.99);
 }
 
 
@@ -338,8 +360,16 @@
   transition: gap var(--transicao);
 }
 
+.quick-link i {
+  transition: transform var(--transicao);
+}
+
 .quick-card:hover .quick-link {
-  gap: 8px;
+  color: var(--cor-primaria-hover);
+}
+
+.quick-card:hover .quick-link i {
+  transform: translateX(5px);
 }
 
 /* ===== COUNTING FLOW (CONTAGEM) ===== */
