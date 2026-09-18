@@ -1064,3 +1064,317 @@
   .btn:active:not(:disabled), .btn-theme:active,
   .kpi-card[data-click]:active, .quick-card[data-click]:active { transform: none; }
 }
+
+
+/* ===== SHOPIFY / STRIPE DASHBOARD ACTION BAR ===== */
+.dash-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+  padding: 16px 20px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+
+.dash-action-bar .btn-main {
+  background: var(--gradiente-primario);
+  color: #ffffff;
+  padding: 11px 22px;
+  font-size: 0.925rem;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.28);
+  border: none;
+}
+
+.dash-action-bar .btn-main:hover {
+  box-shadow: 0 4px 16px rgba(5, 150, 105, 0.4);
+  filter: brightness(1.05);
+}
+
+.dash-action-bar .action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .dash-action-bar .action-group {
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+/* ===== CARD DE ALERTA DE DIVERGÊNCIA ===== */
+.divergencia-alert-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  background: var(--cor-perigo-bg);
+  border: 1px solid var(--cor-perigo-border);
+  border-left: 4px solid var(--cor-perigo);
+  border-radius: var(--raio);
+  margin-bottom: 22px;
+  animation: fadeIn 0.25s ease;
+}
+
+.divergencia-alert-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.divergencia-alert-content i {
+  font-size: 1.6rem;
+  color: var(--cor-perigo);
+}
+
+.divergencia-alert-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--cor-perigo);
+  margin-bottom: 2px;
+}
+
+.divergencia-alert-desc {
+  font-size: 0.85rem;
+  color: var(--cor-texto-secundario);
+}
+
+/* ===== TABELA DE CONTAGENS RECENTES (SHOPIFY STYLE) ===== */
+.dash-table-card {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  padding: 20px;
+  box-shadow: var(--sombra);
+  margin-bottom: 24px;
+}
+
+.dash-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.dash-table-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cor-texto);
+}
+
+.dash-recent-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.dash-recent-table th {
+  padding: 10px 14px;
+  font-weight: 700;
+  color: var(--cor-texto-secundario);
+  background: var(--cor-superficie2);
+  border-bottom: 1px solid var(--cor-borda);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.dash-recent-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid var(--cor-borda);
+  color: var(--cor-texto);
+  vertical-align: middle;
+}
+
+.dash-recent-table tr:last-child td {
+  border-bottom: none;
+}
+
+.dash-recent-table tr:hover {
+  background: var(--cor-superficie2);
+}
+
+/* ===== DASHBOARD FUNCIONÁRIO (CHÃO DE ESTOQUE) ===== */
+.func-hero-card {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  padding: 32px 28px;
+  box-shadow: var(--sombra-md);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.func-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: var(--cor-primaria-bg);
+  color: var(--cor-primaria);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.func-hero-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--cor-texto);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.func-hero-desc {
+  font-size: 0.95rem;
+  color: var(--cor-texto-secundario);
+  max-width: 540px;
+  margin: 0 auto 24px auto;
+}
+
+.btn-func-start {
+  padding: 14px 36px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  background: var(--gradiente-primario);
+  color: #ffffff;
+  border-radius: var(--raio);
+  box-shadow: 0 4px 18px rgba(5, 150, 105, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transicao);
+}
+
+.btn-func-start:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(5, 150, 105, 0.45);
+  filter: brightness(1.06);
+}
+
+.btn-func-start:active {
+  transform: scale(0.98);
+}
+
+.func-quick-search-box {
+  max-width: 540px;
+  margin: 20px auto 0 auto;
+  position: relative;
+}
+
+.func-quick-search-box input {
+  padding-left: 42px;
+  height: 48px;
+  border-radius: var(--raio);
+  font-size: 0.95rem;
+}
+
+.func-quick-search-box i {
+  position: absolute;
+  left: 14px;
+  top: 15px;
+  font-size: 1.25rem;
+  color: var(--cor-texto-mudo);
+}
+
+.func-shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.func-shortcut-card {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: all var(--transicao);
+  box-shadow: var(--sombra);
+}
+
+.func-shortcut-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--cor-primaria);
+  box-shadow: var(--sombra-md);
+}
+
+.func-shortcut-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-primaria-bg);
+  color: var(--cor-primaria);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+}
+
+.func-shortcut-info h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--cor-texto);
+}
+
+.func-shortcut-info p {
+  font-size: 0.8rem;
+  color: var(--cor-texto-mudo);
+  margin: 2px 0 0;
+}
+
+/* ===== DASHBOARD SUPER ADMIN (SAAS CONSOLE) ===== */
+.saas-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  margin-bottom: 20px;
+  font-size: 0.875rem;
+  box-shadow: var(--sombra);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.saas-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--cor-sucesso);
+}
+
+.saas-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cor-sucesso);
+  animation: pulseIndicator 2s infinite ease-in-out;
+}

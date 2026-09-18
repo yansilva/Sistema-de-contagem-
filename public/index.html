@@ -25,8 +25,8 @@
   <!-- ==================== TOPBAR ==================== -->
   <header class="topbar">
     <h1>
-      <i class="ti ti-building-warehouse"></i>
-      <span>Sistema de Estoque</span>
+      <i class="ti ti-building-warehouse" style="color:var(--cor-primaria)"></i>
+      <span id="topbar-company-title">Sistema de Estoque</span>
     </h1>
     <div class="topbar-right">
       <!-- Indicador de Usuário Autenticado -->
@@ -199,17 +199,29 @@
 
   <!-- ==================== TELA: HOME (DASHBOARD) ==================== -->
   <section id="screen-home" class="screen">
-    <div class="container">
+    <div class="container" style="max-width: 960px;">
+
+      <!-- ==================== 1. DASHBOARD DO FUNCIONÁRIO (CHÃO DE ESTOQUE) ==================== -->
       <div id="home-funcionario" hidden>
-        <div class="contagem-home-intro">
-          <span class="contagem-home-icon"><i class="ti ti-clipboard-check"></i></span>
-          <h2>Contagem de estoque</h2>
-          <p>Olá, <span id="funcionario-home-nome">equipe</span>. Inicie a contagem e registre as quantidades físicas dos produtos.</p>
-          <button class="btn btn-primary btn-lg" id="btn-iniciar-contagem-funcionario" data-click="action-11">
+        <!-- Hero de Início Rápido -->
+        <div class="func-hero-card">
+          <span class="func-hero-badge"><i class="ti ti-scan"></i> Modo Operador • Chão de Estoque</span>
+          <h2 class="func-hero-title">Olá, <span id="funcionario-home-nome">equipe</span> 👋</h2>
+          <p class="func-hero-desc">Realize a contagem física dos produtos sem visualizar o estoque do sistema. Suas contagens serão comparadas pelo gestor após a finalização.</p>
+          
+          <button class="btn btn-primary btn-lg btn-func-start" id="btn-iniciar-contagem-funcionario" data-click="action-11">
             <i class="ti ti-plus"></i> Iniciar nova contagem
           </button>
+
+          <!-- Busca rápida de produto / SKU -->
+          <div class="func-quick-search-box">
+            <i class="ti ti-barcode"></i>
+            <input type="search" placeholder="Buscar produto ou bipar código de barras..." data-input="action-25" id="busca-rapida-func">
+          </div>
         </div>
-        <div class="consulta-home-grid">
+
+        <!-- Atalhos Rápidos Operacionais (Exatamente 3 botões como esperado pela suíte de testes) -->
+        <div class="consulta-home-grid func-shortcuts-grid">
           <button class="kpi-card kpi-emerald consulta-home-card" data-click="action-12">
             <span class="kpi-top"><span class="kpi-title">Catálogo</span><i class="ti ti-packages"></i></span>
             <span class="kpi-value" id="funcionario-total-produtos">—</span>
@@ -228,117 +240,224 @@
         </div>
       </div>
       <div id="home-administrador" data-admin-only hidden>
-      <!-- HEADER DO DASHBOARD -->
-      <div class="dash-header">
-        <div class="dash-welcome">
-          <h2>Bem-vindo(a) de volta, <span id="home-user-name">Usuário</span> 👋</h2>
-          <p class="dash-date" id="home-current-date"><i class="ti ti-calendar"></i> Carregando data...</p>
+        <!-- Header da Loja -->
+        <div class="dash-header" style="margin-bottom:18px">
+          <div class="dash-welcome">
+            <h2 style="font-size:1.45rem; font-weight:800; letter-spacing:-0.02em;">Central de Estoque & Conciliação</h2>
+            <p class="dash-date" id="home-current-date"><i class="ti ti-calendar"></i> Carregando data...</p>
+          </div>
+          <span style="display:none" id="home-user-name">Administrador</span>
         </div>
-        <div class="dash-actions">
-          <button class="btn btn-primary" data-click="action-15">
-            <i class="ti ti-plus"></i> Iniciar Nova Contagem
+
+        <!-- Barra de Ações Rápidas (Shopify Action Bar) -->
+        <div class="dash-action-bar">
+          <button class="btn btn-main" data-click="action-15">
+            <i class="ti ti-plus"></i> Iniciar Contagem
           </button>
-        </div>
-      </div>
-
-      <!-- CARDS DE MÉTRICAS KPI (GLOWING GLASSMORPHISM) -->
-      <div class="kpi-grid">
-        
-        <!-- KPI 1: PRODUTOS CADASTRADOS -->
-        <div class="kpi-card kpi-emerald" data-click="action-16">
-          <div class="kpi-top">
-            <span class="kpi-title">Catálogo Total</span>
-            <div class="kpi-icon"><i class="ti ti-packages"></i></div>
+          <div class="action-group">
+            <button class="btn btn-outline btn-sm" data-click="action-21">
+              <i class="ti ti-file-type-pdf"></i> Importar Tiny (PDF)
+            </button>
+            <button class="btn btn-outline btn-sm" data-click="action-22">
+              <i class="ti ti-file-spreadsheet"></i> Planilha Excel
+            </button>
+            <button class="btn btn-outline btn-sm" data-click="action-19">
+              <i class="ti ti-settings"></i> Acessar Back-Office
+            </button>
           </div>
-          <div class="kpi-value" id="kpi-total-produtos">0</div>
-          <div class="kpi-badge positive"><i class="ti ti-trending-up"></i> Produtos ativos</div>
         </div>
 
-        <!-- KPI 2: FORNECEDORES -->
-        <div class="kpi-card kpi-indigo" data-click="action-17">
-          <div class="kpi-top">
-            <span class="kpi-title">Fornecedores</span>
-            <div class="kpi-icon"><i class="ti ti-truck-delivery"></i></div>
+        <!-- Faixa de KPIs Compacta -->
+        <div class="kpi-grid">
+          <div class="kpi-card" data-click="action-16" style="cursor:pointer">
+            <div class="kpi-top">
+              <span class="kpi-title">Catálogo Total</span>
+              <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-packages"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-total-produtos">0</div>
+            <div class="kpi-badge positive"><i class="ti ti-check"></i> Produtos ativos</div>
           </div>
-          <div class="kpi-value" id="kpi-total-fornecedores">0</div>
-          <div class="kpi-badge neutral"><i class="ti ti-building-store"></i> Parceiros ativos</div>
-        </div>
 
-        <!-- KPI 3: CONTAGENS REALIZADAS -->
-        <div class="kpi-card kpi-amber" data-click="action-18">
-          <div class="kpi-top">
-            <span class="kpi-title">Contagens Realizadas</span>
-            <div class="kpi-icon"><i class="ti ti-clipboard-check"></i></div>
+          <div class="kpi-card" data-click="action-17" style="cursor:pointer">
+            <div class="kpi-top">
+              <span class="kpi-title">Fornecedores</span>
+              <div class="kpi-icon" style="background:rgba(217,119,6,0.12); color:#d97706"><i class="ti ti-truck-delivery"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-total-fornecedores">0</div>
+            <div class="kpi-badge neutral"><i class="ti ti-building-store"></i> Parceiros ativos</div>
           </div>
-          <div class="kpi-value" id="kpi-total-contagens">0</div>
-          <div class="kpi-badge warning"><i class="ti ti-history"></i> Sessões no histórico</div>
-        </div>
 
-        <!-- KPI 4: STATUS / SINCRONIZAÇÃO -->
-        <div class="kpi-card kpi-cyan">
-          <div class="kpi-top">
-            <span class="kpi-title">Sincronização</span>
-            <div class="kpi-icon"><i class="ti ti-refresh"></i></div>
+          <div class="kpi-card" data-click="action-18" style="cursor:pointer">
+            <div class="kpi-top">
+              <span class="kpi-title">Contagens Realizadas</span>
+              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
+            </div>
+            <div class="kpi-value" id="kpi-total-contagens">0</div>
+            <div class="kpi-badge positive"><i class="ti ti-history"></i> Sessões concluídas</div>
           </div>
-          <div class="kpi-value status-text">Status: <span>OK</span></div>
-          <div class="kpi-badge positive"><i class="ti ti-shield-check"></i> SaaS Seguro & Ativo</div>
+
+          <div class="kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">Sincronização</span>
+              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-shield-check"></i></div>
+            </div>
+            <div class="kpi-value status-text">Status: <span>OK</span></div>
+            <div class="kpi-badge positive"><i class="ti ti-check"></i> SaaS Seguro & Ativo</div>
+          </div>
         </div>
 
-      </div>
-
-      <!-- PAINEL PRINCIPAL DE CONCILIAÇÃO E ATALHOS -->
-      <div class="dash-reconciliation-panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <i class="ti ti-scan"></i>
+        <!-- Alerta de Última Divergência (se houver) -->
+        <div id="admin-divergencia-alerta" class="divergencia-alert-card" style="display:none">
+          <div class="divergencia-alert-content">
+            <i class="ti ti-alert-triangle"></i>
             <div>
-              <h3>Central de Contagem & Conciliação de Estoque</h3>
-              <p>Conferência física rápida por fornecedor com identificação de sobras e faltas</p>
+              <div class="divergencia-alert-title" id="admin-divergencia-titulo">Divergência detectada na última contagem</div>
+              <div class="divergencia-alert-desc" id="admin-divergencia-desc">Foram encontradas sobras ou faltas que requerem conferência.</div>
             </div>
           </div>
-          <button class="btn btn-outline btn-sm" data-click="action-19">
-            <i class="ti ti-settings"></i> Acessar Back-office
+          <button class="btn btn-sm btn-danger" id="admin-divergencia-btn" data-click="action-23">
+            Ver Relatório <i class="ti ti-arrow-right"></i>
           </button>
         </div>
 
-        <div class="quick-cards-grid">
-          
-          <div class="quick-card" data-click="action-20">
-            <div class="quick-icon primary"><i class="ti ti-barcode"></i></div>
-            <h4>Nova Contagem Cega</h4>
-            <p>Contagem física sem visualizar estoque do sistema — resultados comparados após finalizar.</p>
-            <span class="quick-link">Iniciar contagem <i class="ti ti-arrow-right"></i></span>
+        <!-- Tabela de Contagens Recentes da Empresa -->
+        <div class="dash-table-card">
+          <div class="dash-table-header">
+            <h3><i class="ti ti-history" style="color:var(--cor-primaria)"></i> Últimas Conferências Físicas</h3>
+            <button class="btn btn-ghost btn-sm" data-click="action-23">Ver histórico completo <i class="ti ti-arrow-right"></i></button>
           </div>
-
-          <div class="quick-card" data-click="action-21">
-            <div class="quick-icon secondary"><i class="ti ti-file-type-pdf"></i></div>
-            <h4>Importar Estoque (Tiny PDF)</h4>
-            <p>Importe relatórios de estoque do Tiny ERP em PDF para atualizar automaticamente as quantidades.</p>
-            <span class="quick-link">Importar relatório <i class="ti ti-arrow-right"></i></span>
+          <div style="overflow-x:auto">
+            <table class="dash-recent-table" id="admin-recent-table">
+              <thead>
+                <tr>
+                  <th>Data / Hora</th>
+                  <th>Operador Responsável</th>
+                  <th>Status do Estoque</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="admin-recent-tbody">
+                <tr>
+                  <td colspan="4" style="text-align:center; padding:24px; color:var(--cor-texto-mudo);">Carregando histórico de conferências...</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-
-          <div class="quick-card" data-click="action-22">
-            <div class="quick-icon success"><i class="ti ti-file-spreadsheet"></i></div>
-            <h4>Gestão de Produtos & Excel</h4>
-            <p>Cadastre novos SKUs ou importe planilhas completas com substituição ou mescla.</p>
-            <span class="quick-link">Gerenciar catálogo <i class="ti ti-arrow-right"></i></span>
-          </div>
-
-          <div class="quick-card" data-click="action-23">
-            <div class="quick-icon warning"><i class="ti ti-report-analytics"></i></div>
-            <h4>Histórico & Exportação</h4>
-            <p>Consulte relatórios detalhados e exporte relatórios consolidados em .XLSX.</p>
-            <span class="quick-link">Ver relatórios <i class="ti ti-arrow-right"></i></span>
-          </div>
-
         </div>
       </div>
 
+      <!-- ==================== 3. DASHBOARD DO SUPER ADMIN (SAAS CONSOLE) ==================== -->
+      <div id="home-superadmin" hidden>
+        <!-- Status Bar do SaaS -->
+        <div class="saas-status-bar">
+          <div style="display:flex; align-items:center; gap:10px">
+            <i class="ti ti-server" style="color:var(--cor-primaria); font-size:1.2rem"></i>
+            <strong style="color:var(--cor-texto)">Console da Plataforma SaaS • Métricas Globais</strong>
+          </div>
+          <div class="saas-status-badge">
+            <span class="saas-status-dot"></span> Infraestrutura 100% Operacional
+          </div>
+        </div>
+
+        <!-- Barra de Ações do SaaS -->
+        <div class="dash-action-bar">
+          <button class="btn btn-main" data-click="action-0">
+            <i class="ti ti-plus"></i> Cadastrar Nova Empresa
+          </button>
+          <div class="action-group">
+            <button class="btn btn-outline btn-sm" data-click="action-86">
+              <i class="ti ti-building-community"></i> Todas as Empresas
+            </button>
+            <button class="btn btn-outline btn-sm" data-click="action-1">
+              <i class="ti ti-shield-search"></i> Trilha de Auditoria Global
+            </button>
+            <button class="btn btn-ghost btn-sm" data-click="action-11" title="Simular contagem como operador">
+              <i class="ti ti-scan"></i> Testar Modo Operador
+            </button>
+          </div>
+        </div>
+
+        <!-- KPIs da Plataforma -->
+        <div class="kpi-grid">
+          <div class="kpi-card" data-click="action-86" style="cursor:pointer">
+            <div class="kpi-top">
+              <span class="kpi-title">Empresas Clientes</span>
+              <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-building-community"></i></div>
+            </div>
+            <div class="kpi-value" id="super-kpi-empresas">0</div>
+            <div class="kpi-badge positive"><i class="ti ti-check"></i> Tenants ativos</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">Usuários Totais</span>
+              <div class="kpi-icon" style="background:rgba(217,119,6,0.12); color:#d97706"><i class="ti ti-users"></i></div>
+            </div>
+            <div class="kpi-value" id="super-kpi-usuarios">0</div>
+            <div class="kpi-badge neutral"><i class="ti ti-user-check"></i> Operadores e gestores</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">SKUs no SaaS</span>
+              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-packages"></i></div>
+            </div>
+            <div class="kpi-value" id="super-kpi-produtos">0</div>
+            <div class="kpi-badge positive"><i class="ti ti-database"></i> Catálogo consolidado</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-top">
+              <span class="kpi-title">Contagens Processadas</span>
+              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
+            </div>
+            <div class="kpi-value" id="super-kpi-contagens">0</div>
+            <div class="kpi-badge positive"><i class="ti ti-chart-bar"></i> Sessões no SaaS</div>
+          </div>
+        </div>
+
+        <!-- Tabela de Empresas Clientes do Super Admin -->
+        <div class="dash-table-card">
+          <div class="dash-table-header">
+            <h3><i class="ti ti-building-store" style="color:var(--cor-primaria)"></i> Empresas Cadastradas na Plataforma</h3>
+            <button class="btn btn-ghost btn-sm" data-click="action-86">Visualização completa <i class="ti ti-arrow-right"></i></button>
+          </div>
+          <div id="super-empresas-lista" style="overflow-x:auto">
+            <p style="padding:16px; text-align:center; color:var(--cor-texto-mudo); font-size:0.875rem;">Carregando dados das empresas...</p>
+          </div>
+        </div>
       </div>
+
     </div>
   </section>
 
-  <section id="screen-catalogo" class="screen">
+  <!-- ==================== TELA: GESTÃO DE EMPRESAS (SUPER ADMIN) ==================== -->
+  <section id="screen-empresas" class="screen">
+    <div class="container" style="max-width: 960px;">
+      <div class="table-toolbar" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px">
+        <div>
+          <h2 style="font-size:1.35rem; font-weight:800; color:var(--cor-texto)">Empresas Clientes</h2>
+          <p style="font-size:0.85rem; color:var(--cor-texto-secundario); margin:2px 0 0">Gestão global de organizações, planos e acessos</p>
+        </div>
+        <div style="display:flex; gap:10px">
+          <button class="btn btn-outline btn-sm" data-click="action-87"><i class="ti ti-arrow-left"></i> Voltar ao Painel</button>
+          <button class="btn btn-primary btn-sm" data-click="action-0"><i class="ti ti-plus"></i> Nova Empresa</button>
+        </div>
+      </div>
+
+      <!-- KPIs Rápidos de Empresas -->
+      <div id="empresas-stats" class="kpi-grid" style="margin-bottom:20px"></div>
+
+      <!-- Barra de Busca -->
+      <div class="form-group" style="margin-bottom:16px">
+        <input type="search" id="empresas-busca" placeholder="Buscar por nome da empresa ou email..." data-input="action-88">
+      </div>
+
+      <!-- Lista de Empresas -->
+      <div id="empresas-lista" class="dash-table-card" style="padding:0; overflow:hidden"></div>
+    </div>
+  </section>
+<section id="screen-catalogo" class="screen">
     <div class="container consulta-container">
       <div class="table-toolbar">
         <h2>Catálogo de produtos</h2>

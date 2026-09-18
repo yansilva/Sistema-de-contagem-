@@ -286,6 +286,23 @@ const Auth = {
     if (homeFuncionario) homeFuncionario.hidden = !this.usuario || admin;
     const funcionarioNome = document.getElementById('funcionario-home-nome');
     if (funcionarioNome) funcionarioNome.textContent = this.usuario?.nome || 'equipe';
+
+    // Dashboard do Super Admin
+    const homeSuper = document.getElementById('home-superadmin');
+    const isSuperAdmin = this.usuario?.papel === 'super_admin';
+    if (homeSuper) homeSuper.hidden = !this.usuario || !isSuperAdmin;
+
+    // Atualiza nome da empresa no topo do cabeçalho
+    const titleEl = document.getElementById('topbar-company-title');
+    if (titleEl) {
+      if (!this.usuario) {
+        titleEl.textContent = 'Sistema de Estoque';
+      } else if (isSuperAdmin) {
+        titleEl.textContent = 'Plataforma SaaS';
+      } else {
+        titleEl.textContent = this.empresa?.nome || 'Sistema de Estoque';
+      }
+    }
     const badgeEl = document.getElementById('topbar-user-badge');
     const avatarEl = document.getElementById('topbar-avatar');
     const nomeEl = document.getElementById('topbar-user-name');

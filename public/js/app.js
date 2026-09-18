@@ -48,17 +48,120 @@ function showScreen(screenId) {
  * Carrega dados contextuais e KPIs do dashboard da Home
  */
 async function carregarDashboard() {
+  // 1. Papel Funcionário
   if (!Auth.isAdmin()) {
     await Consulta.carregarResumo();
+    // Renderiza contagens recentes do funcionário
+    try {
+      const resHist = await API.get('/contagens?limit=5');
+      const container = document.getElementById('funcionario-recentes-container');
+      if (container && resHist && resHist.data?.contagens) {
+        const contagens = resHist.data.contagens;
+        if (contagens.length === 0) {
+          container.innerHTML = '<p style="padding:18px; text-align:center; color:var(--cor-texto-mudo); font-size:0.875rem;">Nenhuma contagem registrada ainda. Inicie sua primeira contagem no botão acima!</p>';
+        } else {
+          container.innerHTML = `
+            <table class="dash-recent-table">
+              <thead>
+                <tr>
+                  <th>Data e Hora</th>
+                  <th>Status</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${contagens.map(c => {
+                  const dataStr = c.iniciado_em ? new Date(c.iniciado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+                  const statusBadge = c.status === 'finalizada'
+                    ? '<span class="badge badge-success"><i class="ti ti-check"></i> Finalizada</span>'
+                    : '<span class="badge badge-warning"><i class="ti ti-clock"></i> Em andamento</span>';
+                  return `
+                    <tr>
+                      <td><strong>${dataStr}</strong></td>
+                      <td>${statusBadge}</td>
+                      <td><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72">Ver Detalhes</button></td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          `;
+        }
+      }
+    } catch (e) {
+      console.warn('[DASHBOARD_FUNC] Erro ao carregar contagens recentes:', e);
+    }
     return;
   }
-  // 1. Atualiza dados de boas-vindas
+
+  // 2. Papel Super Admin (Métricas Globais e Tenants)
+  if (Auth.usuario?.papel === 'super_admin') {
+    try {
+      const resEmpresas = await API.get('/empresas');
+      if (resEmpresas && resEmpresas.success && resEmpresas.data?.empresas) {
+        const empresas = resEmpresas.data.empresas;
+        const totalEmpresas = empresas.length;
+        let totalUsuarios = 0;
+        let totalProdutos = 0;
+        empresas.forEach(emp => {
+          totalUsuarios += Number(emp.total_usuarios || 0);
+          totalProdutos += Number(emp.total_produtos || 0);
+        });
+
+        const kpiEmp = document.getElementById('super-kpi-empresas');
+        if (kpiEmp) kpiEmp.textContent = totalEmpresas;
+        const kpiUser = document.getElementById('super-kpi-usuarios');
+        if (kpiUser) kpiUser.textContent = totalUsuarios;
+        const kpiProd = document.getElementById('super-kpi-produtos');
+        if (kpiProd) kpiProd.textContent = totalProdutos;
+
+        // Tabela compacta de empresas no Super Admin
+        const tableContainer = document.getElementById('super-empresas-lista');
+        if (tableContainer) {
+          tableContainer.innerHTML = `
+            <table class="dash-recent-table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Contato</th>
+                  <th>Usuários</th>
+                  <th>Produtos</th>
+                  <th>Plano</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${empresas.slice(0, 8).map(e => `
+                  <tr>
+                    <td><strong>${escapeHtml(e.nome)}</strong></td>
+                    <td>${escapeHtml(e.email_contato || '—')}</td>
+                    <td>${e.total_usuarios || 0}</td>
+                    <td>${e.total_produtos || 0}</td>
+                    <td><span class="badge badge-${e.plano === 'ativo' ? 'success' : (e.plano === 'trial' ? 'warning' : 'neutral')}">${e.plano || 'ativo'}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+        }
+      }
+
+      // Contagens globais
+      const resHistGlobal = await API.get('/contagens?limit=1');
+      const kpiContGlobal = document.getElementById('super-kpi-contagens');
+      if (kpiContGlobal && resHistGlobal?.data) {
+        kpiContGlobal.textContent = resHistGlobal.data.total ?? 0;
+      }
+    } catch (err) {
+      console.warn('[DASHBOARD_SUPER] Erro ao carregar métricas globais:', err);
+    }
+  }
+
+  // 3. Papel Administrador da Empresa
   const homeUserEl = document.getElementById('home-user-name');
   if (homeUserEl) {
     homeUserEl.textContent = Auth.usuario?.nome || 'Usuário';
   }
 
-  // 2. Formata data atual
   const dateEl = document.getElementById('home-current-date');
   if (dateEl) {
     const hoje = new Date();
@@ -67,12 +170,11 @@ async function carregarDashboard() {
     dateEl.innerHTML = `<i class="ti ti-calendar"></i> ${dataFormatada.charAt(0).toUpperCase() + dataFormatada.slice(1)} | Painel Operacional`;
   }
 
-  // 3. Busca KPIs em paralelo
   try {
     const [resProd, resForn, resHist] = await Promise.all([
       API.get('/produtos?limit=1'),
       API.get('/produtos/fornecedores'),
-      API.get('/contagens?limit=100')
+      API.get('/contagens?limit=10')
     ]);
 
     const kpiProd = document.getElementById('kpi-total-produtos');
@@ -89,8 +191,54 @@ async function carregarDashboard() {
     if (kpiCont && resHist && resHist.data) {
       kpiCont.textContent = resHist.data.total ?? (resHist.data.contagens?.length ?? 0);
     }
+
+    // Tabela de contagens recentes e alerta de divergência para Administrador
+    if (resHist && resHist.data?.contagens) {
+      const contagens = resHist.data.contagens;
+      const tbody = document.getElementById('admin-recent-tbody');
+      const alertCard = document.getElementById('admin-divergencia-alerta');
+
+      if (contagens.length > 0) {
+        // Alerta da última divergência
+        const ultimaComDiferenca = contagens.find(c => c.tem_diferenca === true);
+        if (ultimaComDiferenca && alertCard) {
+          alertCard.style.display = 'flex';
+          const tituloEl = document.getElementById('admin-divergencia-titulo');
+          const descEl = document.getElementById('admin-divergencia-desc');
+          const btnRel = document.getElementById('admin-divergencia-btn');
+          if (tituloEl) tituloEl.textContent = 'Divergência detectada na última conferência de estoque';
+          if (descEl) descEl.textContent = `A contagem realizada por ${ultimaComDiferenca.iniciado_por_nome || 'Operador'} apresentou sobras ou faltas em relação ao sistema.`;
+          if (btnRel) btnRel.setAttribute('data-id', ultimaComDiferenca.id);
+        } else if (alertCard) {
+          alertCard.style.display = 'none';
+        }
+
+        // Tabela recente
+        if (tbody) {
+          tbody.innerHTML = contagens.slice(0, 5).map(c => {
+            const dataStr = c.iniciado_em ? new Date(c.iniciado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+            const difBadge = c.tem_diferenca
+              ? '<span class="badge badge-danger"><i class="ti ti-alert-triangle"></i> Com divergência</span>'
+              : '<span class="badge badge-success"><i class="ti ti-check"></i> Sem diferença</span>';
+            return `
+              <tr>
+                <td><strong>${dataStr}</strong></td>
+                <td>${escapeHtml(c.iniciado_por_nome || 'Operador')}</td>
+                <td>${difBadge}</td>
+                <td><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72">Conferir</button></td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } else {
+        if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--cor-texto-mudo);">Nenhuma conferência física registrada ainda.</td></tr>';
+        }
+        if (alertCard) alertCard.style.display = 'none';
+      }
+    }
   } catch (err) {
-    console.warn('[DASHBOARD] Falha ao atualizar KPIs em tempo real:', err);
+    console.warn('[DASHBOARD_ADMIN] Falha ao atualizar KPIs da loja:', err);
   }
 }
 
