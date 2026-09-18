@@ -258,6 +258,9 @@ const Auth = {
 
     sessionStorage.removeItem('accessToken');
     sessionStorage.removeItem('refreshToken');
+    sessionStorage.removeItem('superAdminBackupToken');
+    sessionStorage.removeItem('superAdminBackupUser');
+    sessionStorage.removeItem('superAdminBackupEmpresa');
     localStorage.removeItem('refreshToken');
     this.usuario = null;
     this.empresa = null;
@@ -291,6 +294,15 @@ const Auth = {
     const homeSuper = document.getElementById('home-superadmin');
     const isSuperAdmin = this.usuario?.papel === 'super_admin';
     if (homeSuper) homeSuper.hidden = !this.usuario || !isSuperAdmin;
+
+    // Barra de Suporte Assistido (Impersonation)
+    const hasImpersonation = Boolean(sessionStorage.getItem('superAdminBackupToken'));
+    const bar = document.getElementById('impersonation-bar');
+    if (bar) bar.style.display = hasImpersonation ? 'block' : 'none';
+    if (hasImpersonation) {
+      const nomeEl = document.getElementById('impersonation-tenant-nome');
+      if (nomeEl) nomeEl.textContent = this.empresa?.nome || 'Tenant';
+    }
 
     // Atualiza nome da empresa no topo do cabeçalho
     const titleEl = document.getElementById('topbar-company-title');

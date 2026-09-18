@@ -89,7 +89,23 @@ const UIActions = {
   'action-86': (element, event) => { showScreen('screen-empresas'); },
   'action-87': (element, event) => { showScreen('screen-home'); },
   'action-88': (element, event) => { Empresas.filtrar(element.value); },
-  'action-89': (element, event) => { toggleBoSidebar(); }
+  'action-89': (element, event) => { toggleBoSidebar(); },
+  'action-90': (element) => { Empresas.abrirDrawer(element.getAttribute('data-id')); },
+  'action-91': () => { Empresas.fecharDrawer(); },
+  'action-92': (element) => { Empresas.confirmarExclusao(element.getAttribute('data-id'), element.getAttribute('data-nome')); },
+  'action-93': () => { Empresas.executarExclusao(); },
+  'action-94': (element) => { Empresas.abrirModalEdicao(element.getAttribute('data-id')); },
+  'action-95': (element, event) => { Empresas.salvarEdicao(event); },
+  'action-96': () => { Empresas.fecharModalEdicao(); },
+  'action-97': () => { Empresas.fecharModalExclusao(); },
+  'action-98': (element) => { Empresas.iniciarImpersonation(element.getAttribute('data-id')); },
+  'action-99': () => { Empresas.encerrarImpersonation(); },
+  'action-100': (element) => { switchSaasTab(element.getAttribute('data-saas-tab')); },
+  'action-101': (element) => { Empresas.filtrarPorStatus(element.getAttribute('data-status')); },
+  'action-102': (element, event) => { Empresas.toggleMenuAcoes(element.getAttribute('data-id'), event); },
+  'action-103': (element) => { Empresas.alternarStatusRapido(element.getAttribute('data-id'), element.getAttribute('data-status')); },
+  'action-104': (element) => { Empresas.verificarInputConfirmacaoExclusao(element.value); },
+  'action-105': () => { showScreen('screen-home'); switchSaasTab('tenants'); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

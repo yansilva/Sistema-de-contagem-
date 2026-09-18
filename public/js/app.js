@@ -94,66 +94,10 @@ async function carregarDashboard() {
     return;
   }
 
-  // 2. Papel Super Admin (Métricas Globais e Tenants)
+  // 2. Papel Super Admin (Console SaaS)
   if (Auth.usuario?.papel === 'super_admin') {
-    try {
-      const resEmpresas = await API.get('/empresas');
-      if (resEmpresas && resEmpresas.success && resEmpresas.data?.empresas) {
-        const empresas = resEmpresas.data.empresas;
-        const totalEmpresas = empresas.length;
-        let totalUsuarios = 0;
-        let totalProdutos = 0;
-        empresas.forEach(emp => {
-          totalUsuarios += Number(emp.total_usuarios || 0);
-          totalProdutos += Number(emp.total_produtos || 0);
-        });
-
-        const kpiEmp = document.getElementById('super-kpi-empresas');
-        if (kpiEmp) kpiEmp.textContent = totalEmpresas;
-        const kpiUser = document.getElementById('super-kpi-usuarios');
-        if (kpiUser) kpiUser.textContent = totalUsuarios;
-        const kpiProd = document.getElementById('super-kpi-produtos');
-        if (kpiProd) kpiProd.textContent = totalProdutos;
-
-        // Tabela compacta de empresas no Super Admin
-        const tableContainer = document.getElementById('super-empresas-lista');
-        if (tableContainer) {
-          tableContainer.innerHTML = `
-            <table class="dash-recent-table">
-              <thead>
-                <tr>
-                  <th>Empresa</th>
-                  <th>Contato</th>
-                  <th>Usuários</th>
-                  <th>Produtos</th>
-                  <th>Plano</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${empresas.slice(0, 8).map(e => `
-                  <tr>
-                    <td><strong>${escapeHtml(e.nome)}</strong></td>
-                    <td>${escapeHtml(e.email_contato || '—')}</td>
-                    <td>${e.total_usuarios || 0}</td>
-                    <td>${e.total_produtos || 0}</td>
-                    <td><span class="badge badge-${e.plano === 'ativo' ? 'success' : (e.plano === 'trial' ? 'warning' : 'neutral')}">${e.plano || 'ativo'}</span></td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          `;
-        }
-      }
-
-      // Contagens globais
-      const resHistGlobal = await API.get('/contagens?limit=1');
-      const kpiContGlobal = document.getElementById('super-kpi-contagens');
-      if (kpiContGlobal && resHistGlobal?.data) {
-        kpiContGlobal.textContent = resHistGlobal.data.total ?? 0;
-      }
-    } catch (err) {
-      console.warn('[DASHBOARD_SUPER] Erro ao carregar métricas globais:', err);
-    }
+    switchSaasTab('visao-geral');
+    return;
   }
 
   // 3. Papel Administrador da Empresa
@@ -354,6 +298,57 @@ function abrirHistoricoContagens() {
     showScreen('screen-historico-contagens');
   }
 }
+
+/**
+ * Alterna entre as abas do Console SaaS do Super Admin
+ * @param {string} tabId - 'visao-geral' | 'tenants' | 'auditoria-global'
+ */
+function switchSaasTab(tabId) {
+  const tabs = ['visao-geral', 'tenants', 'auditoria-global'];
+  if (!tabs.includes(tabId)) tabId = 'visao-geral';
+
+  // 1. Alternar classes dos botões da sidebar
+  document.querySelectorAll('.saas-nav-btn[data-saas-tab]').forEach(btn => {
+    if (btn.getAttribute('data-saas-tab') === tabId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  // 2. Alternar visibilidade das seções
+  tabs.forEach(t => {
+    const sec = document.getElementById(`saas-tab-${t}`);
+    if (sec) {
+      sec.style.display = (t === tabId) ? 'block' : 'none';
+    }
+  });
+
+  // 3. Atualizar Título e Descrição da página
+  const titleEl = document.getElementById('saas-page-title');
+  const descEl = document.getElementById('saas-page-desc');
+
+  if (tabId === 'visao-geral') {
+    if (titleEl) titleEl.innerHTML = '<i class="ti ti-dashboard" style="color:var(--cor-primaria)"></i> Visão Geral da Plataforma';
+    if (descEl) descEl.textContent = 'Métricas consolidadas de infraestrutura, clientes e volumetria do SaaS';
+    if (typeof Empresas !== 'undefined' && Empresas.carregar) {
+      Empresas.carregar();
+    }
+  } else if (tabId === 'tenants') {
+    if (titleEl) titleEl.innerHTML = '<i class="ti ti-buildings" style="color:var(--cor-primaria)"></i> Gestão de Organizações & Tenants';
+    if (descEl) descEl.textContent = 'Administração de status, planos, auditoria de dados e suporte assistido';
+    if (typeof Empresas !== 'undefined' && Empresas.carregar) {
+      Empresas.carregar();
+    }
+  } else if (tabId === 'auditoria-global') {
+    if (titleEl) titleEl.innerHTML = '<i class="ti ti-shield-search" style="color:var(--cor-primaria)"></i> Trilha de Auditoria Global';
+    if (descEl) descEl.textContent = 'Monitoramento contínuo de eventos de segurança, acessos e alterações da plataforma';
+    if (typeof Atividades !== 'undefined' && Atividades.carregar) {
+      Atividades.carregar();
+    }
+  }
+}
+window.switchSaasTab = switchSaasTab;
 
 /**
  * Alterna entre tema claro e escuro, persistindo em localStorage

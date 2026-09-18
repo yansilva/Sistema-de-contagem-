@@ -16,11 +16,29 @@
   <link rel="stylesheet" href="/css/pages.css">
   <link rel="stylesheet" href="/css/mobile.css">
   <link rel="stylesheet" href="/css/backoffice.css">
+  <link rel="stylesheet" href="/css/superadmin.css">
 
   <!-- SheetJS para importação local de planilhas Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 </head>
 <body>
+
+  <!-- Barra Fixa de Modo Suporte (Impersonation) -->
+  <div id="impersonation-bar" class="impersonation-bar" style="display:none">
+    <div class="impersonation-content">
+      <div class="impersonation-badge">
+        <span class="impersonation-pulse"></span>
+        <i class="ti ti-shield-check"></i>
+        <span>MODO SUPORTE ATIVO</span>
+      </div>
+      <div class="impersonation-tenant">
+        Acessando como suporte em <strong id="impersonation-tenant-nome">—</strong>
+      </div>
+      <button class="btn-impersonation-exit" data-click="action-99">
+        <i class="ti ti-arrow-back-up"></i> Sair do Suporte e Voltar ao Console
+      </button>
+    </div>
+  </div>
 
   <!-- ==================== TOPBAR ==================== -->
   <header class="topbar">
@@ -133,34 +151,6 @@
           <a data-click="action-8">Voltar ao painel</a>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- ==================== TELA: EMPRESAS CADASTRADAS (SUPER ADMIN) ==================== -->
-  <section id="screen-empresas" class="screen">
-    <div class="container" style="max-width:1100px">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px">
-        <h2 style="font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:10px">
-          <i class="ti ti-building-community" style="color:var(--cor-primaria)"></i> Empresas Cadastradas
-        </h2>
-        <button class="btn btn-outline btn-sm" data-click="action-87">
-          <i class="ti ti-arrow-left"></i> Voltar ao Painel
-        </button>
-      </div>
-
-      <!-- KPIs de Empresas -->
-      <div class="kpi-grid" id="empresas-stats"></div>
-
-      <!-- Busca -->
-      <div class="table-toolbar" style="margin-top:20px">
-        <div style="display:flex; gap:10px; flex:1; max-width:400px">
-          <input type="text" id="empresas-busca" placeholder="Buscar por nome ou email da empresa..."
-                 data-input="action-88">
-        </div>
-      </div>
-
-      <!-- Tabela de Empresas -->
-      <div id="empresas-lista"></div>
     </div>
   </section>
 
@@ -348,113 +338,198 @@
 
       <!-- ==================== 3. DASHBOARD DO SUPER ADMIN (SAAS CONSOLE) ==================== -->
       <div id="home-superadmin" hidden>
-        <!-- Status Bar do SaaS -->
-        <div class="saas-status-bar">
-          <div style="display:flex; align-items:center; gap:10px">
-            <i class="ti ti-server" style="color:var(--cor-primaria); font-size:1.2rem"></i>
-            <strong style="color:var(--cor-texto)">Console da Plataforma SaaS • Métricas Globais</strong>
-          </div>
-          <div class="saas-status-badge">
-            <span class="saas-status-dot"></span> Infraestrutura 100% Operacional
-          </div>
-        </div>
-
-        <!-- Barra de Ações do SaaS -->
-        <div class="dash-action-bar">
-          <button class="btn btn-main" data-click="action-0">
-            <i class="ti ti-plus"></i> Cadastrar Nova Empresa
-          </button>
-          <div class="action-group">
-            <button class="btn btn-outline btn-sm" data-click="action-86">
-              <i class="ti ti-building-community"></i> Todas as Empresas
-            </button>
-            <button class="btn btn-outline btn-sm" data-click="action-1">
-              <i class="ti ti-shield-search"></i> Trilha de Auditoria Global
-            </button>
-            <button class="btn btn-ghost btn-sm" data-click="action-11" title="Simular contagem como operador">
-              <i class="ti ti-scan"></i> Testar Modo Operador
-            </button>
-          </div>
-        </div>
-
-        <!-- KPIs da Plataforma -->
-        <div class="kpi-grid">
-          <div class="kpi-card" data-click="action-86" style="cursor:pointer">
-            <div class="kpi-top">
-              <span class="kpi-title">Empresas Clientes</span>
-              <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-building-community"></i></div>
+        <div class="saas-console-layout">
+          <!-- Sidebar do Console SaaS -->
+          <aside class="saas-sidebar">
+            <div class="saas-brand-header">
+              <div class="saas-brand-title">
+                <i class="ti ti-server-cog"></i>
+                <span>SaaS Console</span>
+              </div>
+              <span class="saas-env-tag">PROD</span>
             </div>
-            <div class="kpi-value" id="super-kpi-empresas">0</div>
-            <div class="kpi-badge positive"><i class="ti ti-check"></i> Tenants ativos</div>
-          </div>
 
-          <div class="kpi-card">
-            <div class="kpi-top">
-              <span class="kpi-title">Usuários Totais</span>
-              <div class="kpi-icon" style="background:rgba(217,119,6,0.12); color:#d97706"><i class="ti ti-users"></i></div>
+            <div class="saas-nav-section-label">Plataforma</div>
+            <ul class="saas-nav-list">
+              <li>
+                <button class="saas-nav-btn active" data-saas-tab="visao-geral" data-click="action-100">
+                  <i class="ti ti-dashboard"></i>
+                  <span>Visão Geral</span>
+                </button>
+              </li>
+              <li>
+                <button class="saas-nav-btn" data-saas-tab="tenants" data-click="action-100">
+                  <i class="ti ti-buildings"></i>
+                  <span>Empresas & Tenants</span>
+                </button>
+              </li>
+              <li>
+                <button class="saas-nav-btn" data-saas-tab="auditoria-global" data-click="action-100">
+                  <i class="ti ti-shield-search"></i>
+                  <span>Auditoria Global</span>
+                </button>
+              </li>
+            </ul>
+
+            <div class="saas-nav-section-label">Ações Rápidas</div>
+            <ul class="saas-nav-list">
+              <li>
+                <button class="saas-nav-btn" data-click="action-0">
+                  <i class="ti ti-plus"></i>
+                  <span>Nova Empresa</span>
+                </button>
+              </li>
+              <li>
+                <button class="saas-nav-btn" data-click="action-11">
+                  <i class="ti ti-scan"></i>
+                  <span>Simular Operador</span>
+                </button>
+              </li>
+            </ul>
+
+            <div class="saas-sidebar-footer">
+              <button class="saas-nav-btn" data-click="action-3" style="color: var(--cor-perigo);">
+                <i class="ti ti-logout" style="color: var(--cor-perigo);"></i>
+                <span>Sair da Conta</span>
+              </button>
             </div>
-            <div class="kpi-value" id="super-kpi-usuarios">0</div>
-            <div class="kpi-badge neutral"><i class="ti ti-user-check"></i> Operadores e gestores</div>
-          </div>
+          </aside>
 
-          <div class="kpi-card">
-            <div class="kpi-top">
-              <span class="kpi-title">SKUs no SaaS</span>
-              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-packages"></i></div>
+          <!-- Conteúdo Principal do Console SaaS -->
+          <main class="saas-main">
+            <!-- Header Dinâmico -->
+            <div class="saas-header">
+              <div class="saas-header-text">
+                <h2 id="saas-page-title"><i class="ti ti-dashboard" style="color:var(--cor-primaria)"></i> Visão Geral da Plataforma</h2>
+                <p id="saas-page-desc">Métricas consolidadas de infraestrutura, clientes e volumetria do SaaS</p>
+              </div>
+              <div class="saas-header-actions">
+                <button class="btn btn-primary btn-sm" data-click="action-0">
+                  <i class="ti ti-plus"></i> Nova Empresa
+                </button>
+              </div>
             </div>
-            <div class="kpi-value" id="super-kpi-produtos">0</div>
-            <div class="kpi-badge positive"><i class="ti ti-database"></i> Catálogo consolidado</div>
-          </div>
 
-          <div class="kpi-card">
-            <div class="kpi-top">
-              <span class="kpi-title">Contagens Processadas</span>
-              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
-            </div>
-            <div class="kpi-value" id="super-kpi-contagens">0</div>
-            <div class="kpi-badge positive"><i class="ti ti-chart-bar"></i> Sessões no SaaS</div>
-          </div>
-        </div>
+            <!-- TAB 1: VISÃO GERAL -->
+            <section id="saas-tab-visao-geral" class="saas-tab-section">
+              <!-- Grid de 4 KPIs da Plataforma -->
+              <div class="saas-kpis-grid">
+                <div class="saas-kpi-card" data-click="action-105" style="cursor: pointer;" title="Clique para ver todos os tenants">
+                  <div class="saas-kpi-header">
+                    <span class="saas-kpi-title">Organizações / Tenants</span>
+                    <div class="saas-kpi-icon" style="background: rgba(99, 102, 241, 0.12); color: var(--cor-primaria);">
+                      <i class="ti ti-buildings"></i>
+                    </div>
+                  </div>
+                  <div class="saas-kpi-val" id="super-kpi-empresas">0</div>
+                  <div class="saas-kpi-sub" id="super-kpi-empresas-sub">
+                    <i class="ti ti-circle-check"></i> Calculando status...
+                  </div>
+                </div>
 
-        <!-- Tabela de Empresas Clientes do Super Admin -->
-        <div class="dash-table-card">
-          <div class="dash-table-header">
-            <h3><i class="ti ti-building-store" style="color:var(--cor-primaria)"></i> Empresas Cadastradas na Plataforma</h3>
-            <button class="btn btn-ghost btn-sm" data-click="action-86">Visualização completa <i class="ti ti-arrow-right"></i></button>
-          </div>
-          <div id="super-empresas-lista" style="overflow-x:auto">
-            <p style="padding:16px; text-align:center; color:var(--cor-texto-mudo); font-size:0.875rem;">Carregando dados das empresas...</p>
-          </div>
+                <div class="saas-kpi-card">
+                  <div class="saas-kpi-header">
+                    <span class="saas-kpi-title">Usuários Ativos</span>
+                    <div class="saas-kpi-icon" style="background: rgba(245, 158, 11, 0.12); color: #d97706;">
+                      <i class="ti ti-users"></i>
+                    </div>
+                  </div>
+                  <div class="saas-kpi-val" id="super-kpi-usuarios">0</div>
+                  <div class="saas-kpi-sub">
+                    <i class="ti ti-user-check"></i> Gestores e operadores
+                  </div>
+                </div>
+
+                <div class="saas-kpi-card">
+                  <div class="saas-kpi-header">
+                    <span class="saas-kpi-title">SKUs no Estoque</span>
+                    <div class="saas-kpi-icon" style="background: rgba(16, 185, 129, 0.12); color: #059669;">
+                      <i class="ti ti-packages"></i>
+                    </div>
+                  </div>
+                  <div class="saas-kpi-val" id="super-kpi-produtos">0</div>
+                  <div class="saas-kpi-sub">
+                    <i class="ti ti-database"></i> Catálogo consolidado
+                  </div>
+                </div>
+
+                <div class="saas-kpi-card">
+                  <div class="saas-kpi-header">
+                    <span class="saas-kpi-title">Contagens Concluídas</span>
+                    <div class="saas-kpi-icon" style="background: rgba(59, 130, 246, 0.12); color: #2563eb;">
+                      <i class="ti ti-clipboard-check"></i>
+                    </div>
+                  </div>
+                  <div class="saas-kpi-val" id="super-kpi-contagens">0</div>
+                  <div class="saas-kpi-sub">
+                    <i class="ti ti-chart-bar"></i> Sessões no SaaS
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabela Rápida de Tenants Recentes -->
+              <div class="table-toolbar" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--cor-texto); display: flex; align-items: center; gap: 8px;">
+                  <i class="ti ti-building-store" style="color: var(--cor-primaria)"></i> Empresas Cadastradas na Plataforma
+                </h3>
+                <button class="btn btn-ghost btn-sm" data-click="action-105">
+                  Ver gestão completa <i class="ti ti-arrow-right"></i>
+                </button>
+              </div>
+              <div id="super-empresas-lista"></div>
+            </section>
+
+            <!-- TAB 2: GESTÃO DE TENANTS (Tabela Completa com Filtros e Busca) -->
+            <section id="saas-tab-tenants" class="saas-tab-section" style="display: none;">
+              <div class="saas-toolbar">
+                <div class="saas-filter-tabs">
+                  <button class="saas-tab-btn active" data-status="todas" data-click="action-101">Todas</button>
+                  <button class="saas-tab-btn" data-status="ativo" data-click="action-101">Ativas</button>
+                  <button class="saas-tab-btn" data-status="trial" data-click="action-101">Trial</button>
+                  <button class="saas-tab-btn" data-status="suspenso" data-click="action-101">Suspensas</button>
+                </div>
+                <div class="saas-search-input">
+                  <input type="search" placeholder="Buscar organização ou email..." data-input="action-88" class="delete-confirm-input" style="padding: 8px 12px; font-size: 0.85rem;">
+                </div>
+              </div>
+              <div id="empresas-lista"></div>
+            </section>
+
+            <!-- TAB 3: AUDITORIA GLOBAL DA PLATAFORMA -->
+            <section id="saas-tab-auditoria-global" class="saas-tab-section" style="display: none;">
+              <div id="saas-audit-feed">
+                <div class="table-toolbar" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                  <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--cor-texto); display: flex; align-items: center; gap: 8px;">
+                    <i class="ti ti-shield-search" style="color: var(--cor-primaria)"></i> Log de Segurança e Plataforma
+                  </h3>
+                  <button class="btn btn-outline btn-sm" data-click="action-59">
+                    <i class="ti ti-download"></i> Exportar CSV
+                  </button>
+                </div>
+                <div id="atividades-lista"></div>
+              </div>
+            </section>
+          </main>
         </div>
       </div>
 
     </div>
   </section>
 
-  <!-- ==================== TELA: GESTÃO DE EMPRESAS (SUPER ADMIN) ==================== -->
+  <!-- ==================== TELA: GESTÃO DE EMPRESAS ==================== -->
   <section id="screen-empresas" class="screen">
-    <div class="container" style="max-width: 960px;">
-      <div class="table-toolbar" style="margin-bottom:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px">
+    <div class="container" style="max-width: 1200px; padding-top: 24px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <div>
-          <h2 style="font-size:1.35rem; font-weight:800; color:var(--cor-texto)">Empresas Clientes</h2>
-          <p style="font-size:0.85rem; color:var(--cor-texto-secundario); margin:2px 0 0">Gestão global de organizações, planos e acessos</p>
+          <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--cor-texto);">Empresas Clientes</h2>
+          <p style="font-size: 0.85rem; color: var(--cor-texto-secundario); margin-top: 2px;">Gestão de organizações e acessos da plataforma</p>
         </div>
-        <div style="display:flex; gap:10px">
-          <button class="btn btn-outline btn-sm" data-click="action-87"><i class="ti ti-arrow-left"></i> Voltar ao Painel</button>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-outline btn-sm" data-click="action-87"><i class="ti ti-arrow-left"></i> Voltar ao Console</button>
           <button class="btn btn-primary btn-sm" data-click="action-0"><i class="ti ti-plus"></i> Nova Empresa</button>
         </div>
       </div>
-
-      <!-- KPIs Rápidos de Empresas -->
-      <div id="empresas-stats" class="kpi-grid" style="margin-bottom:20px"></div>
-
-      <!-- Barra de Busca -->
-      <div class="form-group" style="margin-bottom:16px">
-        <input type="search" id="empresas-busca" placeholder="Buscar por nome da empresa ou email..." data-input="action-88">
-      </div>
-
-      <!-- Lista de Empresas -->
-      <div id="empresas-lista" class="dash-table-card" style="padding:0; overflow:hidden"></div>
+      <div id="empresas-lista-compat"></div>
     </div>
   </section>
 <section id="screen-catalogo" class="screen">
@@ -1042,6 +1117,138 @@
         <span style="font-size:0.75rem; color:var(--cor-texto-mudo)">Log ID: <span id="audit-det-id" style="font-family:monospace"></span></span>
         <button class="btn btn-outline" data-click="action-69">Fechar</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== SLIDE-OVER DRAWER (DETALHES DO TENANT) ==================== -->
+  <div id="slide-over-backdrop" class="slide-over-backdrop">
+    <div class="slide-over-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <h3 id="drawer-empresa-nome">Nome da Empresa</h3>
+          <p id="drawer-empresa-email">email@empresa.com</p>
+        </div>
+        <button class="drawer-close-btn" data-click="action-91" aria-label="Fechar painel">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+
+      <div class="drawer-body">
+        <!-- Status e Métricas Rápidas -->
+        <div class="drawer-section">
+          <div class="drawer-section-title"><i class="ti ti-info-circle"></i> Status da Conta</div>
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <span id="drawer-empresa-status" class="status-pill active">
+              <span class="status-dot"></span> <span>Ativo</span>
+            </span>
+            <span style="font-size: 0.8rem; color: var(--cor-texto-mudo);">Cadastrada em: <strong id="drawer-stat-criado">—</strong></span>
+          </div>
+        </div>
+
+        <!-- Indicadores de Volumetria -->
+        <div class="drawer-section">
+          <div class="drawer-section-title"><i class="ti ti-chart-dots"></i> Volumetria no SaaS</div>
+          <div class="drawer-stats-grid">
+            <div class="drawer-stat-item">
+              <span class="drawer-stat-label">SKUs Cadastrados</span>
+              <span class="drawer-stat-val" id="drawer-stat-prods">0</span>
+            </div>
+            <div class="drawer-stat-item">
+              <span class="drawer-stat-label">Contagens Concluídas</span>
+              <span class="drawer-stat-val" id="drawer-stat-conts">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Usuários Vinculados -->
+        <div class="drawer-section">
+          <div class="drawer-section-title"><i class="ti ti-users"></i> Equipe e Acessos</div>
+          <div class="drawer-users-list" id="drawer-users-list">
+            <p style="font-size: 0.8rem; color: var(--cor-texto-mudo);">Carregando usuários...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rodapé de Ações do Drawer -->
+      <div class="drawer-actions-footer">
+        <button class="btn btn-outline btn-sm" id="drawer-btn-status" data-click="action-103">
+          <i class="ti ti-power"></i> Suspender
+        </button>
+        <button class="btn btn-outline btn-sm" id="drawer-btn-editar" data-click="action-94">
+          <i class="ti ti-edit"></i> Editar
+        </button>
+        <button class="btn btn-primary btn-sm" id="drawer-btn-impersonar" data-click="action-98">
+          <i class="ti ti-shield-check"></i> Acessar Tenant
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: EXCLUSÃO DEFINITIVA DE EMPRESA ==================== -->
+  <div id="modal-excluir-empresa" class="modal">
+    <div class="modal-card" style="max-width: 480px; border-top: 4px solid var(--cor-perigo);">
+      <div class="modal-header">
+        <h3 style="color: var(--cor-perigo); display: flex; align-items: center; gap: 8px;">
+          <i class="ti ti-alert-triangle"></i> Excluir Organização Permanentemente
+        </h3>
+        <button class="btn-close" data-click="action-97">×</button>
+      </div>
+      <div class="modal-body" style="padding-top: 8px;">
+        <p style="font-size: 0.9rem; color: var(--cor-texto); line-height: 1.5;">
+          Esta ação é <strong>irreversível</strong>. Todos os produtos, históricos de estoque, contagens e usuários vinculados serão permanentemente removidos.
+        </p>
+
+        <div class="delete-confirm-box">
+          <span class="delete-confirm-label">
+            Para confirmar, digite exatamente o nome da organização:
+            <br><strong id="delete-empresa-nome-label" style="color: var(--cor-perigo); font-family: monospace; font-size: 0.95rem;"></strong>
+          </span>
+          <input type="text" id="delete-empresa-input" class="delete-confirm-input" placeholder="Digite o nome da empresa para confirmar..." data-input="action-104" autocomplete="off">
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button class="btn btn-outline" data-click="action-97">Cancelar</button>
+        <button class="btn btn-danger" id="btn-confirmar-exclusao-permanente" data-click="action-93" disabled>
+          <i class="ti ti-trash"></i> Excluir Permanentemente
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: EDITAR EMPRESA ==================== -->
+  <div id="modal-editar-empresa" class="modal">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <i class="ti ti-edit" style="color: var(--cor-primaria)"></i> Editar Informações da Empresa
+        </h3>
+        <button class="btn-close" data-click="action-96">×</button>
+      </div>
+      <form id="form-editar-empresa">
+        <input type="hidden" id="edit-emp-id">
+        <div class="modal-body">
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="edit-emp-nome">Nome da Organização</label>
+            <input type="text" id="edit-emp-nome" required style="width: 100%;">
+          </div>
+          <div class="form-group" style="margin-bottom: 14px;">
+            <label for="edit-emp-email">Email de Contato Principal</label>
+            <input type="email" id="edit-emp-email" required style="width: 100%;">
+          </div>
+          <div class="form-group">
+            <label for="edit-emp-plano">Status do Plano</label>
+            <select id="edit-emp-plano" style="width: 100%;">
+              <option value="ativo">Ativo</option>
+              <option value="trial">Trial (Avaliação)</option>
+              <option value="suspenso">Suspenso (Bloqueado)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 14px;">
+          <button type="button" class="btn btn-outline" data-click="action-96">Cancelar</button>
+          <button type="button" class="btn btn-primary" data-click="action-95">Salvar Alterações</button>
+        </div>
+      </form>
     </div>
   </div>
 
