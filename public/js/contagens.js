@@ -21,26 +21,52 @@ const Contagens = {
    * Inicia uma nova sessão de contagem cega com snapshot do estoque atual
    */
   async iniciarNovaSessao() {
+    if (this._iniciando) return;
+    this._iniciando = true;
+
     this.contagemId = null;
     this.fornecedorAtual = null;
     this.itensFornecedor = [];
     this.produtoresConcluidos.clear();
     this.dadosSessao = null;
     this.filtroProdutores = '';
-    document.getElementById('busca-fornecedor').value = '';
-    document.getElementById('bloco-produtos-contagem').style.display = 'none';
 
-    const res = await API.post('/contagens', {});
-    if (!res || !res.success || !res.data?.contagem) {
-      showToast(res?.message || 'Falha ao iniciar contagem no servidor.', 'error');
-      return;
+    const buscaInput = document.getElementById('busca-fornecedor');
+    if (buscaInput) buscaInput.value = '';
+    const blocoProd = document.getElementById('bloco-produtos-contagem');
+    if (blocoProd) blocoProd.style.display = 'none';
+
+    // Feedback visual instantâneo: navega imediatamente e exibe loader
+    showScreen('screen-contagem');
+    const container = document.getElementById('lista-produtores-cards');
+    if (container) {
+      container.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 48px 24px; text-align: center; color: var(--cor-texto-secundario);">
+          <div class="spinner" style="margin: 0 auto 16px auto; width: 36px; height: 36px; border: 3px solid var(--cor-borda); border-top-color: var(--cor-primaria); border-radius: 50%;"></div>
+          <p style="font-weight: 600; font-size: 1rem; color: var(--cor-texto);">Iniciando sessão de contagem...</p>
+          <p style="font-size: 0.85rem; color: var(--cor-texto-mutado); margin-top: 4px;">Gerando snapshot de estoque dos fornecedores</p>
+        </div>
+      `;
     }
 
-    this.contagemId = res.data.contagem.id;
-    await this.carregarDadosContagem();
+    try {
+      const res = await API.post('/contagens', {});
+      if (!res || !res.success || !res.data?.contagem) {
+        showToast(res?.message || 'Falha ao iniciar contagem no servidor.', 'error');
+        showScreen('screen-home');
+        return;
+      }
 
-    showToast('Contagem iniciada. Selecione um produtor para contar.', 'info');
-    showScreen('screen-contagem');
+      this.contagemId = res.data.contagem.id;
+      await this.carregarDadosContagem();
+
+      showToast('Contagem iniciada. Selecione um produtor para contar.', 'info');
+    } catch (err) {
+      showToast('Erro ao iniciar contagem. Verifique a conexão.', 'error');
+      showScreen('screen-home');
+    } finally {
+      this._iniciando = false;
+    }
   },
 
   /**

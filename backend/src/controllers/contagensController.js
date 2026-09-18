@@ -59,31 +59,39 @@ async function iniciar(req, res, next) {
       mapaFornecedores.get(forn).push(p);
     }
 
-    // 4. Criar registros de fornecedores e itens com o snapshot de estoque_referencia
-    for (const [fornecedor, prods] of mapaFornecedores.entries()) {
-      const fornRes = await client.query(
-        `INSERT INTO contagem_fornecedores (contagem_id, fornecedor, tem_diferenca)
-         VALUES ($1, $2, FALSE)
-         RETURNING id`,
-        [contagem.id, fornecedor]
-      );
-      const fornecedorId = fornRes.rows[0].id;
+    // 4. Batch INSERT de fornecedores (1 query em vez de N)
+    const fornecedoresArr = [...mapaFornecedores.keys()];
+    const fornValues = fornecedoresArr.map((_, i) => `($1, ${i + 2}, FALSE)`).join(', ');
+    const fornRes = await client.query(
+      `INSERT INTO contagem_fornecedores (contagem_id, fornecedor, tem_diferenca)
+       VALUES ${fornValues}
+       RETURNING id, fornecedor`,
+      [contagem.id, ...fornecedoresArr]
+    );
 
-      for (const prod of prods) {
-        await client.query(
-          `INSERT INTO contagem_itens
-           (contagem_fornecedor_id, produto_id, codigo, nome, estoque_referencia, quantidade_contada, diferenca, situacao)
-           VALUES ($1, $2, $3, $4, $5, NULL, NULL, NULL)`,
-          [
-            fornecedorId,
-            prod.id,
-            prod.codigo,
-            prod.nome,
-            prod.estoque_atual || 0 // Snapshot imutável
-          ]
-        );
-      }
+    // Mapeia fornecedor -> id retornado
+    const fornecedorIdMap = new Map();
+    for (const row of fornRes.rows) {
+      fornecedorIdMap.set(row.fornecedor, row.id);
     }
+
+    // 5. Batch INSERT de itens do snapshot (1 query em vez de N*M)
+    const itensValues = [];
+    const itensParams = [];
+    let paramIdx = 1;
+    for (const p of produtos) {
+      const fornId = fornecedorIdMap.get(p.fornecedor.trim());
+      itensValues.push(`(${paramIdx}, ${paramIdx + 1}, ${paramIdx + 2}, ${paramIdx + 3}, ${paramIdx + 4}, NULL, NULL, NULL)`);
+      itensParams.push(fornId, p.id, p.codigo, p.nome, p.estoque_atual || 0);
+      paramIdx += 5;
+    }
+
+    await client.query(
+      `INSERT INTO contagem_itens
+       (contagem_fornecedor_id, produto_id, codigo, nome, estoque_referencia, quantidade_contada, diferenca, situacao)
+       VALUES ${itensValues.join(', ')}`,
+      itensParams
+    );
 
     // Auditoria: contagem iniciada
     await auditService.registrar(client, req.auditContext || {}, {

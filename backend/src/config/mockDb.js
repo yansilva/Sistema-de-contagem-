@@ -452,32 +452,44 @@ async function executeMockQuery(sql, params = []) {
   }
 
   if (norm.startsWith('INSERT INTO contagem_fornecedores')) {
-    const forn = {
-      id: crypto.randomUUID(),
-      contagem_id: params[0],
-      fornecedor: params[1],
-      tem_diferenca: false,
-      contado_em: new Date().toISOString()
-    };
-    state.contagemFornecedores.push(forn);
-    return { rows: [forn] };
+    // Suporta batch: params = [contagem_id, fornecedor1, fornecedor2, ...]
+    const contagemId = params[0];
+    const fornecedoresNomes = params.slice(1);
+    const rows = [];
+    for (const fornNome of fornecedoresNomes) {
+      const forn = {
+        id: crypto.randomUUID(),
+        contagem_id: contagemId,
+        fornecedor: fornNome,
+        tem_diferenca: false,
+        contado_em: new Date().toISOString()
+      };
+      state.contagemFornecedores.push(forn);
+      rows.push(forn);
+    }
+    return { rows };
   }
 
   if (norm.startsWith('INSERT INTO contagem_itens')) {
-    const item = {
-      id: crypto.randomUUID(),
-      contagem_fornecedor_id: params[0],
-      produto_id: params[1],
-      codigo: params[2],
-      nome: params[3],
-      estoque_referencia: params[4] !== undefined ? params[4] : 0,
-      quantidade_contada: params[5] !== undefined ? params[5] : null,
-      diferenca: params[6] !== undefined ? params[6] : null,
-      situacao: params[7] !== undefined ? params[7] : null,
-      contado_em: null
-    };
-    state.contagemItens.push(item);
-    return { rows: [item] };
+    // Suporta batch: params em grupos de 5 [fornId, prodId, codigo, nome, estoque, ...]
+    const rows = [];
+    for (let i = 0; i < params.length; i += 5) {
+      const item = {
+        id: crypto.randomUUID(),
+        contagem_fornecedor_id: params[i],
+        produto_id: params[i + 1],
+        codigo: params[i + 2],
+        nome: params[i + 3],
+        estoque_referencia: params[i + 4] !== undefined ? params[i + 4] : 0,
+        quantidade_contada: null,
+        diferenca: null,
+        situacao: null,
+        contado_em: null
+      };
+      state.contagemItens.push(item);
+      rows.push(item);
+    }
+    return { rows };
   }
 
   // SELECT contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento'
