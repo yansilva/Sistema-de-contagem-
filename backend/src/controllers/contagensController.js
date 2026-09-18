@@ -61,7 +61,7 @@ async function iniciar(req, res, next) {
 
     // 4. Batch INSERT de fornecedores (1 query em vez de N)
     const fornecedoresArr = [...mapaFornecedores.keys()];
-    const fornValues = fornecedoresArr.map((_, i) => `($1, ${i + 2}, FALSE)`).join(', ');
+    const fornValues = fornecedoresArr.map((_, i) => "($1, $" + (i + 2) + ", FALSE)").join(', ');
     const fornRes = await client.query(
       `INSERT INTO contagem_fornecedores (contagem_id, fornecedor, tem_diferenca)
        VALUES ${fornValues}
@@ -81,7 +81,7 @@ async function iniciar(req, res, next) {
     let paramIdx = 1;
     for (const p of produtos) {
       const fornId = fornecedorIdMap.get(p.fornecedor.trim());
-      itensValues.push(`(${paramIdx}, ${paramIdx + 1}, ${paramIdx + 2}, ${paramIdx + 3}, ${paramIdx + 4}, NULL, NULL, NULL)`);
+      itensValues.push("($" + paramIdx + ", $" + (paramIdx + 1) + ", $" + (paramIdx + 2) + ", $" + (paramIdx + 3) + ", $" + (paramIdx + 4) + ", NULL, NULL, NULL)");
       itensParams.push(fornId, p.id, p.codigo, p.nome, p.estoque_atual || 0);
       paramIdx += 5;
     }
