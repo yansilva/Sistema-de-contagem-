@@ -88,7 +88,8 @@ const UIActions = {
   'action-85': (element, event) => { Usuarios.abrirModalEditar(element.getAttribute('data-arg-0')); },
   'action-86': (element, event) => { showScreen('screen-empresas'); },
   'action-87': (element, event) => { showScreen('screen-home'); },
-  'action-88': (element, event) => { Empresas.filtrar(element.value); }
+  'action-88': (element, event) => { Empresas.filtrar(element.value); },
+  'action-89': (element, event) => { toggleBoSidebar(); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

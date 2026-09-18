@@ -35,6 +35,11 @@ const Produtos = {
     this.produtosCache = produtos;
     this.totalPaginas = pagination.totalPages;
 
+    // Atualiza KPIs do backoffice de forma reativa
+    if (typeof carregarBackofficeKPIs === 'function' && typeof Auth !== 'undefined' && Auth.isAdmin()) {
+      carregarBackofficeKPIs();
+    }
+
     if (produtos.length === 0) {
       listaEl.innerHTML = `
         <div style="text-align:center; padding:40px 20px; color:var(--cor-texto-secundario)">

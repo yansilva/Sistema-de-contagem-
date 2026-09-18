@@ -33,3 +33,4 @@ Thumbs.db
 scratch/
 .local/
 graphify-out/
+backend/src/scripts/gerarPlanilhaAtalaia.js

@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/css/layout.css">
   <link rel="stylesheet" href="/css/pages.css">
   <link rel="stylesheet" href="/css/mobile.css">
+  <link rel="stylesheet" href="/css/backoffice.css">
 
   <!-- SheetJS para importação local de planilhas Excel -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
@@ -471,37 +472,125 @@
 
   <!-- ==================== TELA: BACK-OFFICE (ADMINISTRADOR/GESTOR) ==================== -->
   <section id="screen-backoffice" class="screen" data-admin-only hidden>
-    <div class="container" style="max-width:1060px">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
-        <h2 style="font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:10px">
-          <i class="ti ti-layout-dashboard" style="color:var(--cor-primaria)"></i> Painel de Gestão
-        </h2>
-        <button class="btn btn-outline btn-sm" data-click="action-39">
-          <i class="ti ti-arrow-left"></i> Voltar à Contagem
-        </button>
-      </div>
+    <div class="bo-layout">
+      <!-- Overlay Backdrop Mobile -->
+      <div class="bo-sidebar-backdrop" id="bo-sidebar-backdrop" data-click="action-89"></div>
 
-      <!-- Abas de Navegação -->
-      <nav class="tabs">
-        <button class="tab active" data-tab="produtos" data-click="action-40">
-          <i class="ti ti-package"></i> Produtos
-        </button>
-        <button class="tab" data-tab="estoque" data-click="action-41">
-          <i class="ti ti-file-type-pdf"></i> Importar Estoque
-        </button>
-        <button class="tab" data-tab="usuarios" data-click="action-42">
-          <i class="ti ti-users"></i> Funcionários
-        </button>
-        <button class="tab" data-tab="historico" data-click="action-43">
-          <i class="ti ti-history"></i> Histórico
-        </button>
-        <button class="tab" data-tab="atividades" data-click="action-44">
-          <i class="ti ti-shield-check"></i> Atividades
-        </button>
-        <button class="tab" data-tab="config" data-click="action-45">
-          <i class="ti ti-settings"></i> Configurações
-        </button>
-      </nav>
+      <!-- Sidebar Lateral SaaS -->
+      <aside class="bo-sidebar" id="bo-sidebar">
+        <div class="bo-sidebar-header">
+          <div class="bo-brand">
+            <div class="bo-brand-icon">
+              <i class="ti ti-layout-dashboard"></i>
+            </div>
+            <div class="bo-brand-info">
+              <span class="bo-brand-title">Back-Office</span>
+              <span class="bo-brand-subtitle">Painel de Gestão</span>
+            </div>
+          </div>
+          <button class="bo-sidebar-close" id="bo-sidebar-close" data-click="action-89" aria-label="Fechar navegação">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+
+        <nav class="bo-nav" aria-label="Navegação do Back-Office">
+          <div class="bo-nav-section-title">Gestão</div>
+
+          <button class="bo-nav-item tab active" data-tab="produtos" data-click="action-40">
+            <i class="ti ti-package"></i>
+            <span>Produtos</span>
+          </button>
+
+          <button class="bo-nav-item tab" data-tab="estoque" data-click="action-41">
+            <i class="ti ti-file-type-pdf"></i>
+            <span>Importar Estoque</span>
+          </button>
+
+          <button class="bo-nav-item tab" data-tab="usuarios" data-click="action-42">
+            <i class="ti ti-users"></i>
+            <span>Funcionários</span>
+          </button>
+
+          <div class="bo-nav-section-title">Auditoria & Dados</div>
+
+          <button class="bo-nav-item tab" data-tab="historico" data-click="action-43">
+            <i class="ti ti-history"></i>
+            <span>Histórico</span>
+          </button>
+
+          <button class="bo-nav-item tab" data-tab="atividades" data-click="action-44">
+            <i class="ti ti-shield-check"></i>
+            <span>Atividades</span>
+          </button>
+
+          <div class="bo-nav-section-title">Sistema</div>
+
+          <button class="bo-nav-item tab" data-tab="config" data-click="action-45">
+            <i class="ti ti-settings"></i>
+            <span>Configurações</span>
+          </button>
+        </nav>
+
+        <div class="bo-sidebar-footer">
+          <button class="bo-btn-voltar" data-click="action-39" title="Voltar para contagem">
+            <i class="ti ti-arrow-left"></i>
+            <span>Voltar à Contagem</span>
+          </button>
+        </div>
+      </aside>
+
+      <!-- Conteúdo Principal -->
+      <main class="bo-main">
+        <header class="bo-header">
+          <div class="bo-header-left">
+            <button class="btn btn-outline btn-sm bo-menu-btn" id="bo-menu-btn" data-click="action-89" aria-label="Abrir menu lateral" aria-expanded="false">
+              <i class="ti ti-menu-2"></i> Menu
+            </button>
+            <div>
+              <h2 class="bo-page-title" id="bo-page-title">Catálogo de Produtos</h2>
+              <p class="bo-page-subtitle" id="bo-page-subtitle">Gerenciamento completo de itens, SKUs e saldos</p>
+            </div>
+          </div>
+          <div class="bo-header-actions">
+            <button class="btn btn-outline btn-sm bo-desktop-only" data-click="action-39">
+              <i class="ti ti-arrow-left"></i> Voltar à Contagem
+            </button>
+          </div>
+        </header>
+
+        <!-- KPI Cards Executivos -->
+        <div class="bo-kpis-wrapper">
+          <div class="bo-kpi-card">
+            <div class="bo-kpi-icon icon-produtos"><i class="ti ti-package"></i></div>
+            <div class="bo-kpi-content">
+              <span class="bo-kpi-label">Produtos Cadastrados</span>
+              <span class="bo-kpi-value" id="bo-kpi-produtos">—</span>
+            </div>
+          </div>
+          <div class="bo-kpi-card">
+            <div class="bo-kpi-icon icon-fornecedores"><i class="ti ti-truck-delivery"></i></div>
+            <div class="bo-kpi-content">
+              <span class="bo-kpi-label">Fornecedores / Marcas</span>
+              <span class="bo-kpi-value" id="bo-kpi-fornecedores">—</span>
+            </div>
+          </div>
+          <div class="bo-kpi-card">
+            <div class="bo-kpi-icon icon-contagens"><i class="ti ti-clipboard-check"></i></div>
+            <div class="bo-kpi-content">
+              <span class="bo-kpi-label">Contagens Concluídas</span>
+              <span class="bo-kpi-value" id="bo-kpi-contagens">—</span>
+            </div>
+          </div>
+          <div class="bo-kpi-card">
+            <div class="bo-kpi-icon icon-usuarios"><i class="ti ti-users"></i></div>
+            <div class="bo-kpi-content">
+              <span class="bo-kpi-label">Usuários Cadastrados</span>
+              <span class="bo-kpi-value" id="bo-kpi-usuarios">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bo-content-area">
 
       <!-- ABA 1: PRODUTOS -->
       <div class="tab-content active" id="tab-produtos">
@@ -690,6 +779,8 @@
           </button>
         </div>
       </div>
+        </div>
+      </main>
     </div>
   </section>
 

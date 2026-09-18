@@ -1,0 +1,430 @@
+/* ==========================================================================
+   BACK-OFFICE SAAS LAYOUT & COMPONENTS
+   Design profissional moderno com Sidebar, KPIs executivos e Drawer Mobile
+   ========================================================================== */
+
+/* Layout Container */
+#screen-backoffice {
+  padding: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  background-color: var(--cor-fundo);
+}
+
+.bo-layout {
+  display: flex;
+  min-height: calc(100vh - 64px);
+  width: 100%;
+  position: relative;
+}
+
+/* ==================== SIDEBAR LATERAL ==================== */
+.bo-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--cor-superficie);
+  border-right: 1px solid var(--cor-borda);
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 64px;
+  height: calc(100vh - 64px);
+  padding: 20px 14px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  z-index: 90;
+  transition: transform var(--transicao);
+}
+
+.bo-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.bo-sidebar::-webkit-scrollbar-thumb {
+  background: var(--cor-borda);
+  border-radius: 4px;
+}
+
+/* Sidebar Header / Brand */
+.bo-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.bo-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bo-brand-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--raio-sm);
+  background: var(--gradiente-primario);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: var(--sombra);
+  flex-shrink: 0;
+}
+
+.bo-brand-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.bo-brand-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--cor-texto);
+  line-height: 1.2;
+}
+
+.bo-brand-subtitle {
+  font-size: 0.72rem;
+  color: var(--cor-texto-mudo);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.bo-sidebar-close {
+  display: none;
+  background: transparent;
+  border: none;
+  color: var(--cor-texto-secundario);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+}
+.bo-sidebar-close:hover {
+  background: var(--cor-superficie2);
+  color: var(--cor-texto);
+}
+
+/* Navigation List */
+.bo-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+
+.bo-nav-section-title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cor-texto-mudo);
+  padding: 14px 10px 6px;
+}
+
+.bo-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--raio-sm);
+  background: transparent;
+  color: var(--cor-texto-secundario);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--transicao);
+}
+
+.bo-nav-item i {
+  font-size: 1.15rem;
+  color: var(--cor-texto-mudo);
+  transition: color var(--transicao);
+  flex-shrink: 0;
+}
+
+.bo-nav-item:hover {
+  background: var(--cor-superficie2);
+  color: var(--cor-texto);
+}
+
+.bo-nav-item:hover i {
+  color: var(--cor-primaria);
+}
+
+.bo-nav-item.active {
+  background: var(--cor-primaria-bg);
+  color: var(--cor-primaria);
+  font-weight: 600;
+  border-color: rgba(72, 100, 134, 0.15);
+}
+
+.bo-nav-item.active i {
+  color: var(--cor-primaria);
+}
+
+[data-theme="dark"] .bo-nav-item.active {
+  background: rgba(169, 193, 223, 0.12);
+  color: var(--cor-primaria);
+  border-color: rgba(169, 193, 223, 0.2);
+}
+
+/* Sidebar Footer */
+.bo-sidebar-footer {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--cor-borda);
+}
+
+.bo-btn-voltar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-sm);
+  background: var(--cor-superficie2);
+  color: var(--cor-texto-secundario);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all var(--transicao);
+}
+
+.bo-btn-voltar:hover {
+  border-color: var(--cor-primaria);
+  color: var(--cor-primaria);
+  background: var(--cor-primaria-bg);
+}
+
+/* ==================== ÁREA PRINCIPAL (MAIN) ==================== */
+.bo-main {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 28px 48px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header / Topbar Interna */
+.bo-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  gap: 16px;
+}
+
+.bo-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bo-menu-btn {
+  display: none;
+  padding: 8px 10px;
+}
+
+.bo-page-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--cor-texto);
+  letter-spacing: -0.02em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.bo-page-subtitle {
+  font-size: 0.82rem;
+  color: var(--cor-texto-secundario);
+  margin: 3px 0 0;
+}
+
+/* ==================== KPI CARDS (DASHBOARD) ==================== */
+.bo-kpis-wrapper {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.bo-kpi-card {
+  background: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio);
+  padding: 16px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: var(--sombra);
+  transition: transform var(--transicao), box-shadow var(--transicao);
+}
+
+.bo-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-md);
+}
+
+.bo-kpi-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--raio-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.icon-produtos {
+  background: var(--cor-primaria-bg);
+  color: var(--cor-primaria);
+}
+
+.icon-fornecedores {
+  background: var(--cor-aviso-bg);
+  color: var(--cor-aviso);
+}
+
+.icon-contagens {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso);
+}
+
+.icon-usuarios {
+  background: #edf2f7;
+  color: #4a5568;
+}
+
+[data-theme="dark"] .icon-usuarios {
+  background: #2d3748;
+  color: #cbd5e0;
+}
+
+.bo-kpi-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bo-kpi-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--cor-texto-mudo);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bo-kpi-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--cor-texto);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+/* ==================== CONTEÚDO DAS ABAS ==================== */
+.bo-content-area {
+  flex: 1;
+}
+
+.bo-content-area .tab-content {
+  display: none;
+  animation: boFadeIn 0.2s ease;
+}
+
+.bo-content-area .tab-content.active {
+  display: block;
+}
+
+@keyframes boFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Backdrop Mobile */
+.bo-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 998;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.bo-sidebar-backdrop.active {
+  display: block;
+  opacity: 1;
+}
+
+/* ==================== RESPONSIVO / DRAWER ==================== */
+@media (max-width: 1024px) {
+  .bo-kpis-wrapper {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .bo-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    z-index: 999;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transform: translateX(-100%);
+  }
+
+  .bo-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .bo-sidebar-close {
+    display: flex;
+  }
+
+  .bo-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .bo-main {
+    padding: 16px 14px 40px;
+  }
+
+  .bo-desktop-only {
+    display: none !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .bo-kpis-wrapper {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .bo-page-title {
+    font-size: 1.15rem;
+  }
+
+  .bo-kpi-card {
+    padding: 12px 14px;
+  }
+}

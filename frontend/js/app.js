@@ -29,6 +29,7 @@ function showScreen(screenId) {
   // Ações contextuais por tela
   if (screenId === 'screen-backoffice') {
     Produtos.carregar();
+    carregarBackofficeKPIs();
   } else if (screenId === 'screen-home') {
     Auth.atualizarInterface();
     carregarDashboard();
@@ -108,6 +109,22 @@ function switchTab(tabId) {
   if (btn) btn.classList.add('active');
   if (content) content.classList.add('active');
 
+  fecharBoSidebar();
+  carregarBackofficeKPIs();
+
+  const titles = {
+    produtos: { title: 'Catálogo de Produtos', subtitle: 'Gerenciamento completo de itens, SKUs e saldos' },
+    estoque: { title: 'Importação de Estoque', subtitle: 'Importe e cruze relatórios em PDF do Tiny ERP' },
+    usuarios: { title: 'Equipe & Funcionários', subtitle: 'Gerenciamento de acessos e permissões do sistema' },
+    historico: { title: 'Histórico de Contagens', subtitle: 'Consulte inventários passados e relatórios' },
+    atividades: { title: 'Log de Auditoria', subtitle: 'Rastreabilidade e histórico de ações no sistema' },
+    config: { title: 'Configurações de Acesso', subtitle: 'Segurança e credenciais da conta' }
+  };
+  const titleEl = document.getElementById('bo-page-title');
+  const subEl = document.getElementById('bo-page-subtitle');
+  if (titleEl && titles[tabId]) titleEl.textContent = titles[tabId].title;
+  if (subEl && titles[tabId]) subEl.textContent = titles[tabId].subtitle;
+
   // Carregamento contextual por aba
   if (tabId === 'produtos') {
     Produtos.carregar();
@@ -119,6 +136,65 @@ function switchTab(tabId) {
     StockImport.carregarHistorico();
   } else if (tabId === 'atividades' && typeof Atividades !== 'undefined') {
     Atividades.carregar();
+  }
+}
+
+/**
+ * Controla o Drawer (Sidebar mobile) do Back-office
+ */
+function toggleBoSidebar() {
+  const sidebar = document.getElementById('bo-sidebar');
+  const backdrop = document.getElementById('bo-sidebar-backdrop');
+  const menuBtn = document.getElementById('bo-menu-btn');
+  if (!sidebar) return;
+  const isOpen = sidebar.classList.toggle('open');
+  if (backdrop) backdrop.classList.toggle('active', isOpen);
+  if (menuBtn) menuBtn.setAttribute('aria-expanded', String(isOpen));
+}
+
+function fecharBoSidebar() {
+  const sidebar = document.getElementById('bo-sidebar');
+  const backdrop = document.getElementById('bo-sidebar-backdrop');
+  const menuBtn = document.getElementById('bo-menu-btn');
+  if (sidebar) sidebar.classList.remove('open');
+  if (backdrop) backdrop.classList.remove('active');
+  if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+}
+
+/**
+ * Carrega KPIs executivos no cabeçalho do Back-office
+ */
+async function carregarBackofficeKPIs() {
+  if (!Auth.isAdmin()) return;
+  try {
+    const [resProd, resForn, resHist, resUsers] = await Promise.allSettled([
+      API.get('/produtos?limit=1'),
+      API.get('/produtos/fornecedores'),
+      API.get('/contagens?limit=1'),
+      API.get('/usuarios')
+    ]);
+
+    const kpiProd = document.getElementById('bo-kpi-produtos');
+    if (kpiProd && resProd.status === 'fulfilled' && resProd.value.data?.pagination) {
+      kpiProd.textContent = resProd.value.data.pagination.total ?? 0;
+    }
+
+    const kpiForn = document.getElementById('bo-kpi-fornecedores');
+    if (kpiForn && resForn.status === 'fulfilled' && resForn.value.data?.fornecedores) {
+      kpiForn.textContent = resForn.value.data.fornecedores.length ?? 0;
+    }
+
+    const kpiCont = document.getElementById('bo-kpi-contagens');
+    if (kpiCont && resHist.status === 'fulfilled' && resHist.value.data) {
+      kpiCont.textContent = resHist.value.data.total ?? (resHist.value.data.contagens?.length ?? 0);
+    }
+
+    const kpiUsers = document.getElementById('bo-kpi-usuarios');
+    if (kpiUsers && resUsers.status === 'fulfilled' && resUsers.value.data?.usuarios) {
+      kpiUsers.textContent = resUsers.value.data.usuarios.length ?? 0;
+    }
+  } catch (err) {
+    console.warn('[BACKOFFICE] Falha ao carregar KPIs executivos:', err);
   }
 }
 

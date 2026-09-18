@@ -27,6 +27,11 @@ const Usuarios = {
 
     this.lista = res.data.usuarios || [];
     this.renderizar();
+
+    // Atualiza KPIs do backoffice de forma reativa
+    if (typeof carregarBackofficeKPIs === 'function' && typeof Auth !== 'undefined' && Auth.isAdmin()) {
+      carregarBackofficeKPIs();
+    }
   },
 
   /**
