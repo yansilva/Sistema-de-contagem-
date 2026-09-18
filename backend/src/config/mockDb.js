@@ -55,7 +55,15 @@ async function executeMockQuery(sql, params = []) {
     };
   }
 
-  if (norm.includes('FROM empresas')) {
+  if (norm.startsWith('SELECT') && norm.includes('FROM empresas')) {
+    if (norm.includes('email_contato = $1 AND id != $2')) {
+      const email = String(params[0]).toLowerCase();
+      const id = params[1];
+      const emp = state.empresas.find(
+        (e) => e.email_contato.toLowerCase() === email && e.id !== id
+      );
+      return { rows: emp ? [emp] : [] };
+    }
     if (norm.includes('email_contato = $1')) {
       const email = String(params[0]).toLowerCase();
       const emp = state.empresas.find((e) => e.email_contato.toLowerCase() === email);
@@ -70,8 +78,10 @@ async function executeMockQuery(sql, params = []) {
                 id: emp.id,
                 empresa_nome: emp.nome,
                 nome: emp.nome,
+                email_contato: emp.email_contato,
                 plano: emp.plano,
-                trial_expira_em: emp.trial_expira_em
+                trial_expira_em: emp.trial_expira_em,
+                criado_em: emp.criado_em
               }
             ]
           : []
@@ -94,6 +104,82 @@ async function executeMockQuery(sql, params = []) {
       });
       return { rows };
     }
+    if (norm === 'SELECT id, plano FROM empresas') {
+      return { rows: state.empresas.map((e) => ({ id: e.id, plano: e.plano })) };
+    }
+  }
+
+  // UPDATE empresas
+  if (norm.startsWith('UPDATE empresas')) {
+    if (norm.includes('SET plano = $1 WHERE id = $2')) {
+      const plano = params[0];
+      const id = params[1];
+      const emp = state.empresas.find((e) => e.id === id);
+      if (emp) {
+        emp.plano = plano;
+        return { rows: [emp] };
+      }
+      return { rows: [] };
+    }
+    if (norm.includes('SET nome = $1')) {
+      const [nome, email, plano, trial, id] = params;
+      const emp = state.empresas.find((e) => e.id === id);
+      if (emp) {
+        emp.nome = nome;
+        emp.email_contato = email;
+        emp.plano = plano;
+        emp.trial_expira_em = trial;
+        return { rows: [emp] };
+      }
+      return { rows: [] };
+    }
+  }
+
+  // DELETE FROM empresas
+  if (norm.startsWith('DELETE FROM empresas WHERE id = $1')) {
+    const id = params[0];
+    const idx = state.empresas.findIndex((e) => e.id === id);
+    if (idx !== -1) {
+      state.empresas.splice(idx, 1);
+      state.usuarios = state.usuarios.filter((u) => u.empresa_id !== id);
+      state.produtos = state.produtos.filter((p) => p.empresa_id !== id);
+      state.contagens = state.contagens.filter((c) => c.empresa_id !== id);
+    }
+    return { rows: [] };
+  }
+
+  // UPDATE audit_logs (desvincular empresa_id na exclusão)
+  if (norm.startsWith('UPDATE audit_logs SET empresa_id = NULL WHERE empresa_id = $1')) {
+    const id = params[0];
+    for (const log of state.auditLogs) {
+      if (log.empresa_id === id) {
+        log.empresa_id = null;
+      }
+    }
+    return { rows: [] };
+  }
+
+  // Métricas globais SaaS
+  if (norm === 'SELECT id FROM usuarios WHERE ativo = TRUE') {
+    return { rows: state.usuarios.filter((u) => u.ativo !== false).map((u) => ({ id: u.id })) };
+  }
+  if (norm === 'SELECT id FROM produtos WHERE ativo = TRUE') {
+    return { rows: state.produtos.filter((p) => p.ativo !== false).map((p) => ({ id: p.id })) };
+  }
+  if (norm === 'SELECT id FROM contagens') {
+    return { rows: state.contagens.map((c) => ({ id: c.id })) };
+  }
+
+  // Contagens por empresa
+  if (norm.includes('FROM produtos WHERE empresa_id = $1 AND ativo = TRUE') && norm.includes('COUNT(*)')) {
+    const empresaId = params[0];
+    const count = state.produtos.filter((p) => p.empresa_id === empresaId && p.ativo !== false).length;
+    return { rows: [{ total: count }] };
+  }
+  if (norm.includes('FROM contagens WHERE empresa_id = $1') && norm.includes('COUNT(*)')) {
+    const empresaId = params[0];
+    const count = state.contagens.filter((c) => c.empresa_id === empresaId).length;
+    return { rows: [{ total: count }] };
   }
 
   // ===== USUARIOS =====

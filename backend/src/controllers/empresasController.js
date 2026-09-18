@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const { query, getClient } = require('../config/db');
 const auditService = require('../services/auditService');
 const { gerarAccessToken, gerarRefreshToken, hashToken } = require('../config/jwt');
-const { ConflictError, ForbiddenError } = require('../errors/AppError');
+const { ConflictError, ForbiddenError, NotFoundError, AppError } = require('../errors/AppError');
 
 const SALT_ROUNDS = 12;
 
@@ -222,4 +222,374 @@ async function listar(req, res, next) {
   }
 }
 
-module.exports = { registrar, provisionar, listar };
+/**
+ * GET /api/empresas/metricas/saas
+ * Retorna métricas agregadas da plataforma SaaS (Super Admin)
+ */
+async function obterMetricasSaaS(req, res, next) {
+  try {
+    const empresasRes = await query('SELECT id, plano FROM empresas');
+    const usuariosRes = await query('SELECT id FROM usuarios WHERE ativo = TRUE');
+    const produtosRes = await query('SELECT id FROM produtos WHERE ativo = TRUE');
+    const contagensRes = await query('SELECT id FROM contagens');
+
+    const totalEmpresas = empresasRes.rows.length;
+    const ativas = empresasRes.rows.filter((e) => e.plano === 'ativo').length;
+    const trial = empresasRes.rows.filter((e) => e.plano === 'trial').length;
+    const suspensas = empresasRes.rows.filter((e) => e.plano === 'suspenso').length;
+    const totalUsuarios = usuariosRes.rows.length;
+    const totalProdutos = produtosRes.rows.length;
+    const totalContagens = contagensRes.rows.length;
+
+    res.json({
+      success: true,
+      data: {
+        totalEmpresas,
+        ativas,
+        trial,
+        suspensas,
+        totalUsuarios,
+        totalProdutos,
+        totalContagens
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/empresas/:id
+ * Retorna dados detalhados de uma empresa e seus usuários
+ */
+async function obterDetalhes(req, res, next) {
+  try {
+    const { id } = req.params;
+    const empRes = await query(
+      'SELECT id, nome, email_contato, plano, trial_expira_em, criado_em FROM empresas WHERE id = $1',
+      [id]
+    );
+    if (!empRes.rows.length) {
+      throw new NotFoundError('Empresa não encontrada.', 'EMPRESA_NAO_ENCONTRADA');
+    }
+    const empresa = empRes.rows[0];
+
+    const usersRes = await query(
+      'SELECT id, nome, email, papel, ativo, criado_em FROM usuarios WHERE empresa_id = $1 ORDER BY criado_em ASC',
+      [id]
+    );
+
+    const prodCountRes = await query(
+      'SELECT COUNT(*)::int AS total FROM produtos WHERE empresa_id = $1 AND ativo = TRUE',
+      [id]
+    );
+    const contCountRes = await query(
+      'SELECT COUNT(*)::int AS total FROM contagens WHERE empresa_id = $1',
+      [id]
+    );
+
+    res.json({
+      success: true,
+      data: {
+        empresa: {
+          ...empresa,
+          total_produtos: Number(prodCountRes.rows[0]?.total || 0),
+          total_contagens: Number(contCountRes.rows[0]?.total || 0)
+        },
+        usuarios: usersRes.rows
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PUT /api/empresas/:id
+ * Atualização cadastral da empresa (nome, email_contato, plano, trial_expira_em)
+ */
+async function atualizar(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { nome, email_contato, plano, trial_expira_em } = req.body;
+
+    const empRes = await query(
+      'SELECT id, nome, email_contato, plano, trial_expira_em FROM empresas WHERE id = $1',
+      [id]
+    );
+    if (!empRes.rows.length) {
+      throw new NotFoundError('Empresa não encontrada.', 'EMPRESA_NAO_ENCONTRADA');
+    }
+    const empresaAtual = empRes.rows[0];
+
+    if (
+      email_contato &&
+      email_contato.toLowerCase().trim() !== empresaAtual.email_contato?.toLowerCase()
+    ) {
+      const emailExiste = await query(
+        'SELECT id FROM empresas WHERE email_contato = $1 AND id != $2',
+        [email_contato.toLowerCase().trim(), id]
+      );
+      if (emailExiste.rows.length) {
+        throw new ConflictError(
+          'Já existe uma empresa cadastrada com este email de contato.',
+          'EMPRESA_EXISTENTE'
+        );
+      }
+    }
+
+    if (plano && !['ativo', 'trial', 'suspenso'].includes(plano)) {
+      throw new AppError('Plano inválido. Valores aceitos: ativo, trial, suspenso.', 400, 'PLANO_INVALIDO');
+    }
+
+    const novoNome = nome !== undefined ? nome.trim() : empresaAtual.nome;
+    const novoEmail =
+      email_contato !== undefined ? email_contato.toLowerCase().trim() : empresaAtual.email_contato;
+    const novoPlano = plano !== undefined ? plano : empresaAtual.plano;
+    const novoTrial =
+      trial_expira_em !== undefined
+        ? trial_expira_em
+          ? new Date(trial_expira_em).toISOString()
+          : null
+        : empresaAtual.trial_expira_em;
+
+    const updateRes = await query(
+      `UPDATE empresas
+       SET nome = $1, email_contato = $2, plano = $3, trial_expira_em = $4
+       WHERE id = $5
+       RETURNING id, nome, email_contato, plano, trial_expira_em, criado_em`,
+      [novoNome, novoEmail, novoPlano, novoTrial, id]
+    );
+
+    const empresaAtualizada = updateRes.rows[0];
+
+    await auditService.registrar(query, req.auditContext || {}, {
+      escopo: 'plataforma',
+      atorTipo: 'usuario_plataforma',
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'empresa_atualizada',
+      entidade: 'empresa',
+      entidadeId: id,
+      dadosAnteriores: empresaAtual,
+      dadosNovos: empresaAtualizada,
+      eventoChave: `empresa_atualizada_${id}_${Date.now()}`
+    });
+
+    res.json({
+      success: true,
+      data: {
+        empresa: empresaAtualizada
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PATCH /api/empresas/:id/status
+ * Alternância rápida de status/plano da empresa (ativo, trial, suspenso)
+ */
+async function alterarStatus(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { plano } = req.body;
+
+    if (!plano || !['ativo', 'trial', 'suspenso'].includes(plano)) {
+      throw new AppError(
+        'Status/plano inválido. Valores permitidos: ativo, trial, suspenso.',
+        400,
+        'STATUS_INVALIDO'
+      );
+    }
+
+    const empRes = await query('SELECT id, nome, plano FROM empresas WHERE id = $1', [id]);
+    if (!empRes.rows.length) {
+      throw new NotFoundError('Empresa não encontrada.', 'EMPRESA_NAO_ENCONTRADA');
+    }
+    const anterior = empRes.rows[0];
+
+    const updateRes = await query(
+      'UPDATE empresas SET plano = $1 WHERE id = $2 RETURNING id, nome, email_contato, plano, trial_expira_em',
+      [plano, id]
+    );
+    const empresaAtualizada = updateRes.rows[0];
+
+    await auditService.registrar(query, req.auditContext || {}, {
+      escopo: 'plataforma',
+      atorTipo: 'usuario_plataforma',
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'empresa_status_alterado',
+      entidade: 'empresa',
+      entidadeId: id,
+      dadosAnteriores: { plano: anterior.plano },
+      dadosNovos: { plano },
+      eventoChave: `empresa_status_${id}_${Date.now()}`
+    });
+
+    res.json({
+      success: true,
+      data: {
+        empresa: empresaAtualizada
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * DELETE /api/empresas/:id
+ * Exclusão definitiva de empresa com cascata e desvinculação segura de auditoria
+ */
+async function excluirEmpresa(req, res, next) {
+  let client;
+  try {
+    const { id } = req.params;
+
+    if (id === req.empresaId || (req.usuario && req.usuario.empresa_id === id)) {
+      throw new AppError(
+        'Não é permitido excluir a própria empresa da plataforma.',
+        400,
+        'EXCLUSAO_PROPRIA_EMPRESA_NEGADA'
+      );
+    }
+
+    client = await getClient();
+    await client.query('BEGIN');
+
+    const empRes = await client.query('SELECT id, nome, email_contato FROM empresas WHERE id = $1', [
+      id
+    ]);
+    if (!empRes.rows.length) {
+      throw new NotFoundError('Empresa não encontrada.', 'EMPRESA_NAO_ENCONTRADA');
+    }
+    const empresa = empRes.rows[0];
+
+    // Desvincula registros de audit_logs associados para satisfazer ON DELETE RESTRICT
+    await client.query('UPDATE audit_logs SET empresa_id = NULL WHERE empresa_id = $1', [id]);
+
+    // Registra evento de auditoria formal na plataforma ANTES de deletar a empresa
+    await auditService.registrar(client, req.auditContext || {}, {
+      escopo: 'plataforma',
+      atorTipo: 'usuario_plataforma',
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'empresa_excluida_permanentemente',
+      entidade: 'empresa',
+      entidadeId: id,
+      dadosAnteriores: empresa,
+      eventoChave: `empresa_excluida_${id}_${Date.now()}`
+    });
+
+    // Exclui a empresa (ON DELETE CASCADE cuidará de usuários, produtos, contagens, refresh_tokens)
+    await client.query('DELETE FROM empresas WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Empresa e todos os dados associados foram excluídos com sucesso.'
+    });
+  } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    if (client) client.release();
+  }
+}
+
+/**
+ * POST /api/empresas/:id/impersonar
+ * Emite token de suporte para o Super Admin navegar diretamente no tenant
+ */
+async function impersonarEmpresa(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const empRes = await query('SELECT id, nome, plano FROM empresas WHERE id = $1', [id]);
+    if (!empRes.rows.length) {
+      throw new NotFoundError('Empresa não encontrada.', 'EMPRESA_NAO_ENCONTRADA');
+    }
+    const empresa = empRes.rows[0];
+
+    // Buscar o primeiro administrador ativo da empresa (ou fallback para outro usuário ativo)
+    const userRes = await query(
+      `SELECT id, nome, email, papel, ativo
+       FROM usuarios
+       WHERE empresa_id = $1 AND ativo = TRUE
+       ORDER BY CASE WHEN papel = 'administrador' THEN 0 ELSE 1 END, criado_em ASC
+       LIMIT 1`,
+      [id]
+    );
+
+    if (!userRes.rows.length) {
+      throw new NotFoundError(
+        'Nenhum usuário ativo encontrado para esta empresa.',
+        'USUARIO_NAO_ENCONTRADO'
+      );
+    }
+    const targetUser = userRes.rows[0];
+
+    const accessToken = gerarAccessToken({
+      id: targetUser.id,
+      empresa_id: id,
+      impersonated_by: req.usuario.id
+    });
+
+    await auditService.registrar(query, req.auditContext || {}, {
+      escopo: 'plataforma',
+      atorTipo: 'usuario_plataforma',
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'impersonation_iniciado',
+      entidade: 'empresa',
+      entidadeId: id,
+      dadosNovos: {
+        usuario_alvo_id: targetUser.id,
+        usuario_alvo_email: targetUser.email,
+        empresa_alvo_nome: empresa.nome
+      },
+      eventoChave: `impersonation_${id}_${Date.now()}`
+    });
+
+    res.json({
+      success: true,
+      data: {
+        accessToken,
+        usuario: {
+          id: targetUser.id,
+          nome: targetUser.nome,
+          email: targetUser.email,
+          papel: targetUser.papel
+        },
+        empresa: {
+          id: empresa.id,
+          nome: empresa.nome,
+          plano: empresa.plano
+        },
+        impersonated: true
+      }
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  registrar,
+  provisionar,
+  listar,
+  obterMetricasSaaS,
+  obterDetalhes,
+  atualizar,
+  alterarStatus,
+  excluirEmpresa,
+  impersonarEmpresa
+};
