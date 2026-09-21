@@ -9,13 +9,14 @@ const {
   atualizar,
   alterarStatus,
   excluirEmpresa,
-  impersonarEmpresa
+  impersonarEmpresa,
+  resetSenhaAdmin
 } = require('../controllers/empresasController');
 const auth = require('../middlewares/auth');
 const { requireSuperAdmin } = require('../middlewares/authorize');
 const validate = require('../middlewares/validate');
 const { loginLimiter } = require('../middlewares/rateLimiter');
-const { registroSchema } = require('../validators/schemas');
+const { registroSchema, resetSenhaAdminSchema } = require('../validators/schemas');
 
 // Métricas consolidadas do SaaS (Super Admin)
 router.get('/metricas/saas', auth, requireSuperAdmin, obterMetricasSaaS);
@@ -37,6 +38,9 @@ router.delete('/:id', auth, requireSuperAdmin, excluirEmpresa);
 
 // POST /api/empresas/:id/impersonar — sessão de suporte do super admin no tenant
 router.post('/:id/impersonar', auth, requireSuperAdmin, impersonarEmpresa);
+
+// POST /api/empresas/:id/reset-senha-admin — redefinir senha do administrador (super_admin)
+router.post('/:id/reset-senha-admin', auth, requireSuperAdmin, validate(resetSenhaAdminSchema), resetSenhaAdmin);
 
 // POST /api/empresas/registrar — onboarding de nova empresa + primeiro gestor
 router.post('/registrar', loginLimiter, validate(registroSchema), registrar);

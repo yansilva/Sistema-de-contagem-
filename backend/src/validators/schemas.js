@@ -73,6 +73,15 @@ const resetSenhaUsuarioSchema = {
   })
 };
 
+const resetSenhaAdminSchema = {
+  params: z.object({
+    id: z.string().uuid('ID de empresa inválido')
+  }),
+  body: z.object({
+    novaSenha: z.string().regex(senhaForteRegex, mensagemSenhaForte)
+  })
+};
+
 // ===== PRODUTOS SCHEMAS =====
 const criarProdutoSchema = {
   body: z.object({
@@ -268,6 +277,7 @@ module.exports = {
   editarUsuarioSchema,
   statusUsuarioSchema,
   resetSenhaUsuarioSchema,
+  resetSenhaAdminSchema,
   criarProdutoSchema,
   editarProdutoSchema,
   idParamSchema,

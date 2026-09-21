@@ -1,84 +1,37 @@
-/**
- * Script de Migração Automatizada para PostgreSQL
- * Executa schema.sql e migrações pendentes em backend/sql/migrations/
- * Compatível com ambientes locais, Docker e bancos em nuvem (Neon, Supabase, Vercel Postgres).
- */
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
-
 const { getClient } = require('../config/db');
-
 async function runMigrations() {
-  const isDryRun = process.argv.includes('--dry-run');
-  console.log(`[Migrate] Iniciando processo de migração${isDryRun ? ' (MODO SIMULAÇÃO)' : ''}...`);
-
-  const sqlDir = path.resolve(__dirname, '../../sql');
-  const schemaFile = path.join(sqlDir, 'schema.sql');
-  const migrationsDir = path.join(sqlDir, 'migrations');
-
-  if (!fs.existsSync(schemaFile)) {
-    console.error(`[Migrate] Erro: Arquivo schema.sql não encontrado em ${schemaFile}`);
-    process.exit(1);
-  }
-
+  const dir = path.resolve(__dirname, '../../sql');
+  const files = fs.readdirSync(path.join(dir, 'migrations')).filter(f => f.endsWith('.sql')).sort();
+  if (process.argv.includes('--dry-run')) { console.log('[Migrate] Arquivos:', files.join(', ')); return; }
   const client = await getClient();
   try {
-    console.log('[Migrate] Conexão com o banco de dados estabelecida.');
-
-    if (isDryRun) {
-      console.log(`[Migrate] [DRY-RUN] Lendo ${schemaFile}... OK`);
-      if (fs.existsSync(migrationsDir)) {
-        const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
-        console.log(`[Migrate] [DRY-RUN] ${files.length} migrações encontradas: ${files.join(', ')}`);
-      }
-      console.log('[Migrate] Simulação concluída com sucesso!');
-      return;
-    }
-
-    // 1. Executar schema.sql base dentro de transação
-    console.log('[Migrate] Aplicando schema base (schema.sql)...');
-    const schemaSql = fs.readFileSync(schemaFile, 'utf8');
     await client.query('BEGIN');
-    await client.query(schemaSql);
-    await client.query('COMMIT');
-    console.log('[Migrate] Schema base aplicado com sucesso.');
-
-    // 2. Executar migrações adicionais
-    if (fs.existsSync(migrationsDir)) {
-      const migrationFiles = fs
-        .readdirSync(migrationsDir)
-        .filter(f => f.endsWith('.sql'))
-        .sort();
-
-      for (const file of migrationFiles) {
-        const filePath = path.join(migrationsDir, file);
-        console.log(`[Migrate] Aplicando migração: ${file}...`);
-        const migrationSql = fs.readFileSync(filePath, 'utf8');
-        await client.query('BEGIN');
-        await client.query(migrationSql);
-        await client.query('COMMIT');
-        console.log(`[Migrate] Migração ${file} concluída.`);
-      }
+    await client.query('SELECT pg_advisory_xact_lock(739214)');
+    const existing = await client.query("SELECT to_regclass('empresas') AS tabela");
+    const schema = fs.readFileSync(path.join(dir, 'schema.sql'), 'utf8');
+    if (!existing.rows[0].tabela) await client.query(schema);
+    await client.query('CREATE TABLE IF NOT EXISTS schema_migrations(nome TEXT PRIMARY KEY, aplicado_em TIMESTAMPTZ NOT NULL DEFAULT now())');
+    for (const file of files) {
+      const applied = await client.query('SELECT nome FROM schema_migrations WHERE nome=$1', [file]);
+      if (applied.rowCount) continue;
+      await client.query(fs.readFileSync(path.join(dir, 'migrations', file), 'utf8'));
+      await client.query('INSERT INTO schema_migrations(nome) VALUES($1)', [file]);
     }
-
-    console.log('[Migrate] Todas as migrações foram aplicadas com sucesso!');
+    if (existing.rows[0].tabela) await client.query(schema);
+    await client.query('COMMIT');
+    console.log('[Migrate] Migrações verificadas.');
   } catch (error) {
     await client.query('ROLLBACK').catch(() => {});
-    console.error('[Migrate] Falha durante a execução das migrações:', error.message);
-    process.exit(1);
-  } finally {
-    client.release();
-  }
+    throw error;
+  } finally { client.release(); }
 }
-
 if (require.main === module) {
-  runMigrations()
-    .then(() => process.exit(0))
-    .catch((err) => {
-      console.error('[Migrate] Erro fatal:', err);
-      process.exit(1);
-    });
+  runMigrations().then(() => process.exit(0)).catch(error => {
+    console.error('[Migrate] Falha:', error.code || error.name);
+    process.exit(1);
+  });
 }
-
 module.exports = { runMigrations };

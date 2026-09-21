@@ -224,6 +224,9 @@ const Empresas = {
                 <button class="saas-dropdown-item" data-click="action-94" data-id="${e.id}">
                   <i class="ti ti-edit" style="color: var(--cor-texto-secundario)"></i> Editar Informações
                 </button>
+                <button class="saas-dropdown-item" data-click="action-108" data-id="${e.id}">
+                  <i class="ti ti-lock-open" style="color: #3b82f6"></i> Redefinir Senha
+                </button>
                 <button class="saas-dropdown-item" data-click="action-103" data-id="${e.id}" data-status="${e.plano}">
                   <i class="ti ti-power" style="color: ${e.plano === 'suspenso' ? 'var(--cor-sucesso)' : '#d97706'}"></i>
                   ${e.plano === 'suspenso' ? 'Reativar Acesso' : 'Suspender Empresa'}
@@ -643,6 +646,129 @@ const Empresas = {
     document.querySelectorAll('.saas-dropdown-menu').forEach((menu) => {
       menu.style.display = 'none';
     });
+  },
+
+  /**
+   * Abre o modal de redefinição de senha do administrador da empresa
+   */
+  async abrirModalResetSenha(id) {
+    this.fecharTodosMenus();
+    const modal = document.getElementById('modal-reset-senha-admin');
+    if (!modal) return;
+
+    // Limpar campos
+    const senhaInput = document.getElementById('reset-nova-senha');
+    const confirmarInput = document.getElementById('reset-confirmar-senha');
+    const erroEl = document.getElementById('reset-senha-erro');
+    if (senhaInput) senhaInput.value = '';
+    if (confirmarInput) confirmarInput.value = '';
+    if (erroEl) { erroEl.style.display = 'none'; erroEl.textContent = ''; }
+
+    // Preencher dados da empresa e administrador
+    const nomeEl = document.getElementById('reset-empresa-nome');
+    const adminNomeEl = document.getElementById('reset-admin-nome');
+    const adminEmailEl = document.getElementById('reset-admin-email');
+    if (nomeEl) nomeEl.textContent = 'Carregando...';
+    if (adminNomeEl) adminNomeEl.textContent = '—';
+    if (adminEmailEl) adminEmailEl.textContent = '—';
+
+    modal.setAttribute('data-empresa-id', id);
+    modal.classList.add('active');
+
+    try {
+      const res = await API.get(`/empresas/${id}`);
+      if (!res || !res.success || !res.data?.empresa) {
+        showToast('Não foi possível carregar os dados da empresa.', 'error');
+        this.fecharModalResetSenha();
+        return;
+      }
+
+      const { empresa, usuarios } = res.data;
+      if (nomeEl) nomeEl.textContent = empresa.nome;
+
+      // Encontrar o primeiro administrador ativo
+      const admin = (usuarios || []).find(
+        u => u.ativo !== false && ['administrador', 'gestor', 'admin'].includes((u.papel || '').toLowerCase())
+      );
+
+      if (admin) {
+        if (adminNomeEl) adminNomeEl.textContent = admin.nome;
+        if (adminEmailEl) adminEmailEl.textContent = admin.email;
+      } else {
+        if (adminNomeEl) adminNomeEl.textContent = 'Nenhum admin ativo encontrado';
+        if (adminEmailEl) adminEmailEl.textContent = '—';
+      }
+    } catch (err) {
+      console.error('[RESET_SENHA_LOAD_ERROR]', err);
+      showToast('Erro ao carregar dados para redefinição de senha.', 'error');
+      this.fecharModalResetSenha();
+    }
+  },
+
+  /**
+   * Fecha o modal de redefinição de senha
+   */
+  fecharModalResetSenha() {
+    const modal = document.getElementById('modal-reset-senha-admin');
+    if (modal) modal.classList.remove('active');
+  },
+
+  /**
+   * Executa a redefinição de senha após validação e confirmação
+   */
+  async executarResetSenha() {
+    const modal = document.getElementById('modal-reset-senha-admin');
+    const empresaId = modal?.getAttribute('data-empresa-id');
+    if (!empresaId) return;
+
+    const novaSenha = (document.getElementById('reset-nova-senha')?.value || '').trim();
+    const confirmarSenha = (document.getElementById('reset-confirmar-senha')?.value || '').trim();
+    const erroEl = document.getElementById('reset-senha-erro');
+
+    // Validação client-side
+    const senhaForteRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+
+    if (!novaSenha || !confirmarSenha) {
+      if (erroEl) { erroEl.textContent = 'Preencha ambos os campos de senha.'; erroEl.style.display = 'block'; }
+      return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+      if (erroEl) { erroEl.textContent = 'As senhas não coincidem.'; erroEl.style.display = 'block'; }
+      return;
+    }
+
+    if (!senhaForteRegex.test(novaSenha)) {
+      if (erroEl) { erroEl.textContent = 'A senha deve conter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula e um número.'; erroEl.style.display = 'block'; }
+      return;
+    }
+
+    if (erroEl) erroEl.style.display = 'none';
+
+    // Confirmação final
+    const empresaNome = document.getElementById('reset-empresa-nome')?.textContent || '';
+    const adminNome = document.getElementById('reset-admin-nome')?.textContent || '';
+    if (!confirm(`Tem certeza que deseja redefinir a senha do administrador "${adminNome}" da empresa "${empresaNome}"?\n\nTodas as sessões ativas serão encerradas.`)) {
+      return;
+    }
+
+    const btn = document.getElementById('btn-confirmar-reset-senha');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Redefinindo...'; }
+
+    try {
+      const res = await API.post(`/empresas/${empresaId}/reset-senha-admin`, { novaSenha });
+      if (res && res.success) {
+        showToast(res.message || 'Senha redefinida com sucesso!', 'success');
+        this.fecharModalResetSenha();
+      } else {
+        showToast(res?.message || 'Falha ao redefinir senha.', 'error');
+      }
+    } catch (err) {
+      console.error('[RESET_SENHA_ERROR]', err);
+      showToast('Erro de comunicação ao redefinir senha.', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="ti ti-lock-open"></i> Redefinir Senha'; }
+    }
   },
 
   /**

@@ -105,7 +105,10 @@ const UIActions = {
   'action-102': (element, event) => { Empresas.toggleMenuAcoes(element.getAttribute('data-id'), event); },
   'action-103': (element) => { Empresas.alternarStatusRapido(element.getAttribute('data-id'), element.getAttribute('data-status')); },
   'action-104': (element) => { Empresas.verificarInputConfirmacaoExclusao(element.value); },
-  'action-105': () => { showScreen('screen-home'); switchSaasTab('tenants'); }
+  'action-105': () => { showScreen('screen-home'); switchSaasTab('tenants'); },
+  'action-106': () => { Empresas.fecharModalResetSenha(); },
+  'action-107': () => { Empresas.executarResetSenha(); },
+  'action-108': (element) => { Empresas.abrirModalResetSenha(element.getAttribute('data-id')); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

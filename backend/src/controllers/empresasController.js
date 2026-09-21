@@ -582,6 +582,86 @@ async function impersonarEmpresa(req, res, next) {
   }
 }
 
+/**
+ * POST /api/empresas/:id/reset-senha-admin
+ * Super Admin redefine a senha do administrador principal de uma empresa.
+ * Nunca expõe chaves administrativas ao frontend.
+ */
+async function resetSenhaAdmin(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { novaSenha } = req.body;
+
+    // Buscar empresa
+    const empRes = await query('SELECT id, nome FROM empresas WHERE id = $1', [id]);
+    if (!empRes.rows.length) {
+      throw new NotFoundError('Empresa não encontrada.', 'EMPRESA_NAO_ENCONTRADA');
+    }
+    const empresa = empRes.rows[0];
+
+    // Buscar o administrador principal (primeiro admin ativo, por ordem de criação)
+    const adminRes = await query(
+      `SELECT id, nome, email, papel
+       FROM usuarios
+       WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ('administrador', 'gestor', 'admin')
+       ORDER BY criado_em ASC
+       LIMIT 1`,
+      [id]
+    );
+
+    if (!adminRes.rows.length) {
+      throw new NotFoundError(
+        'Nenhum administrador ativo encontrado para esta empresa.',
+        'ADMIN_NAO_ENCONTRADO'
+      );
+    }
+    const admin = adminRes.rows[0];
+
+    // Hash da nova senha com bcrypt
+    const senhaHash = await bcrypt.hash(novaSenha, SALT_ROUNDS);
+
+    // Atualizar senha e forçar troca no próximo login
+    await query(
+      `UPDATE usuarios
+       SET senha_hash = $1, must_change_password = TRUE, atualizado_em = NOW()
+       WHERE id = $2`,
+      [senhaHash, admin.id]
+    );
+
+    // Revogar todas as sessões ativas do administrador
+    await query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [admin.id]);
+
+    // Auditoria: senha redefinida pelo Super Admin
+    try {
+      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+        escopo: 'plataforma',
+        atorTipo: 'usuario_plataforma',
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'senha_redefinida_por_superadmin',
+        entidade: 'usuario',
+        entidadeId: admin.id,
+        resultado: 'sucesso',
+        metadados: {
+          empresa_id: empresa.id,
+          empresa_nome: empresa.nome,
+          admin_nome: admin.nome,
+          admin_email: admin.email
+        },
+        eventoChave: `reset_senha_admin_${admin.id}_${Date.now()}`
+      });
+    } catch { /* Auditoria não deve bloquear resposta */ }
+
+    res.json({
+      success: true,
+      message: `Senha do administrador "${admin.nome}" redefinida com sucesso. O usuário precisará alterá-la no próximo acesso.`
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   registrar,
   provisionar,
@@ -591,5 +671,6 @@ module.exports = {
   atualizar,
   alterarStatus,
   excluirEmpresa,
-  impersonarEmpresa
+  impersonarEmpresa,
+  resetSenhaAdmin
 };
