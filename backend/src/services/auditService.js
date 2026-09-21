@@ -21,11 +21,23 @@ const SENSITIVE_KEYS = new Set([
 /**
  * Remove recursivamente quaisquer chaves sensíveis e filtra por whitelist se fornecida
  */
-function sanitizarObjeto(obj, whitelist = null) {
+function sanitizarObjeto(obj, whitelist = null, seen = new WeakSet()) {
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
     return null;
   }
 
+  if (seen.has(obj)) return null;
+  seen.add(obj);
+  const limpar = (valor) => {
+    if (Array.isArray(valor)) {
+      if (seen.has(valor)) return null;
+      seen.add(valor);
+      const result = valor.map(limpar);
+      seen.delete(valor);
+      return result;
+    }
+    return valor && typeof valor === 'object' ? sanitizarObjeto(valor, null, seen) : valor;
+  };
   const sanitizado = {};
   for (const [chave, valor] of Object.entries(obj)) {
     const chaveNorm = chave.toLowerCase().replace(/[-_]/g, '');
@@ -35,7 +47,9 @@ function sanitizarObjeto(obj, whitelist = null) {
       chaveNorm.includes('token') ||
       chaveNorm.includes('secret') ||
       chaveNorm.includes('hash') ||
-      chaveNorm.includes('salt')
+      chaveNorm.includes('salt') ||
+      /password|authorization|cookie|apikey|credential|privatekey/.test(chaveNorm) ||
+      ['__proto__', 'constructor', 'prototype'].includes(chave)
     ) {
       continue; // descarta segredos
     }
@@ -45,10 +59,11 @@ function sanitizarObjeto(obj, whitelist = null) {
     }
 
     if (valor !== undefined) {
-      sanitizado[chave] = valor;
+      sanitizado[chave] = limpar(valor);
     }
   }
 
+  seen.delete(obj);
   return Object.keys(sanitizado).length > 0 ? sanitizado : null;
 }
 

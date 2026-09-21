@@ -2,6 +2,11 @@ const auditService = require('../src/services/auditService');
 
 describe('Fase 2: Serviço de Auditoria e Sanitização Estrita', () => {
   describe('sanitizarObjeto()', () => {
+    it('remove segredos aninhados em objetos e arrays sem perder zero ou false', () => {
+      const input = { dados: [{ token: 'synthetic', quantidade: 0 }], contexto: { password: 'synthetic', ativo: false } };
+      expect(auditService.sanitizarObjeto(input)).toEqual({ dados: [{ quantidade: 0 }], contexto: { ativo: false } });
+      expect(input.dados[0].token).toBe('synthetic');
+    });
     it('Descarta chaves sensíveis como senha, senha_hash, token, secret', () => {
       const entrada = {
         nome: 'Yan Silva',

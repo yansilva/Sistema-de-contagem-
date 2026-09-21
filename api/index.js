@@ -11,7 +11,7 @@ try {
   app = require('../backend/src/app');
 } catch (err) {
   initError = err;
-  console.error('[SERVERLESS INIT ERROR]', err.message, err.stack);
+  console.error('[SERVERLESS INIT ERROR]', { name: err.name });
 }
 
 module.exports = (req, res) => {
@@ -22,8 +22,7 @@ module.exports = (req, res) => {
     return res.end(JSON.stringify({
       success: false,
       message: 'Erro na inicialização da função serverless.',
-      error: initError.message,
-      stack: initError.stack
+      code: 'INICIALIZACAO_INDISPONIVEL'
     }));
   }
 
