@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistema de Estoque — Contagem e Controle</title>
   <meta name="description" content="Sistema SaaS profissional para controle, contagem e conciliação de inventário com exportação Excel e back-office para gestores.">
+  <link rel="icon" type="image/svg+xml" href="/assets/logo-sistema-estoque.svg">
 
   <!-- Ícones Tabler com SRI -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.46.0/dist/tabler-icons.min.css" integrity="sha384-ND+q1IVc0KDElX60dZaqKc7Xl9cdxd2PpU2JfVUHcurCkFVtVLFdt9vJfxtHSL3p" crossorigin="anonymous">
@@ -43,7 +44,7 @@
   <!-- ==================== TOPBAR ==================== -->
   <header class="topbar">
     <h1>
-      <i class="ti ti-building-warehouse" style="color:var(--cor-primaria)"></i>
+      <img class="brand-mark" src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="30" height="30">
       <span id="topbar-company-title">Sistema de Estoque</span>
     </h1>
     <div class="topbar-right">
@@ -77,14 +78,26 @@
 
   <!-- ==================== TELA: LOGIN ==================== -->
   <main id="screen-login" class="screen active">
-    <div class="auth-wrapper">
+    <div class="auth-wrapper login-layout">
+      <div class="auth-story">
+        <div class="auth-story-brand">
+          <img src="/assets/logo-sistema-estoque.svg" alt="" width="32" height="32">
+          <span>Sistema de Estoque</span>
+        </div>
+        <div class="auth-story-copy">
+          <span class="auth-story-eyebrow">CONTROLE COM CLAREZA</span>
+          <h2>Precisão que<br>move o estoque.</h2>
+          <p>Da primeira contagem à decisão final, cada número no seu lugar.</p>
+        </div>
+        <span class="auth-story-footnote">CONTAGEM · CONCILIAÇÃO · CONTROLE</span>
+      </div>
       <div class="auth-card">
-        <div class="auth-logo"><i class="ti ti-building-warehouse"></i></div>
-        <h2>Sistema de Estoque</h2>
-        <p class="subtitle">Acesse sua conta para gerenciar seu estoque</p>
+        <div class="auth-logo"><img src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="42" height="42"></div>
+        <h2>Bem-vindo de volta</h2>
+        <p class="subtitle">Entre com seu e-mail e senha para continuar.</p>
 
         <div class="form-group">
-          <label for="login-email">Email</label>
+          <label for="login-email">E-mail</label>
           <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
         </div>
 
@@ -111,7 +124,7 @@
   <section id="screen-registro" class="screen">
     <div class="auth-wrapper">
       <div class="auth-card">
-        <div class="auth-logo"><i class="ti ti-building-store"></i></div>
+        <div class="auth-logo"><img src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="42" height="42"></div>
         <h2>Cadastrar empresa</h2>
         <p class="subtitle">Crie a empresa e o acesso do primeiro administrador. Ele deverá trocar a senha no primeiro login.</p>
 
@@ -158,7 +171,7 @@
   <section id="screen-troca-senha-obrigatoria" class="screen">
     <div class="auth-wrapper">
       <div class="auth-card">
-        <div class="auth-logo"><i class="ti ti-shield-lock"></i></div>
+        <div class="auth-logo"><img src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="42" height="42"></div>
         <h2>Defina sua Nova Senha</h2>
         <p class="subtitle">Sua senha atual é temporária. Para sua segurança, defina uma nova senha pessoal antes de continuar.</p>
 
@@ -189,7 +202,7 @@
 
   <!-- ==================== TELA: HOME (DASHBOARD) ==================== -->
   <section id="screen-home" class="screen">
-    <div class="container" style="max-width: 960px;">
+    <div class="container home-container">
 
       <!-- ==================== 1. DASHBOARD DO FUNCIONÁRIO (CHÃO DE ESTOQUE) ==================== -->
       <div id="home-funcionario" hidden>
@@ -264,7 +277,7 @@
               <span class="kpi-title">Catálogo Total</span>
               <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-packages"></i></div>
             </div>
-            <div class="kpi-value" id="kpi-total-produtos">0</div>
+            <div class="kpi-value" id="kpi-total-produtos">—</div>
             <div class="kpi-badge positive"><i class="ti ti-check"></i> Produtos ativos</div>
           </div>
 
@@ -273,27 +286,19 @@
               <span class="kpi-title">Fornecedores</span>
               <div class="kpi-icon" style="background:rgba(217,119,6,0.12); color:#d97706"><i class="ti ti-truck-delivery"></i></div>
             </div>
-            <div class="kpi-value" id="kpi-total-fornecedores">0</div>
+            <div class="kpi-value" id="kpi-total-fornecedores">—</div>
             <div class="kpi-badge neutral"><i class="ti ti-building-store"></i> Parceiros ativos</div>
           </div>
 
           <div class="kpi-card" data-click="action-18" style="cursor:pointer">
             <div class="kpi-top">
               <span class="kpi-title">Contagens Realizadas</span>
-              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
+              <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
             </div>
-            <div class="kpi-value" id="kpi-total-contagens">0</div>
+            <div class="kpi-value" id="kpi-total-contagens">—</div>
             <div class="kpi-badge positive"><i class="ti ti-history"></i> Sessões concluídas</div>
           </div>
 
-          <div class="kpi-card">
-            <div class="kpi-top">
-              <span class="kpi-title">Sincronização</span>
-              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-shield-check"></i></div>
-            </div>
-            <div class="kpi-value status-text">Status: <span>OK</span></div>
-            <div class="kpi-badge positive"><i class="ti ti-check"></i> SaaS Seguro & Ativo</div>
-          </div>
         </div>
 
         <!-- Alerta de Última Divergência (se houver) -->
@@ -343,10 +348,10 @@
           <aside class="saas-sidebar">
             <div class="saas-brand-header">
               <div class="saas-brand-title">
-                <i class="ti ti-server-cog"></i>
-                <span>SaaS Console</span>
+                <img class="brand-mark" src="/assets/logo-sistema-estoque.svg" alt="" width="30" height="30">
+                <span>Sistema de Estoque</span>
               </div>
-              <span class="saas-env-tag">PROD</span>
+              <span class="saas-env-tag">SUPER ADMIN</span>
             </div>
 
             <div class="saas-nav-section-label">Plataforma</div>
@@ -391,6 +396,11 @@
 
           <!-- Conteúdo Principal do Console SaaS -->
           <main class="saas-main">
+            <nav class="saas-mobile-nav" aria-label="Navegação do Super Admin">
+              <button class="saas-nav-btn active" data-saas-tab="visao-geral" data-click="action-100">Visão geral</button>
+              <button class="saas-nav-btn" data-saas-tab="tenants" data-click="action-100">Empresas</button>
+              <button class="saas-nav-btn" data-saas-tab="auditoria-global" data-click="action-100">Auditoria</button>
+            </nav>
             <!-- Header Dinâmico -->
             <div class="saas-header">
               <div class="saas-header-text">
@@ -673,11 +683,11 @@
         <div class="bo-sidebar-header">
           <div class="bo-brand">
             <div class="bo-brand-icon">
-              <i class="ti ti-layout-dashboard"></i>
+              <img src="/assets/logo-sistema-estoque.svg" alt="" width="30" height="30">
             </div>
             <div class="bo-brand-info">
               <span class="bo-brand-title">Back-Office</span>
-              <span class="bo-brand-subtitle">Painel de Gestão</span>
+              <span class="bo-brand-subtitle">Sistema de Estoque</span>
             </div>
           </div>
           <button class="bo-sidebar-close" id="bo-sidebar-close" data-click="action-89" aria-label="Fechar navegação">
