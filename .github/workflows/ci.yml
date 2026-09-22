@@ -32,22 +32,7 @@ jobs:
 
       - name: Run Jest Test Suites
         working-directory: ./backend
-        shell: bash
-        run: |
-          set +e
-          set -o pipefail
-          npm test 2>&1 | tee jest-output.log
-          status=${PIPESTATUS[0]}
-          if [ "$status" -ne 0 ]; then
-            node -e "const fs=require('fs');const s=fs.readFileSync('jest-output.log','utf8').slice(-12000).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A');console.log('::error title=Jest failure::'+s)"
-            {
-              echo '### Jest failure output'
-              echo '```text'
-              cat jest-output.log
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit "$status"
+        run: npm test
         env:
           JWT_SECRET: ci_github_actions_test_jwt_secret_key_1234567890
           NODE_ENV: test
