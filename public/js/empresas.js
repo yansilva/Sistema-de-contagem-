@@ -130,6 +130,7 @@ const Empresas = {
         <td>${empresa.ultima_atividade ? new Date(empresa.ultima_atividade).toLocaleString('pt-BR') : '—'}</td>
         <td class="saas-actions-cell">
           <button class="btn btn-outline btn-sm" data-click="action-90" data-id="${empresa.id}">Detalhes</button>
+          ${excluida ? '' : '<button class="btn btn-outline btn-sm" data-click="action-120" data-id="' + empresa.id + '"><i class="ti ti-key"></i> Gerenciar senhas</button>'}
           ${excluida ? '' : '<button class="btn btn-ghost btn-sm" data-click="action-98" data-id="' + empresa.id + '"><i class="ti ti-shield-search"></i> Auditar</button>'}
           ${resumo || excluida ? '' : '<button class="btn btn-ghost btn-sm" data-click="action-103" data-id="' + empresa.id + '" data-status="' + status + '">' + (status === 'ativa' ? 'Inativar' : 'Reativar') + '</button>'}
         </td>

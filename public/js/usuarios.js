@@ -9,6 +9,8 @@ const _SENHA_TEMP_GROUP_ID = 'user-senha-temp-group';
 const Usuarios = {
   lista: [],
   usuarioEditandoId: null,
+  focoAntesReset: null,
+  salvandoResetSenha: false,
 
   /**
    * Carrega e renderiza a lista de usuários da empresa
@@ -235,20 +237,33 @@ const Usuarios = {
    * Modal de redefinição de senha temporária
    */
   abrirModalReset(id, nome) {
+    this.focoAntesReset = document.activeElement;
     this.usuarioEditandoId = id;
     document.getElementById('reset-user-nome').textContent = nome;
-    document.getElementById('reset-nova-senha').value = '';
+    const senha = document.getElementById('reset-nova-senha');
+    senha.value = '';
     document.getElementById('modal-reset-error').textContent = '';
-    document.getElementById('modal-reset-senha').style.display = 'flex';
+    const modal = document.getElementById('modal-reset-senha');
+    modal.style.display = 'flex';
+    modal.classList.add('active');
+    senha.focus();
   },
 
   fecharModalReset() {
-    document.getElementById('modal-reset-senha').style.display = 'none';
+    const modal = document.getElementById('modal-reset-senha');
+    modal.style.display = 'none';
+    modal.classList.remove('active');
+    document.getElementById('reset-nova-senha').value = '';
+    this.focoAntesReset?.focus?.();
+    this.focoAntesReset = null;
   },
 
   async confirmarResetSenha() {
+    if (this.salvandoResetSenha) return;
     const novaSenhaTemporaria = document.getElementById('reset-nova-senha').value;
     const erroEl = document.getElementById('modal-reset-error');
+    const senhaInput = document.getElementById('reset-nova-senha');
+    const botao = document.getElementById('btn-confirmar-reset-senha');
     erroEl.textContent = '';
 
     if (!novaSenhaTemporaria || novaSenhaTemporaria.length < 6) {
@@ -256,17 +271,26 @@ const Usuarios = {
       return;
     }
 
-    const res = await API.post(`/usuarios/${this.usuarioEditandoId}/reset-senha`, {
-      novaSenhaTemporaria
-    });
+    this.salvandoResetSenha = true;
+    senhaInput.disabled = true;
+    botao.disabled = true;
+    try {
+      const res = await API.post(`/usuarios/${this.usuarioEditandoId}/reset-senha`, {
+        novaSenhaTemporaria
+      });
 
-    if (!res || !res.success) {
-      erroEl.textContent = res?.message || 'Erro ao redefinir senha temporária.';
-      return;
+      if (!res || !res.success) {
+        erroEl.textContent = res?.message || 'Erro ao redefinir senha temporária.';
+        return;
+      }
+
+      showToast('Nova senha temporária definida. O usuário precisará alterá-la ao entrar.', 'success');
+      this.fecharModalReset();
+      this.carregar();
+    } finally {
+      this.salvandoResetSenha = false;
+      senhaInput.disabled = false;
+      botao.disabled = false;
     }
-
-    showToast('Nova senha temporária definida. O usuário precisará alterá-la ao entrar.', 'success');
-    this.fecharModalReset();
-    this.carregar();
   }
 };

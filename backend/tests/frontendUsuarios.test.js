@@ -24,7 +24,9 @@ describe('Formulário de funcionários no frontend', () => {
           textContent: '',
           innerHTML: '',
           style: {},
-          disabled: false
+          disabled: false,
+          classList: { add: jest.fn(), remove: jest.fn() },
+          focus: jest.fn()
         }
       ])
     );
@@ -35,8 +37,11 @@ describe('Formulário de funcionários no frontend', () => {
     context = vm.createContext({
       document: {
         getElementById: (id) => elements.get(id) || null,
-        addEventListener: jest.fn()
+        addEventListener: jest.fn(),
+        activeElement: { focus: jest.fn() }
       },
+      Auth: { usuario: { id: 'admin-atual' }, isAdmin: () => true },
+      escapeHtml: (value) => String(value),
       API: api,
       showToast: jest.fn()
     });
@@ -103,5 +108,27 @@ describe('Formulário de funcionários no frontend', () => {
       papel: 'administrador'
     });
     expect(usuarios.carregar).toHaveBeenCalled();
+  });
+
+  it('abre a redefinição de senha pelo botão da lista e envia a senha temporária', async () => {
+    usuarios.lista = [
+      { id: '11111111-1111-4111-8111-111111111111', nome: 'Gabriel', email: 'gabriel@teste.test', papel: 'funcionario', ativo: true }
+    ];
+    usuarios.renderizar();
+    const button = elements.get('lista-usuarios').innerHTML.match(/<button\b[^>]*data-click="action-84"[^>]*>/)[0];
+
+    dispatch('click', button, { fromChild: true });
+
+    expect(elements.get('modal-reset-senha').style.display).toBe('flex');
+    expect(elements.get('reset-user-nome').textContent).toBe('Gabriel');
+    expect(elements.get('modal-reset-senha').classList.add).toHaveBeenCalledWith('active');
+    expect(elements.get('reset-nova-senha').focus).toHaveBeenCalled();
+    elements.get('reset-nova-senha').value = 'Temporaria123';
+    dispatch('click', html.match(/<button\b[^>]*data-click="action-107"[^>]*>/)[0]);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(api.post).toHaveBeenCalledWith('/usuarios/11111111-1111-4111-8111-111111111111/reset-senha', {
+      novaSenhaTemporaria: 'Temporaria123'
+    });
+    expect(elements.get('btn-confirmar-reset-senha').disabled).toBe(false);
   });
 });

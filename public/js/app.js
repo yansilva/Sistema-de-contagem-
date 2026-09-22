@@ -406,7 +406,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       Produtos.fecharModal();
-      if (typeof Usuarios !== 'undefined') Usuarios.fecharModal();
+      if (typeof Usuarios !== 'undefined') {
+        Usuarios.fecharModal();
+        Usuarios.fecharModalReset();
+      }
       if (typeof Atividades !== 'undefined') Atividades.fecharModal();
       if (typeof Empresas !== 'undefined') {
         Empresas.fecharModalExclusao();
@@ -416,7 +419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (typeof EmpresaDetalhes !== 'undefined') EmpresaDetalhes.fecharSenhaTemporaria();
     }
     if (e.key === 'Tab') {
-      const modal = document.querySelector('.modal.active');
+      const modal = document.querySelector('.modal.active, .app-modal.active');
       if (!modal) return;
       const focaveis = [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')];
       if (!focaveis.length) return;

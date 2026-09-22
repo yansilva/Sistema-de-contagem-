@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
+const { loadFrontendEvents } = require('./helpers/frontendEvents');
 
 const frontend = path.resolve(__dirname, '../../frontend');
 const read = (file) => fs.readFileSync(path.join(frontend, file), 'utf8');
@@ -36,6 +38,19 @@ describe('Contrato da interface do Super Admin', () => {
     expect(bundle).toContain('Nova senha temporária');
     expect(bundle).toContain('salvandoSenhaTemporaria');
     expect(bundle).toContain('btn-salvar-senha-temporaria-admin');
+    expect(bundle).toContain('Gerenciar senhas');
+    expect(read('js/events.js')).toContain("EmpresaDetalhes.abrir(element.getAttribute('data-id'), 'usuarios')");
+  });
+
+  it('abre diretamente a aba de usuários pelo botão Gerenciar senhas', () => {
+    const abrir = jest.fn();
+    const context = vm.createContext({
+      document: { addEventListener: jest.fn() },
+      EmpresaDetalhes: { abrir }
+    });
+    const dispatch = loadFrontendEvents(context);
+    dispatch('click', '<button data-click="action-120" data-id="empresa-123">Gerenciar senhas</button>');
+    expect(abrir).toHaveBeenCalledWith('empresa-123', 'usuarios');
   });
 
   it('mantém modais do console ocultos até serem ativados', () => {
@@ -48,7 +63,7 @@ describe('Contrato da interface do Super Admin', () => {
     const html = read('index.html');
     const app = read('js/app.js');
     const empresas = read('js/empresas.js');
-    expect((html.match(/role="dialog"/g) || [])).toHaveLength(4);
+    expect((html.match(/role="dialog"/g) || [])).toHaveLength(5);
     expect(app).toContain('Empresas.fecharModalExclusao()');
     expect(app).toContain('Empresas.fecharModalEdicao()');
     expect(app).toContain('Empresas.fecharModalStatus()');

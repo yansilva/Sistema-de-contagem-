@@ -106,6 +106,9 @@ const UIActions = {
   'action-103': (element) => { Empresas.alternarStatusRapido(element.getAttribute('data-id'), element.getAttribute('data-status')); },
   'action-104': (element) => { Empresas.verificarInputConfirmacaoExclusao(element.value); },
   'action-105': () => { showScreen('screen-home'); switchSaasTab('tenants'); },
+  'action-106': () => { Usuarios.fecharModalReset(); },
+  'action-107': () => { Usuarios.confirmarResetSenha(); },
+  'action-108': (element, event) => { if (event.key === 'Enter') Usuarios.confirmarResetSenha(); },
   'action-109': () => { Empresas.fecharModalStatus(); },
   'action-110': () => { Empresas.executarStatus(); },
   'action-111': (element) => { Empresas.mudarPagina(element.getAttribute('data-page')); },
@@ -116,7 +119,8 @@ const UIActions = {
   'action-116': (element) => { EmpresaDetalhes.abrirSenhaTemporaria(element.getAttribute('data-user-id'), element.getAttribute('data-user-name'), element.getAttribute('data-user-email')); },
   'action-117': () => { EmpresaDetalhes.fecharSenhaTemporaria(); },
   'action-118': () => { EmpresaDetalhes.salvarSenhaTemporaria(); },
-  'action-119': (element, event) => { if (event.key === 'Enter') EmpresaDetalhes.salvarSenhaTemporaria(); }
+  'action-119': (element, event) => { if (event.key === 'Enter') EmpresaDetalhes.salvarSenhaTemporaria(); },
+  'action-120': (element) => { EmpresaDetalhes.abrir(element.getAttribute('data-id'), 'usuarios'); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

@@ -1043,6 +1043,27 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: REDEFINIR SENHA DE USUÁRIO ==================== -->
+  <div id="modal-reset-senha" class="app-modal" data-admin-only hidden role="dialog" aria-modal="true" aria-labelledby="modal-reset-senha-titulo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+    <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+        <h3 id="modal-reset-senha-titulo" style="font-size:1.15rem; font-weight:700">Redefinir senha temporária</h3>
+        <button class="btn btn-ghost btn-sm" data-click="action-106" aria-label="Fechar"><i class="ti ti-x"></i></button>
+      </div>
+      <p style="margin-bottom:16px">Usuário: <strong id="reset-user-nome"></strong></p>
+      <div class="form-group">
+        <label for="reset-nova-senha">Nova senha temporária</label>
+        <input type="password" id="reset-nova-senha" minlength="6" autocomplete="new-password" placeholder="Mínimo de 6 caracteres" data-keydown="action-108" aria-describedby="modal-reset-error">
+      </div>
+      <p class="text-muted" style="font-size:.85rem">As sessões desse usuário serão encerradas e ele deverá criar uma senha própria no próximo acesso.</p>
+      <div id="modal-reset-error" class="auth-error" role="alert" aria-live="polite"></div>
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
+        <button class="btn btn-outline" data-click="action-106">Cancelar</button>
+        <button class="btn btn-primary" id="btn-confirmar-reset-senha" data-click="action-107"><i class="ti ti-key"></i> Definir senha temporária</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== MODAL: DETALHES DE ATIVIDADE & DIFF ==================== -->
   <div id="modal-audit-detalhe" class="app-modal" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
     <div class="card" style="width:100%; max-width:760px; max-height:90vh; overflow-y:auto; box-shadow:var(--sombra-lg)">
