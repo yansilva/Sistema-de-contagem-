@@ -32,7 +32,7 @@ jobs:
 
       - name: Run Jest Test Suites
         working-directory: ./backend
-        run: npm test -- --runInBand --coverage
+        run: npm test
         env:
           JWT_SECRET: ci_github_actions_test_jwt_secret_key_1234567890
           NODE_ENV: test
