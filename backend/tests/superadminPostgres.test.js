@@ -50,6 +50,12 @@ integration('Super Admin — PostgreSQL isolado', () => {
     expect((await mockPool.query('SELECT status FROM empresas WHERE id=$1', [empresa.id])).rows[0].status).toBe('inativa');
     const col = await mockPool.query("SELECT column_name FROM information_schema.columns WHERE table_name='audit_logs' AND column_name='empresa_afetada_id'");
     expect(col.rowCount).toBe(1);
+    const rls = await mockPool.query("SELECT relname, relrowsecurity FROM pg_class WHERE relname IN ('schema_migrations','sessoes_auditoria','password_reset_solicitacoes') ORDER BY relname");
+    expect(rls.rows).toEqual([
+      { relname: 'password_reset_solicitacoes', relrowsecurity: true },
+      { relname: 'schema_migrations', relrowsecurity: true },
+      { relname: 'sessoes_auditoria', relrowsecurity: true }
+    ]);
     expect((await mockPool.query('SELECT revogado FROM refresh_tokens WHERE token_hash=$1',[refreshHash])).rows[0].revogado).toBe(false);
   });
 
