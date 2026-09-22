@@ -32,7 +32,20 @@ jobs:
 
       - name: Run Jest Test Suites
         working-directory: ./backend
-        run: npm test
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee jest-output.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            {
+              echo '### Jest failure output'
+              echo '```text'
+              cat jest-output.log
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
         env:
           JWT_SECRET: ci_github_actions_test_jwt_secret_key_1234567890
           NODE_ENV: test
