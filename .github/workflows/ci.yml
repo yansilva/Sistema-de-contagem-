@@ -39,6 +39,7 @@ jobs:
           npm test 2>&1 | tee jest-output.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
+            node -e "const fs=require('fs');const s=fs.readFileSync('jest-output.log','utf8').slice(-12000).replace(/%/g,'%25').replace(/\r/g,'%0D').replace(/\n/g,'%0A');console.log('::error title=Jest failure::'+s)"
             {
               echo '### Jest failure output'
               echo '```text'
