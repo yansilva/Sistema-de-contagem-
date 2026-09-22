@@ -202,7 +202,7 @@
 
   <!-- ==================== TELA: HOME (DASHBOARD) ==================== -->
   <section id="screen-home" class="screen">
-    <div class="container" style="max-width: 960px;">
+    <div class="container home-container">
 
       <!-- ==================== 1. DASHBOARD DO FUNCIONÁRIO (CHÃO DE ESTOQUE) ==================== -->
       <div id="home-funcionario" hidden>
@@ -277,7 +277,7 @@
               <span class="kpi-title">Catálogo Total</span>
               <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-packages"></i></div>
             </div>
-            <div class="kpi-value" id="kpi-total-produtos">0</div>
+            <div class="kpi-value" id="kpi-total-produtos">—</div>
             <div class="kpi-badge positive"><i class="ti ti-check"></i> Produtos ativos</div>
           </div>
 
@@ -286,27 +286,19 @@
               <span class="kpi-title">Fornecedores</span>
               <div class="kpi-icon" style="background:rgba(217,119,6,0.12); color:#d97706"><i class="ti ti-truck-delivery"></i></div>
             </div>
-            <div class="kpi-value" id="kpi-total-fornecedores">0</div>
+            <div class="kpi-value" id="kpi-total-fornecedores">—</div>
             <div class="kpi-badge neutral"><i class="ti ti-building-store"></i> Parceiros ativos</div>
           </div>
 
           <div class="kpi-card" data-click="action-18" style="cursor:pointer">
             <div class="kpi-top">
               <span class="kpi-title">Contagens Realizadas</span>
-              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
+              <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
             </div>
-            <div class="kpi-value" id="kpi-total-contagens">0</div>
+            <div class="kpi-value" id="kpi-total-contagens">—</div>
             <div class="kpi-badge positive"><i class="ti ti-history"></i> Sessões concluídas</div>
           </div>
 
-          <div class="kpi-card">
-            <div class="kpi-top">
-              <span class="kpi-title">Sincronização</span>
-              <div class="kpi-icon" style="background:rgba(5,150,105,0.12); color:var(--cor-primaria)"><i class="ti ti-shield-check"></i></div>
-            </div>
-            <div class="kpi-value status-text">Status: <span>OK</span></div>
-            <div class="kpi-badge positive"><i class="ti ti-check"></i> SaaS Seguro & Ativo</div>
-          </div>
         </div>
 
         <!-- Alerta de Última Divergência (se houver) -->
@@ -356,10 +348,10 @@
           <aside class="saas-sidebar">
             <div class="saas-brand-header">
               <div class="saas-brand-title">
-                <i class="ti ti-server-cog"></i>
-                <span>SaaS Console</span>
+                <img class="brand-mark" src="/assets/logo-sistema-estoque.svg" alt="" width="30" height="30">
+                <span>Sistema de Estoque</span>
               </div>
-              <span class="saas-env-tag">PROD</span>
+              <span class="saas-env-tag">SUPER ADMIN</span>
             </div>
 
             <div class="saas-nav-section-label">Plataforma</div>
@@ -404,6 +396,11 @@
 
           <!-- Conteúdo Principal do Console SaaS -->
           <main class="saas-main">
+            <nav class="saas-mobile-nav" aria-label="Navegação do Super Admin">
+              <button class="saas-nav-btn active" data-saas-tab="visao-geral" data-click="action-100">Visão geral</button>
+              <button class="saas-nav-btn" data-saas-tab="tenants" data-click="action-100">Empresas</button>
+              <button class="saas-nav-btn" data-saas-tab="auditoria-global" data-click="action-100">Auditoria</button>
+            </nav>
             <!-- Header Dinâmico -->
             <div class="saas-header">
               <div class="saas-header-text">
@@ -686,11 +683,11 @@
         <div class="bo-sidebar-header">
           <div class="bo-brand">
             <div class="bo-brand-icon">
-              <i class="ti ti-layout-dashboard"></i>
+              <img src="/assets/logo-sistema-estoque.svg" alt="" width="30" height="30">
             </div>
             <div class="bo-brand-info">
               <span class="bo-brand-title">Back-Office</span>
-              <span class="bo-brand-subtitle">Painel de Gestão</span>
+              <span class="bo-brand-subtitle">Sistema de Estoque</span>
             </div>
           </div>
           <button class="bo-sidebar-close" id="bo-sidebar-close" data-click="action-89" aria-label="Fechar navegação">

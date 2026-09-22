@@ -47,6 +47,7 @@
     font-size: 16px; min-height: 44px; min-width: 0; max-width: 100%;
   }
   .container { padding: 18px 14px max(28px, env(safe-area-inset-bottom)); }
+  .container.home-container { padding: 0; }
   .card, .dash-reconciliation-panel { padding: 18px; }
   .auth-wrapper { padding: 20px 14px; }
   .auth-wrapper.login-layout { padding: 0; min-height: auto; }

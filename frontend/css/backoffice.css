@@ -22,8 +22,8 @@
 .bo-sidebar {
   width: 260px;
   flex-shrink: 0;
-  background: var(--cor-superficie);
-  border-right: 1px solid var(--cor-borda);
+  background: #101827;
+  border-right: 1px solid #26364d;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -51,7 +51,7 @@
   justify-content: space-between;
   padding-bottom: 16px;
   margin-bottom: 16px;
-  border-bottom: 1px solid var(--cor-borda);
+  border-bottom: 1px solid #2e405b;
 }
 
 .bo-brand {
@@ -64,7 +64,7 @@
   width: 38px;
   height: 38px;
   border-radius: var(--raio-sm);
-  background: var(--gradiente-primario);
+  background: #e9f0ff;
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -73,6 +73,7 @@
   box-shadow: var(--sombra);
   flex-shrink: 0;
 }
+.bo-brand-icon img { width: 28px; height: 28px; }
 
 .bo-brand-info {
   display: flex;
@@ -82,13 +83,13 @@
 .bo-brand-title {
   font-size: 0.95rem;
   font-weight: 700;
-  color: var(--cor-texto);
+  color: #fff;
   line-height: 1.2;
 }
 
 .bo-brand-subtitle {
   font-size: 0.72rem;
-  color: var(--cor-texto-mudo);
+  color: #9fb2cb;
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -97,15 +98,15 @@
   display: none;
   background: transparent;
   border: none;
-  color: var(--cor-texto-secundario);
+  color: #b8c9de;
   font-size: 1.2rem;
   cursor: pointer;
   padding: 6px;
   border-radius: 6px;
 }
 .bo-sidebar-close:hover {
-  background: var(--cor-superficie2);
-  color: var(--cor-texto);
+  background: #1f2b3f;
+  color: #fff;
 }
 
 /* Navigation List */
@@ -121,7 +122,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--cor-texto-mudo);
+  color: #8ea3bf;
   padding: 14px 10px 6px;
 }
 
@@ -134,7 +135,7 @@
   border: 1px solid transparent;
   border-radius: var(--raio-sm);
   background: transparent;
-  color: var(--cor-texto-secundario);
+  color: #b8c9de;
   font-family: inherit;
   font-size: 0.875rem;
   font-weight: 500;
@@ -145,43 +146,43 @@
 
 .bo-nav-item i {
   font-size: 1.15rem;
-  color: var(--cor-texto-mudo);
+  color: #8ea3bf;
   transition: color var(--transicao);
   flex-shrink: 0;
 }
 
 .bo-nav-item:hover {
-  background: var(--cor-superficie2);
-  color: var(--cor-texto);
+  background: #1f2b3f;
+  color: #fff;
 }
 
 .bo-nav-item:hover i {
-  color: var(--cor-primaria);
+  color: #9bbcff;
 }
 
 .bo-nav-item.active {
-  background: var(--cor-primaria-bg);
-  color: var(--cor-primaria);
+  background: #2457d6;
+  color: #fff;
   font-weight: 600;
-  border-color: rgba(79, 70, 229, 0.2);
+  border-color: #2457d6;
 }
 
 .bo-nav-item.active i {
-  color: var(--cor-primaria);
+  color: #fff;
 }
 
 [data-theme="dark"] .bo-nav-item.active {
-  background: var(--cor-primaria-bg);
-  color: var(--cor-primaria);
-  border-color: rgba(129, 140, 248, 0.25);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.12);
+  background: #2457d6;
+  color: #fff;
+  border-color: #2457d6;
+  box-shadow: 0 0 12px rgba(36, 87, 214, 0.22);
 }
 
 /* Sidebar Footer */
 .bo-sidebar-footer {
   margin-top: auto;
   padding-top: 14px;
-  border-top: 1px solid var(--cor-borda);
+  border-top: 1px solid #2e405b;
 }
 
 .bo-btn-voltar {
@@ -190,10 +191,10 @@
   gap: 10px;
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid var(--cor-borda);
+  border: 1px solid #405675;
   border-radius: var(--raio-sm);
-  background: var(--cor-superficie2);
-  color: var(--cor-texto-secundario);
+  background: #1f2b3f;
+  color: #b8c9de;
   cursor: pointer;
   font-family: inherit;
   font-size: 0.82rem;
@@ -202,9 +203,9 @@
 }
 
 .bo-btn-voltar:hover {
-  border-color: var(--cor-primaria);
-  color: var(--cor-primaria);
-  background: var(--cor-primaria-bg);
+  border-color: #9bbcff;
+  color: #fff;
+  background: #2e405b;
 }
 
 /* ==================== ÁREA PRINCIPAL (MAIN) ==================== */
@@ -269,6 +270,15 @@
   gap: 14px;
   box-shadow: var(--sombra);
   transition: transform var(--transicao), box-shadow var(--transicao);
+  position: relative;
+  overflow: hidden;
+}
+.bo-kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: #2457d6;
 }
 
 .bo-kpi-card:hover {
@@ -304,13 +314,13 @@
 }
 
 .icon-usuarios {
-  background: #edf2f7;
-  color: #4a5568;
+  background: var(--cor-primaria-bg);
+  color: var(--cor-primaria);
 }
 
 [data-theme="dark"] .icon-usuarios {
-  background: #2d3748;
-  color: #cbd5e0;
+  background: var(--cor-primaria-bg);
+  color: var(--cor-primaria);
 }
 
 .bo-kpi-content {
