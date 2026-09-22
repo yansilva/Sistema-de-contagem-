@@ -30,10 +30,12 @@ function obterJwtSecret() {
  * Gera access token JWT (curta duração)
  * Sanitiza e restringe o payload apenas aos campos essenciais (id, empresa_id)
  */
-function gerarAccessToken({ id, empresa_id }) {
+function gerarAccessToken({ id, empresa_id, versao_sessao = 1 }) {
+  if (!Number.isInteger(versao_sessao) || versao_sessao < 1) throw new Error('Versão de sessão inválida');
   const tokenPayload = {
     id: String(id),
-    empresa_id: String(empresa_id)
+    empresa_id: String(empresa_id),
+    sv: versao_sessao
   };
   // nosemgrep: javascript.jsonwebtoken.security.audit.jwt-exposed-data.jwt-exposed-data
   return jwt.sign(tokenPayload, obterJwtSecret(), { expiresIn: JWT_EXPIRA_EM });

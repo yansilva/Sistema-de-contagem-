@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { query } = require('../config/db');
+const { query, getClient } = require('../config/db');
 const { NotFoundError, ConflictError, ValidationError, ForbiddenError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
 
@@ -314,15 +314,19 @@ async function alternarStatus(req, res, next) {
  * Administrador redefine a senha com uma nova senha temporária
  */
 async function resetarSenha(req, res, next) {
+  let client;
   try {
     const { id } = req.params;
     const { novaSenhaTemporaria } = req.body;
 
     const senhaHash = await bcrypt.hash(novaSenhaTemporaria, SALT_ROUNDS);
+    client = await getClient();
+    await client.query('BEGIN');
 
-    const result = await query(
+    const result = await client.query(
       `UPDATE usuarios
-       SET senha_hash = $1, must_change_password = TRUE, atualizado_em = NOW()
+       SET senha_hash = $1, must_change_password = TRUE,
+           versao_sessao = versao_sessao + 1, atualizado_em = NOW()
        WHERE id = $2 AND empresa_id = $3
        RETURNING id, nome, email, papel, must_change_password`,
       [senhaHash, id, req.empresaId]
@@ -333,31 +337,33 @@ async function resetarSenha(req, res, next) {
     }
 
     // Revoga tokens anteriores para forçar novo login com a temporária
-    await query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [id]);
+    await client.query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [id]);
+
+    // Auditoria: senha redefinida pelo administrador
+    await auditService.registrar(client, req.auditContext || {}, {
+      escopo: 'seguranca',
+      empresaId: req.empresaId,
+      atorId: req.usuario.id,
+      atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email,
+      acao: 'senha_redefinida',
+      entidade: 'usuario',
+      entidadeId: id,
+      resultado: 'sucesso',
+      metadados: { alvo_nome: result.rows[0].nome, alvo_email: result.rows[0].email },
+      eventoChave: `senha_redefinida_${id}_${Date.now()}`
+    });
+    await client.query('COMMIT');
 
     res.json({
       success: true,
       message: 'Senha temporária redefinida com sucesso. O usuário precisará alterá-la no próximo acesso.'
     });
-
-    // Auditoria: senha redefinida pelo administrador
-    try {
-      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
-        escopo: 'seguranca',
-        empresaId: req.empresaId,
-        atorId: req.usuario.id,
-        atorPapel: req.usuario.papel,
-        atorRotulo: req.usuario.email,
-        acao: 'senha_redefinida',
-        entidade: 'usuario',
-        entidadeId: id,
-        resultado: 'sucesso',
-        metadados: { alvo_nome: result.rows[0].nome, alvo_email: result.rows[0].email },
-        eventoChave: `senha_redefinida_${id}_${Date.now()}`
-      });
-    } catch { /* Auditoria não deve bloquear resposta */ }
   } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    if (client) client.release();
   }
 }
 

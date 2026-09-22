@@ -34,7 +34,7 @@ function showScreen(screenId) {
     Auth.atualizarInterface();
     carregarDashboard();
   } else if (screenId === 'screen-empresas') {
-    Empresas.carregar();
+    Empresas.carregar({ containerId: 'empresas-lista-compat', page: 1 });
   } else if (screenId === 'screen-catalogo') {
     Consulta.carregarCatalogo();
   } else if (screenId === 'screen-produtores') {
@@ -96,7 +96,12 @@ async function carregarDashboard() {
 
   // 2. Papel Super Admin (Console SaaS)
   if (Auth.usuario?.papel === 'super_admin') {
-    switchSaasTab('visao-geral');
+    const sessaoAuditoria = typeof Auditoria !== 'undefined' ? Auditoria.restaurarLocal() : null;
+    if (sessaoAuditoria) {
+      EmpresaDetalhes.abrir(sessaoAuditoria.empresaId, 'auditoria');
+    } else {
+      switchSaasTab('visao-geral');
+    }
     return;
   }
 
@@ -323,6 +328,8 @@ function switchSaasTab(tabId) {
       sec.style.display = (t === tabId) ? 'block' : 'none';
     }
   });
+  const detalhes = document.getElementById('saas-tab-detalhes');
+  if (detalhes) detalhes.style.display = 'none';
 
   // 3. Atualizar Título e Descrição da página
   const titleEl = document.getElementById('saas-page-title');
@@ -332,13 +339,14 @@ function switchSaasTab(tabId) {
     if (titleEl) titleEl.innerHTML = '<i class="ti ti-dashboard" style="color:var(--cor-primaria)"></i> Visão Geral da Plataforma';
     if (descEl) descEl.textContent = 'Métricas consolidadas de infraestrutura, clientes e volumetria do SaaS';
     if (typeof Empresas !== 'undefined' && Empresas.carregar) {
-      Empresas.carregar();
+      Empresas.carregarMetricas();
+      Empresas.carregar({ containerId: 'super-empresas-lista', page: 1, resumo: true });
     }
   } else if (tabId === 'tenants') {
     if (titleEl) titleEl.innerHTML = '<i class="ti ti-buildings" style="color:var(--cor-primaria)"></i> Gestão de Organizações & Tenants';
     if (descEl) descEl.textContent = 'Administração de status, planos, auditoria de dados e suporte assistido';
     if (typeof Empresas !== 'undefined' && Empresas.carregar) {
-      Empresas.carregar();
+      Empresas.carregar({ containerId: 'empresas-lista', page: 1 });
     }
   } else if (tabId === 'auditoria-global') {
     if (titleEl) titleEl.innerHTML = '<i class="ti ti-shield-search" style="color:var(--cor-primaria)"></i> Trilha de Auditoria Global';
@@ -400,6 +408,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       Produtos.fecharModal();
       if (typeof Usuarios !== 'undefined') Usuarios.fecharModal();
       if (typeof Atividades !== 'undefined') Atividades.fecharModal();
+      if (typeof Empresas !== 'undefined') {
+        Empresas.fecharModalExclusao();
+        Empresas.fecharModalEdicao();
+        Empresas.fecharModalStatus();
+      }
+    }
+    if (e.key === 'Tab') {
+      const modal = document.querySelector('.modal.active');
+      if (!modal) return;
+      const focaveis = [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')];
+      if (!focaveis.length) return;
+      const primeiro = focaveis[0];
+      const ultimo = focaveis[focaveis.length - 1];
+      if (e.shiftKey && document.activeElement === primeiro) {
+        e.preventDefault();
+        ultimo.focus();
+      } else if (!e.shiftKey && document.activeElement === ultimo) {
+        e.preventDefault();
+        primeiro.focus();
+      }
     }
   });
 

@@ -60,6 +60,7 @@ A aplicação permite que equipes de loja executem contagens físicas guiadas (d
 │  [Rotas da Aplicação]                                                            │
 │    ├── /api/auth          (Login, Refresh com Rotação, Logout, senha)           │
 │    ├── /api/empresas      (Provisionamento por super_admin)                     │
+│    ├── /api/auditoria     (Sessões de consulta somente leitura)                 │
 │    ├── /api/produtos      (CRUD, Catálogo, Importação Excel mesclar/substituir)  │
 │    ├── /api/estoque       (Importação PDF de saldo de referência)              │
 │    ├── /api/contagens     (Contagem cega, divergências, snapshot)              │
@@ -69,7 +70,7 @@ A aplicação permite que equipes de loja executem contagens físicas guiadas (d
 │    └── /health            (Health Check com sonda de conexão ao banco)           │
 │                                                                                  │
 │  [Middlewares de Segurança]                                                      │
-│    ├── auth.js            (Validação JWT + Bloqueio de Tenants Suspensos)        │
+│    ├── auth.js            (JWT, versão de sessão e estado atual do tenant)       │
 │    ├── tenant.js          (Injeção de req.empresaId imutável)                    │
 │    ├── gestor.js          (Controle de Acesso RBAC para funções sensíveis)       │
 │    └── validate.js        (Validação e Tipagem de Entradas com Zod)              │
@@ -98,6 +99,16 @@ Auditoria de segurança e conformidade contínua com **GitGuard**, garantindo pr
 O perfil `funcionario` tem uma página inicial própria com **Iniciar nova contagem**, **Catálogo**, **Produtores** e **Histórico de contagens**. Catálogo, produtores e histórico são consultas sem edição ou exportação. O catálogo não informa o saldo do sistema, preservando a contagem cega.
 
 Back-office, sincronização, importação de estoque, gestão de produtos, funcionários e atividades ficam restritos à administração. A navegação bloqueia os atalhos administrativos e a API valida as permissões em cada requisição. O cadastro de empresas é exclusivo do `super_admin`.
+
+### Governança do Super Admin
+
+O console da plataforma separa a organização interna dos clientes e oferece métricas consolidadas, busca e paginação, detalhes de usuários e contagens, status de acesso e exclusão lógica. Inativar ou retirar uma empresa da operação encerra suas sessões, mas preserva usuários, produtos, contagens e logs.
+
+O suporte usa sessões de auditoria com validade de 30 minutos. Elas mantêm a identidade real do Super Admin e acessam somente rotas de consulta da empresa escolhida. O fluxo antigo de impersonation permanece desativado e sua rota retorna `410 IMPERSONATION_DESATIVADA`.
+
+Tokens de acesso carregam uma versão de sessão validada no banco a cada requisição. Troca de senha, inativação ou exclusão incrementam essa versão e revogam refresh tokens, exigindo novo login.
+
+A recuperação de senha de administradores foi preparada para links de uso único, com token armazenado como hash, expiração e consumo atômico. A redefinição direta pelo Super Admin foi removida. Enquanto nenhum provedor de e-mail estiver configurado, o console informa **E-mail não configurado** e a API responde `503 EMAIL_NAO_CONFIGURADO` sem criar uma solicitação.
 
 ### Rotação de Refresh Tokens & Detecção de Roubo
 
@@ -188,8 +199,10 @@ npm install
 cp .env.example .env
 # Edite as credenciais do PostgreSQL no arquivo .env se necessário
 
-# 4. Crie o banco estoque_db no PostgreSQL e aplique sql/schema.sql
-# em um banco novo. Para bancos existentes, use as migrations aplicáveis.
+# 4. Crie o banco estoque_db e aplique schema + migrações versionadas.
+cd ..
+npm run migrate
+cd backend
 # Configure SUPER_ADMIN_EMAIL, SUPER_ADMIN_SENHA e SUPER_ADMIN_NOME no .env.
 npm run seed:superadmin
 
@@ -279,6 +292,12 @@ A API possui documentação OpenAPI 3.0 navegável e testável diretamente pelo 
 | `POST` | `/api/auth/refresh` | Público | Rotação atômica de refresh token com detecção de roubo |
 | `POST` | `/api/auth/logout` | Autenticado | Revoga tokens ativos da sessão do usuário |
 | `POST` | `/api/empresas` | super_admin | Provisiona empresa e administrador |
+| `GET` | `/api/empresas` | super_admin | Lista empresas com filtros e paginação |
+| `PATCH` | `/api/empresas/:id/status` | super_admin | Ativa ou inativa a empresa com confirmação |
+| `DELETE` | `/api/empresas/:id` | super_admin | Aplica exclusão lógica e preserva o histórico |
+| `POST` | `/api/auditoria/sessoes` | super_admin | Inicia auditoria somente leitura de uma empresa |
+| `POST` | `/api/auditoria/sessoes/:id/encerrar` | super_admin | Encerra uma sessão de auditoria |
+| `GET` | `/api/auth/recuperacao/status` | Público | Informa se o transporte de recuperação está configurado |
 | `GET` | `/api/atividades` | Admin | Lista a trilha de auditoria do tenant |
 | `GET` | `/api/produtos` | JWT | Lista catálogo com paginação e busca por termo/fornecedor |
 | `POST` | `/api/produtos` | Gestor | Cadastra novo produto no catálogo do tenant |

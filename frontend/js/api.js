@@ -180,8 +180,11 @@ const API = {
     return this.parseResponse(res);
   },
 
-  async delete(path) {
-    const res = await this.request(path, { method: 'DELETE' });
+  async delete(path, data) {
+    const res = await this.request(path, {
+      method: 'DELETE',
+      ...(data === undefined ? {} : { body: JSON.stringify(data) })
+    });
     return this.parseResponse(res);
   },
 

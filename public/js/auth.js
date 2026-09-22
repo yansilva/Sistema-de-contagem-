@@ -25,6 +25,7 @@ const Auth = {
       }
 
       this.atualizarInterface();
+      if (typeof Auditoria !== 'undefined') await Auditoria.restaurar();
       return true;
     }
     return false;
@@ -191,16 +192,16 @@ const Auth = {
         return;
       }
 
-      // Atualiza flag local
-      if (this.usuario) {
-        this.usuario.mustChangePassword = false;
-      }
       for (const id of ['troca-senha-atual', 'troca-nova-senha', 'troca-confirmar-senha']) {
         document.getElementById(id).value = '';
       }
-
-      showToast('Senha definida com sucesso! Bem-vindo(a)!', 'success');
-      showScreen('screen-home');
+      sessionStorage.removeItem('accessToken');
+      sessionStorage.removeItem('refreshToken');
+      this.usuario = null;
+      this.empresa = null;
+      this.atualizarInterface();
+      showScreen('screen-login');
+      showToast('Senha definida. Entre novamente para continuar.', 'success');
     } catch (err) {
       feedback.textContent = 'Erro ao conectar com o servidor.';
     } finally {
@@ -241,10 +242,16 @@ const Auth = {
     }
 
     feedback.className = 'msg-feedback show success';
-    feedback.textContent = 'Senha alterada com sucesso!';
+    feedback.textContent = 'Senha alterada. Entre novamente para continuar.';
     document.getElementById('senha-atual').value = '';
     document.getElementById('senha-nova').value = '';
-    showToast('Senha alterada com sucesso!', 'success');
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
+    this.usuario = null;
+    this.empresa = null;
+    this.atualizarInterface();
+    showScreen('screen-login');
+    showToast('Senha alterada. Entre novamente para continuar.', 'success');
   },
 
   /**
@@ -261,6 +268,8 @@ const Auth = {
     sessionStorage.removeItem('superAdminBackupToken');
     sessionStorage.removeItem('superAdminBackupUser');
     sessionStorage.removeItem('superAdminBackupEmpresa');
+    sessionStorage.removeItem('superAdminAuditSession');
+    if (typeof Auditoria !== 'undefined') Auditoria.limparLocal();
     localStorage.removeItem('refreshToken');
     this.usuario = null;
     this.empresa = null;
@@ -294,15 +303,11 @@ const Auth = {
     const homeSuper = document.getElementById('home-superadmin');
     const isSuperAdmin = this.usuario?.papel === 'super_admin';
     if (homeSuper) homeSuper.hidden = !this.usuario || !isSuperAdmin;
+    const homeAdministrador = document.getElementById('home-administrador');
+    if (homeAdministrador) homeAdministrador.hidden = !this.usuario || !admin || isSuperAdmin;
 
-    // Barra de Suporte Assistido (Impersonation)
-    const hasImpersonation = Boolean(sessionStorage.getItem('superAdminBackupToken'));
-    const bar = document.getElementById('impersonation-bar');
-    if (bar) bar.style.display = hasImpersonation ? 'block' : 'none';
-    if (hasImpersonation) {
-      const nomeEl = document.getElementById('impersonation-tenant-nome');
-      if (nomeEl) nomeEl.textContent = this.empresa?.nome || 'Tenant';
-    }
+    const auditBar = document.getElementById('audit-session-bar');
+    if (auditBar && !sessionStorage.getItem('superAdminAuditSession')) auditBar.style.display = 'none';
 
     // Atualiza nome da empresa no topo do cabeçalho
     const titleEl = document.getElementById('topbar-company-title');

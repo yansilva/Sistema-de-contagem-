@@ -28,10 +28,10 @@ function buildQueryFilters(usuario, filtros = {}) {
   // Multi-tenancy: super_admin pode ver todos ou filtrar por empresa; demais veem apenas sua empresa
   if (usuario.papel !== 'super_admin') {
     params.push(usuario.empresa_id);
-    whereClauses.push(`empresa_id = $${params.length}`);
+    whereClauses.push(`escopo = 'empresa' AND empresa_id = $${params.length}`);
   } else if (filtros.empresa_id) {
     params.push(filtros.empresa_id);
-    whereClauses.push(`empresa_id = $${params.length}`);
+    whereClauses.push(`(empresa_id = $${params.length} OR empresa_afetada_id = $${params.length})`);
   }
 
   if (filtros.data_inicio) {
@@ -99,7 +99,7 @@ async function listar(req, res, next) {
     const listQuery = `
       SELECT * FROM audit_logs
       ${whereSql}
-      ORDER BY criado_em DESC
+      ORDER BY criado_em DESC, id DESC
       LIMIT $${listParams.length - 1} OFFSET $${listParams.length}
     `;
     const listResult = await query(listQuery, listParams);
@@ -129,7 +129,13 @@ async function listar(req, res, next) {
 async function obterPorId(req, res, next) {
   try {
     const { id } = req.params;
-    const result = await query('SELECT * FROM audit_logs WHERE id = $1', [id]);
+    const params = [id];
+    let scope = '';
+    if (req.usuario.papel !== 'super_admin') {
+      params.push(req.usuario.empresa_id);
+      scope = ` AND escopo = 'empresa' AND empresa_id = $2`;
+    }
+    const result = await query(`SELECT * FROM audit_logs WHERE id = $1${scope}`, params);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -140,15 +146,6 @@ async function obterPorId(req, res, next) {
     }
 
     const log = result.rows[0];
-
-    // Isolamento multi-tenant: não-superadmin só pode ver da sua própria empresa
-    if (req.usuario.papel !== 'super_admin' && log.empresa_id !== req.usuario.empresa_id) {
-      return res.status(404).json({
-        success: false,
-        message: 'Registro de atividade não encontrado.',
-        code: 'LOG_NAO_ENCONTRADO'
-      });
-    }
 
     return res.json({
       success: true,
@@ -171,7 +168,7 @@ async function exportar(req, res, next) {
     const exportQuery = `
       SELECT * FROM audit_logs
       ${whereSql}
-      ORDER BY criado_em DESC
+      ORDER BY criado_em DESC, id DESC
       LIMIT 5000
     `;
     const result = await query(exportQuery, params);

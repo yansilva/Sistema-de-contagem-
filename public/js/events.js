@@ -98,17 +98,22 @@ const UIActions = {
   'action-95': (element, event) => { Empresas.salvarEdicao(event); },
   'action-96': () => { Empresas.fecharModalEdicao(); },
   'action-97': () => { Empresas.fecharModalExclusao(); },
-  'action-98': (element) => { Empresas.iniciarImpersonation(element.getAttribute('data-id')); },
-  'action-99': () => { Empresas.encerrarImpersonation(); },
+  'action-98': (element) => { Empresas.iniciarAuditoria(element.getAttribute('data-id')); },
+  'action-99': () => { Auditoria.encerrar(); },
   'action-100': (element) => { switchSaasTab(element.getAttribute('data-saas-tab')); },
   'action-101': (element) => { Empresas.filtrarPorStatus(element.getAttribute('data-status')); },
   'action-102': (element, event) => { Empresas.toggleMenuAcoes(element.getAttribute('data-id'), event); },
   'action-103': (element) => { Empresas.alternarStatusRapido(element.getAttribute('data-id'), element.getAttribute('data-status')); },
   'action-104': (element) => { Empresas.verificarInputConfirmacaoExclusao(element.value); },
   'action-105': () => { showScreen('screen-home'); switchSaasTab('tenants'); },
-  'action-106': () => { Empresas.fecharModalResetSenha(); },
-  'action-107': () => { Empresas.executarResetSenha(); },
-  'action-108': (element) => { Empresas.abrirModalResetSenha(element.getAttribute('data-id')); }
+  'action-109': () => { Empresas.fecharModalStatus(); },
+  'action-110': () => { Empresas.executarStatus(); },
+  'action-111': (element) => { Empresas.mudarPagina(element.getAttribute('data-page')); },
+  'action-112': (element) => { EmpresaDetalhes.mudarAba(element.getAttribute('data-tab')); },
+  'action-113': () => { EmpresaDetalhes.voltar(); },
+  'action-114': () => { Auditoria.iniciar(); },
+  'action-115': (element) => { Auditoria.carregar(element.getAttribute('data-resource')); },
+  'action-116': (element) => { EmpresaDetalhes.solicitarRecuperacao(element.getAttribute('data-user-id')); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

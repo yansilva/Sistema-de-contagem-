@@ -38,4 +38,14 @@ const apiLimiter = isTest
       legacyHeaders: false
     });
 
-module.exports = { loginLimiter, apiLimiter };
+const recoveryLimiter = isTest
+  ? (req, res, next) => next()
+  : rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 10,
+      message: { success: false, code: 'RATE_LIMIT', message: 'Muitas tentativas de recuperação.' },
+      standardHeaders: true,
+      legacyHeaders: false
+    });
+
+module.exports = { loginLimiter, apiLimiter, recoveryLimiter };

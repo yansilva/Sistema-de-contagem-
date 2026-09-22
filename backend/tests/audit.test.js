@@ -106,6 +106,25 @@ describe('Auditoria e Rastreabilidade — Rotas /api/atividades e Segurança', (
         operacao_id: 'op-002',
         evento_chave: 'evt-002',
         criado_em: new Date().toISOString()
+      },
+      {
+        id: 'cccccccc-3333-4333-8333-333333333333',
+        escopo: 'plataforma',
+        empresa_id: null,
+        empresa_afetada_id: empresaIdA,
+        ator_tipo: 'usuario_plataforma',
+        ator_id: '99999999-9999-9999-9999-999999999999',
+        ator_papel: 'super_admin',
+        ator_rotulo: 'Super Admin Plataforma',
+        acao: 'empresa_inativada',
+        entidade: 'empresa',
+        entidade_id: empresaIdA,
+        resultado: 'sucesso',
+        metadados: {},
+        request_id: 'req-003',
+        operacao_id: 'op-003',
+        evento_chave: 'evt-003',
+        criado_em: new Date().toISOString()
       }
     );
   });
@@ -167,6 +186,19 @@ describe('Auditoria e Rastreabilidade — Rotas /api/atividades e Segurança', (
 
       expect(res.status).toBe(200);
       expect(res.body.data.atividades.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('super_admin filtra pela empresa afetada sem expor o evento ao admin do tenant', async () => {
+      const superRes = await request(app)
+        .get(`/api/atividades?empresa_id=${empresaIdA}`)
+        .set('Authorization', `Bearer ${superAdminToken}`);
+      expect(superRes.status).toBe(200);
+      expect(superRes.body.data.atividades.map((log) => log.id)).toContain('cccccccc-3333-4333-8333-333333333333');
+
+      const adminRes = await request(app)
+        .get('/api/atividades')
+        .set('Authorization', `Bearer ${adminTokenA}`);
+      expect(adminRes.body.data.atividades.map((log) => log.id)).not.toContain('cccccccc-3333-4333-8333-333333333333');
     });
   });
 

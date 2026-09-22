@@ -1,6 +1,7 @@
 const { verificarToken } = require('../config/jwt');
 const { query } = require('../config/db');
 const { UnauthorizedError, ForbiddenError } = require('../errors/AppError');
+const { validarAcessoConta } = require('../services/acessoService');
 
 /**
  * Middleware de autenticação JWT
@@ -32,7 +33,7 @@ async function auth(req, res, next) {
     // Busca usuário real no banco
     const result = await query(
       `SELECT u.id, u.nome, u.email, u.papel, u.ativo, u.must_change_password, u.empresa_id,
-              e.nome AS empresa_nome, e.plano, e.trial_expira_em
+              e.nome AS empresa_nome, e.plano, e.trial_expira_em, e.status, e.excluida_em, e.tipo, u.versao_sessao
        FROM usuarios u
        JOIN empresas e ON e.id = u.empresa_id
        WHERE u.id = $1`,
@@ -44,30 +45,10 @@ async function auth(req, res, next) {
     }
 
     const usuario = result.rows[0];
-
-    // Verificar se usuário está ativo
-    if (usuario.ativo === false) {
-      throw new UnauthorizedError(
-        'Este usuário foi desativado pelo administrador da empresa.',
-        'USUARIO_DESATIVADO'
-      );
+    if (decoded.sv !== (usuario.versao_sessao || 1)) {
+      throw new UnauthorizedError('Sessão invalidada. Entre novamente.','SESSAO_INVALIDADA');
     }
-
-    // Verificar status do plano da empresa
-    if (usuario.plano === 'suspenso') {
-      throw new ForbiddenError(
-        'Acesso suspenso para esta organização. Contate o suporte.',
-        'CONTA_SUSPENSA'
-      );
-    }
-
-    if (usuario.plano === 'trial' && usuario.trial_expira_em) {
-      const agora = new Date();
-      const expira = new Date(usuario.trial_expira_em);
-      if (agora > expira) {
-        throw new ForbiddenError('O período de avaliação desta conta expirou.', 'TRIAL_EXPIRADO');
-      }
-    }
+    validarAcessoConta(usuario);
 
     // Se deve trocar a senha, bloqueia acesso a outros endpoints
     // Verifica na URL original para garantir precisão

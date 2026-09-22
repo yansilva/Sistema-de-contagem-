@@ -1,7 +1,7 @@
 # Super Admin — auditoria e proposta de evolução
 
 Data: 2026-09-21. Base examinada: commit `649e710`, árvore inicialmente limpa.
-Status: proposta aprovada pelo usuário em 2026-09-21 (“pode prosseguir”); [plano detalhado disponível para revisão](../plans/2026-09-21-superadmin-seguro.md). Nenhuma alteração de produto ou banco aplicada.
+Status: proposta aprovada e implementada localmente na branch `codex/superadmin-seguro`; [plano detalhado e estado da execução](../plans/2026-09-21-superadmin-seguro.md). Sem push, deploy ou migração no banco operacional. O transporte de e-mail permanece pendente de escolha do provedor.
 
 ## 1. Objetivo e limites
 

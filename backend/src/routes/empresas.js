@@ -6,41 +6,50 @@ const {
   listar,
   obterMetricasSaaS,
   obterDetalhes,
+  obterUsuarios,
+  obterContagens,
+  obterSessoesAuditoria,
   atualizar,
   alterarStatus,
   excluirEmpresa,
-  impersonarEmpresa,
-  resetSenhaAdmin
+  impersonarEmpresa
 } = require('../controllers/empresasController');
+const sa = require('../validators/superAdminSchemas');
 const auth = require('../middlewares/auth');
 const { requireSuperAdmin } = require('../middlewares/authorize');
 const validate = require('../middlewares/validate');
 const { loginLimiter } = require('../middlewares/rateLimiter');
-const { registroSchema, resetSenhaAdminSchema } = require('../validators/schemas');
+const { registroSchema } = require('../validators/schemas');
+const { recoveryLimiter } = require('../middlewares/rateLimiter');
+const passwordReset = require('../controllers/passwordResetController');
 
 // Métricas consolidadas do SaaS (Super Admin)
 router.get('/metricas/saas', auth, requireSuperAdmin, obterMetricasSaaS);
 
 // GET /api/empresas — lista todas as empresas (super_admin)
-router.get('/', auth, requireSuperAdmin, listar);
+router.get('/', auth, requireSuperAdmin, validate(sa.listar), listar);
+
+router.get('/:id/usuarios', auth, requireSuperAdmin, validate(sa.empresaPaginada), obterUsuarios);
+router.get('/:id/contagens', auth, requireSuperAdmin, validate(sa.empresaPaginada), obterContagens);
+router.get('/:id/sessoes-auditoria', auth, requireSuperAdmin, validate(sa.empresaPaginada), obterSessoesAuditoria);
 
 // GET /api/empresas/:id — detalhes de uma empresa específica (super_admin)
-router.get('/:id', auth, requireSuperAdmin, obterDetalhes);
+router.get('/:id', auth, requireSuperAdmin, validate(sa.empresaPaginada), obterDetalhes);
 
 // PUT /api/empresas/:id — atualização cadastral da empresa (super_admin)
-router.put('/:id', auth, requireSuperAdmin, atualizar);
+router.put('/:id', auth, requireSuperAdmin, validate(sa.editar), atualizar);
 
 // PATCH /api/empresas/:id/status — alternância rápida de status (super_admin)
-router.patch('/:id/status', auth, requireSuperAdmin, alterarStatus);
+router.patch('/:id/status', auth, requireSuperAdmin, validate(sa.status), alterarStatus);
 
-// DELETE /api/empresas/:id — exclusão definitiva com cascata (super_admin)
-router.delete('/:id', auth, requireSuperAdmin, excluirEmpresa);
+// DELETE /api/empresas/:id — exclusão lógica com preservação de dados (super_admin)
+router.delete('/:id', auth, requireSuperAdmin, validate(sa.excluir), excluirEmpresa);
 
-// POST /api/empresas/:id/impersonar — sessão de suporte do super admin no tenant
+// Compatibilidade: impersonation foi encerrado; a resposta orienta usar auditoria.
 router.post('/:id/impersonar', auth, requireSuperAdmin, impersonarEmpresa);
 
-// POST /api/empresas/:id/reset-senha-admin — redefinir senha do administrador (super_admin)
-router.post('/:id/reset-senha-admin', auth, requireSuperAdmin, validate(resetSenhaAdminSchema), resetSenhaAdmin);
+router.post('/:id/administradores/:usuarioId/recuperacao', auth, requireSuperAdmin,
+  recoveryLimiter, validate(sa.recuperar), passwordReset.solicitar);
 
 // POST /api/empresas/registrar — onboarding de nova empresa + primeiro gestor
 router.post('/registrar', loginLimiter, validate(registroSchema), registrar);

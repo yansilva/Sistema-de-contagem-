@@ -10,8 +10,12 @@ const {
 } = require('../controllers/authController');
 const auth = require('../middlewares/auth');
 const validate = require('../middlewares/validate');
-const { loginLimiter } = require('../middlewares/rateLimiter');
-const { loginSchema, refreshSchema, alterarSenhaSchema, registroSchema } = require('../validators/schemas');
+const { loginLimiter, recoveryLimiter } = require('../middlewares/rateLimiter');
+const { loginSchema, refreshSchema, alterarSenhaSchema, registroSchema, confirmarRecuperacaoSchema } = require('../validators/schemas');
+const passwordReset = require('../controllers/passwordResetController');
+
+router.get('/recuperacao/status', passwordReset.status);
+router.post('/recuperacao/confirmar', recoveryLimiter, validate(confirmarRecuperacaoSchema), passwordReset.confirmar);
 
 // POST /api/auth/registro — Onboarding inicial da empresa + primeiro administrador
 router.post('/registro', loginLimiter, validate(registroSchema), registro);

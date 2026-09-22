@@ -23,19 +23,19 @@
 </head>
 <body>
 
-  <!-- Barra Fixa de Modo Suporte (Impersonation) -->
-  <div id="impersonation-bar" class="impersonation-bar" style="display:none">
+  <!-- Barra de auditoria: mantém a identidade real do Super Admin -->
+  <div id="audit-session-bar" class="impersonation-bar" style="display:none">
     <div class="impersonation-content">
       <div class="impersonation-badge">
         <span class="impersonation-pulse"></span>
         <i class="ti ti-shield-check"></i>
-        <span>MODO SUPORTE ATIVO</span>
+        <span>AUDITORIA SOMENTE LEITURA</span>
       </div>
       <div class="impersonation-tenant">
-        Acessando como suporte em <strong id="impersonation-tenant-nome">—</strong>
+        Empresa em análise: <strong id="audit-session-tenant-nome">—</strong>
       </div>
       <button class="btn-impersonation-exit" data-click="action-99">
-        <i class="ti ti-arrow-back-up"></i> Sair do Suporte e Voltar ao Console
+        <i class="ti ti-arrow-back-up"></i> Encerrar auditoria
       </button>
     </div>
   </div>
@@ -379,12 +379,6 @@
                   <span>Nova Empresa</span>
                 </button>
               </li>
-              <li>
-                <button class="saas-nav-btn" data-click="action-11">
-                  <i class="ti ti-scan"></i>
-                  <span>Simular Operador</span>
-                </button>
-              </li>
             </ul>
 
             <div class="saas-sidebar-footer">
@@ -421,7 +415,7 @@
                       <i class="ti ti-buildings"></i>
                     </div>
                   </div>
-                  <div class="saas-kpi-val" id="super-kpi-empresas">0</div>
+                  <div class="saas-kpi-val" id="super-kpi-empresas">—</div>
                   <div class="saas-kpi-sub" id="super-kpi-empresas-sub">
                     <i class="ti ti-circle-check"></i> Calculando status...
                   </div>
@@ -434,7 +428,7 @@
                       <i class="ti ti-users"></i>
                     </div>
                   </div>
-                  <div class="saas-kpi-val" id="super-kpi-usuarios">0</div>
+                  <div class="saas-kpi-val" id="super-kpi-usuarios">—</div>
                   <div class="saas-kpi-sub">
                     <i class="ti ti-user-check"></i> Gestores e operadores
                   </div>
@@ -447,7 +441,7 @@
                       <i class="ti ti-packages"></i>
                     </div>
                   </div>
-                  <div class="saas-kpi-val" id="super-kpi-produtos">0</div>
+                  <div class="saas-kpi-val" id="super-kpi-produtos">—</div>
                   <div class="saas-kpi-sub">
                     <i class="ti ti-database"></i> Catálogo consolidado
                   </div>
@@ -460,7 +454,7 @@
                       <i class="ti ti-clipboard-check"></i>
                     </div>
                   </div>
-                  <div class="saas-kpi-val" id="super-kpi-contagens">0</div>
+                  <div class="saas-kpi-val" id="super-kpi-contagens">—</div>
                   <div class="saas-kpi-sub">
                     <i class="ti ti-chart-bar"></i> Sessões no SaaS
                   </div>
@@ -484,9 +478,9 @@
               <div class="saas-toolbar">
                 <div class="saas-filter-tabs">
                   <button class="saas-tab-btn active" data-status="todas" data-click="action-101">Todas</button>
-                  <button class="saas-tab-btn" data-status="ativo" data-click="action-101">Ativas</button>
-                  <button class="saas-tab-btn" data-status="trial" data-click="action-101">Trial</button>
-                  <button class="saas-tab-btn" data-status="suspenso" data-click="action-101">Suspensas</button>
+                  <button class="saas-tab-btn" data-status="ativa" data-click="action-101">Ativas</button>
+                  <button class="saas-tab-btn" data-status="inativa" data-click="action-101">Inativas</button>
+                  <button class="saas-tab-btn" data-status="excluida" data-click="action-101">Excluídas</button>
                 </div>
                 <div class="saas-search-input">
                   <input type="search" placeholder="Buscar organização ou email..." data-input="action-88" class="delete-confirm-input" style="padding: 8px 12px; font-size: 0.85rem;">
@@ -508,6 +502,10 @@
                 </div>
                 <div id="atividades-lista"></div>
               </div>
+            </section>
+
+            <section id="saas-tab-detalhes" class="saas-tab-section" style="display:none;" aria-live="polite">
+              <div id="empresa-detalhes"></div>
             </section>
           </main>
         </div>
@@ -1177,25 +1175,25 @@
         <button class="btn btn-outline btn-sm" id="drawer-btn-editar" data-click="action-94">
           <i class="ti ti-edit"></i> Editar
         </button>
-        <button class="btn btn-primary btn-sm" id="drawer-btn-impersonar" data-click="action-98">
-          <i class="ti ti-shield-check"></i> Acessar Tenant
+        <button class="btn btn-primary btn-sm" id="drawer-btn-auditoria" data-click="action-98">
+          <i class="ti ti-shield-search"></i> Auditar em modo leitura
         </button>
       </div>
     </div>
   </div>
 
-  <!-- ==================== MODAL: EXCLUSÃO DEFINITIVA DE EMPRESA ==================== -->
-  <div id="modal-excluir-empresa" class="modal">
+  <!-- ==================== MODAL: EXCLUSÃO LÓGICA DE EMPRESA ==================== -->
+  <div id="modal-excluir-empresa" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-excluir-empresa-titulo">
     <div class="modal-card" style="max-width: 480px; border-top: 4px solid var(--cor-perigo);">
       <div class="modal-header">
-        <h3 style="color: var(--cor-perigo); display: flex; align-items: center; gap: 8px;">
-          <i class="ti ti-alert-triangle"></i> Excluir Organização Permanentemente
+        <h3 id="modal-excluir-empresa-titulo" style="color: var(--cor-perigo); display: flex; align-items: center; gap: 8px;">
+          <i class="ti ti-alert-triangle"></i> Retirar organização da operação
         </h3>
         <button class="btn-close" data-click="action-97">×</button>
       </div>
       <div class="modal-body" style="padding-top: 8px;">
         <p style="font-size: 0.9rem; color: var(--cor-texto); line-height: 1.5;">
-          Esta ação é <strong>irreversível</strong>. Todos os produtos, históricos de estoque, contagens e usuários vinculados serão permanentemente removidos.
+          A organização ficará inativa e sairá da operação. Usuários, contagens, produtos e logs serão preservados para auditoria.
         </p>
 
         <div class="delete-confirm-box">
@@ -1209,17 +1207,17 @@
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-outline" data-click="action-97">Cancelar</button>
         <button class="btn btn-danger" id="btn-confirmar-exclusao-permanente" data-click="action-93" disabled>
-          <i class="ti ti-trash"></i> Excluir Permanentemente
+          <i class="ti ti-archive"></i> Retirar da operação
         </button>
       </div>
     </div>
   </div>
 
   <!-- ==================== MODAL: EDITAR EMPRESA ==================== -->
-  <div id="modal-editar-empresa" class="modal">
+  <div id="modal-editar-empresa" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-editar-empresa-titulo">
     <div class="modal-card" style="max-width: 480px;">
       <div class="modal-header">
-        <h3 style="display: flex; align-items: center; gap: 8px;">
+        <h3 id="modal-editar-empresa-titulo" style="display: flex; align-items: center; gap: 8px;">
           <i class="ti ti-edit" style="color: var(--cor-primaria)"></i> Editar Informações da Empresa
         </h3>
         <button class="btn-close" data-click="action-96">×</button>
@@ -1240,7 +1238,6 @@
             <select id="edit-emp-plano" style="width: 100%;">
               <option value="ativo">Ativo</option>
               <option value="trial">Trial (Avaliação)</option>
-              <option value="suspenso">Suspenso (Bloqueado)</option>
             </select>
           </div>
         </div>
@@ -1252,52 +1249,22 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL: REDEFINIR SENHA DO ADMINISTRADOR ==================== -->
-  <div id="modal-reset-senha-admin" class="modal">
-    <div class="modal-card" style="max-width: 500px; border-top: 4px solid #3b82f6;">
+  <div id="modal-status-empresa" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-status-empresa-titulo">
+    <div class="modal-card" style="max-width:480px;">
       <div class="modal-header">
-        <h3 style="display: flex; align-items: center; gap: 8px; color: #3b82f6;">
-          <i class="ti ti-lock-open"></i> Redefinir Senha do Administrador
-        </h3>
-        <button class="btn-close" data-click="action-106">×</button>
+        <h3 id="modal-status-empresa-titulo"><i class="ti ti-power" style="color:var(--cor-primaria)"></i> Alterar acesso da empresa</h3>
+        <button class="btn-close" data-click="action-109" aria-label="Fechar">×</button>
       </div>
-      <div class="modal-body" style="padding-top: 8px;">
-        <div style="background: var(--cor-fundo-card); border: 1px solid var(--cor-borda); border-radius: 8px; padding: 14px; margin-bottom: 16px;">
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="ti ti-building" style="color: var(--cor-primaria); font-size: 1rem;"></i>
-              <span style="font-weight: 600; font-size: 0.9rem;" id="reset-empresa-nome">—</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="ti ti-user" style="color: var(--cor-texto-mudo); font-size: 1rem;"></i>
-              <span style="font-size: 0.85rem; color: var(--cor-texto-secundario);" id="reset-admin-nome">—</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="ti ti-mail" style="color: var(--cor-texto-mudo); font-size: 1rem;"></i>
-              <span style="font-size: 0.85rem; color: var(--cor-texto-secundario);" id="reset-admin-email">—</span>
-            </div>
-          </div>
+      <div class="modal-body">
+        <p id="status-empresa-explicacao" style="line-height:1.5;"></p>
+        <div class="form-group" style="margin-top:14px;">
+          <label for="status-empresa-motivo">Motivo opcional</label>
+          <textarea id="status-empresa-motivo" maxlength="500" rows="3" style="width:100%;"></textarea>
         </div>
-
-        <div class="form-group" style="margin-bottom: 14px;">
-          <label for="reset-nova-senha">Nova Senha</label>
-          <input type="password" id="reset-nova-senha" placeholder="Mínimo 8 caracteres, maiúscula, minúscula e número" style="width: 100%;" autocomplete="new-password">
-        </div>
-        <div class="form-group" style="margin-bottom: 10px;">
-          <label for="reset-confirmar-senha">Confirmar Nova Senha</label>
-          <input type="password" id="reset-confirmar-senha" placeholder="Repita a nova senha" style="width: 100%;" autocomplete="new-password">
-        </div>
-        <p id="reset-senha-erro" style="font-size: 0.8rem; color: var(--cor-perigo); margin-top: 4px; display: none;"></p>
-        <p style="font-size: 0.78rem; color: var(--cor-texto-mudo); margin-top: 8px; line-height: 1.4;">
-          <i class="ti ti-info-circle" style="margin-right: 4px;"></i>
-          O administrador será forçado a alterar esta senha no próximo acesso. Todas as sessões ativas serão encerradas.
-        </p>
       </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding-top: 14px;">
-        <button type="button" class="btn btn-outline" data-click="action-106">Cancelar</button>
-        <button type="button" class="btn btn-primary" id="btn-confirmar-reset-senha" data-click="action-107">
-          <i class="ti ti-lock-open"></i> Redefinir Senha
-        </button>
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn btn-outline" data-click="action-109">Cancelar</button>
+        <button class="btn btn-primary" id="btn-confirmar-status" data-click="action-110">Confirmar alteração</button>
       </div>
     </div>
   </div>
@@ -1314,6 +1281,8 @@
   <script src="/js/stock-import.js"></script>
   <script src="/js/atividades.js"></script>
   <script src="/js/empresas.js"></script>
+  <script src="/js/empresa-detalhes.js"></script>
+  <script src="/js/auditoria.js"></script>
   <script src="/js/events.js"></script>
   <script src="/js/mobile-nav.js"></script>
   <script src="/js/app.js"></script>

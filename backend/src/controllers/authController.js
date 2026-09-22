@@ -1,9 +1,10 @@
 const bcrypt = require('bcryptjs');
-const { query } = require('../config/db');
+const { query, getClient } = require('../config/db');
 const { gerarAccessToken, gerarRefreshToken, hashToken } = require('../config/jwt');
 const { UnauthorizedError, NotFoundError } = require('../errors/AppError');
 const { registrar: registrarEmpresa } = require('./empresasController');
 const auditService = require('../services/auditService');
+const { validarAcessoConta } = require('../services/acessoService');
 
 const SALT_ROUNDS = 12;
 // Hash bcrypt válido só para equalizar tempo quando o e-mail não existe.
@@ -21,7 +22,7 @@ async function login(req, res, next) {
 
     const result = await query(
       `SELECT u.id, u.nome, u.email, u.senha_hash, u.papel, u.ativo, u.must_change_password, u.empresa_id,
-              e.nome AS empresa_nome, e.plano, e.trial_expira_em
+              e.nome AS empresa_nome, e.plano, e.trial_expira_em, e.status, e.excluida_em, u.versao_sessao
        FROM usuarios u
        JOIN empresas e ON e.id = u.empresa_id
        WHERE u.email = $1`,
@@ -35,8 +36,9 @@ async function login(req, res, next) {
       throw new UnauthorizedError('Credenciais inválidas.', 'CREDENCIAIS_INVALIDAS');
     }
 
+    validarAcessoConta(usuario);
     // Gerar tokens
-    const accessToken = gerarAccessToken({ id: usuario.id, empresa_id: usuario.empresa_id });
+    const accessToken = gerarAccessToken({ id: usuario.id, empresa_id: usuario.empresa_id, versao_sessao: usuario.versao_sessao || 1 });
     const { token: rawRefreshToken, expiraEm } = gerarRefreshToken();
     const tokenHash = hashToken(rawRefreshToken);
 
@@ -114,9 +116,11 @@ async function refresh(req, res, next) {
 
     const result = await query(
       `SELECT rt.id, rt.usuario_id, rt.revogado, rt.expira_em,
-              u.empresa_id, u.papel, u.nome, u.email, u.ativo, u.must_change_password
+              u.empresa_id, u.papel, u.nome, u.email, u.ativo, u.must_change_password, u.versao_sessao,
+              e.status, e.plano, e.trial_expira_em, e.excluida_em
        FROM refresh_tokens rt
        JOIN usuarios u ON u.id = rt.usuario_id
+       JOIN empresas e ON e.id = u.empresa_id
        WHERE rt.token_hash = $1`,
       [tokenHash]
     );
@@ -126,6 +130,7 @@ async function refresh(req, res, next) {
     }
 
     const row = result.rows[0];
+    validarAcessoConta(row);
 
     // Detecção de reutilização de token revogado (Theft Detection)
     if (row.revogado) {
@@ -172,7 +177,8 @@ async function refresh(req, res, next) {
     // Emitir novo par de tokens
     const novoAccessToken = gerarAccessToken({
       id: row.usuario_id,
-      empresa_id: row.empresa_id
+      empresa_id: row.empresa_id,
+      versao_sessao: row.versao_sessao || 1
     });
     const { token: novoRefreshTokenRaw, expiraEm } = gerarRefreshToken();
     const novoTokenHash = hashToken(novoRefreshTokenRaw);
@@ -275,10 +281,15 @@ async function me(req, res, next) {
  * Altera a senha do usuário e desativa a flag must_change_password
  */
 async function alterarSenha(req, res, next) {
+  let client;
   try {
     const { senhaAtual, novaSenha } = req.body;
-
-    const result = await query('SELECT senha_hash, must_change_password FROM usuarios WHERE id = $1', [req.usuario.id]);
+    client = await getClient();
+    await client.query('BEGIN');
+    const result = await client.query(
+      'SELECT senha_hash, must_change_password FROM usuarios WHERE id = $1 FOR UPDATE',
+      [req.usuario.id]
+    );
     if (result.rows.length === 0) {
       throw new NotFoundError('Usuário não encontrado.', 'USUARIO_NAO_ENCONTRADO');
     }
@@ -289,16 +300,15 @@ async function alterarSenha(req, res, next) {
     }
 
     const novoHash = await bcrypt.hash(novaSenha, SALT_ROUNDS);
-    await query(
+    await client.query(
       `UPDATE usuarios
-       SET senha_hash = $1, must_change_password = FALSE, atualizado_em = NOW()
+       SET senha_hash = $1, must_change_password = FALSE,
+           versao_sessao = versao_sessao + 1, atualizado_em = NOW()
        WHERE id = $2`,
       [novoHash, req.usuario.id]
     );
-
-    // Auditoria: senha alterada pelo próprio usuário
-    try {
-      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+    await client.query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [req.usuario.id]);
+    await auditService.registrar(client, req.auditContext || {}, {
         escopo: 'seguranca',
         empresaId: req.usuario.empresa_id,
         atorTipo: 'usuario_empresa',
@@ -311,15 +321,18 @@ async function alterarSenha(req, res, next) {
         resultado: 'sucesso',
         metadados: { was_must_change: Boolean(result.rows[0]?.must_change_password) },
         eventoChave: `senha_${Date.now()}`
-      });
-    } catch { /* Auditoria não deve bloquear resposta */ }
+    });
+    await client.query('COMMIT');
 
     res.json({
       success: true,
-      message: 'Senha alterada com sucesso.'
+      message: 'Senha alterada com sucesso. Entre novamente para continuar.'
     });
   } catch (err) {
+    if (client) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    if (client) client.release();
   }
 }
 

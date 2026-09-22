@@ -757,6 +757,83 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* Modais do console: ocultos por padrão e exibidos apenas via classe active. */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(2, 6, 23, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-card {
+  width: 100%;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  border: 1px solid var(--cor-borda);
+  border-radius: 12px;
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.35);
+  animation: fadeIn 0.18s ease-out;
+}
+
+.modal-header,
+.modal-body,
+.modal-footer {
+  padding: 18px 20px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--cor-texto);
+  font-size: 1.05rem;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--cor-borda);
+}
+
+.btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cor-texto-mudo);
+  font: inherit;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-close:hover,
+.btn-close:focus-visible {
+  background: var(--cor-hover);
+  color: var(--cor-texto);
+}
+
 /* Modal de Exclusão Destrutiva com Confirmação */
 .delete-confirm-box {
   background: rgba(239, 68, 68, 0.06);
@@ -812,4 +889,56 @@
   .slide-over-drawer {
     width: 100vw;
   }
+}
+
+.saas-table-scroll { overflow-x: auto; }
+.saas-company-link { display: block; border: 0; background: transparent; color: var(--cor-texto); font: inherit; font-weight: 700; padding: 0; cursor: pointer; text-align: left; }
+.saas-company-link:hover, .saas-company-link:focus-visible { color: var(--cor-primaria); text-decoration: underline; }
+.saas-table td small { display: block; margin-top: 3px; color: var(--cor-texto-mudo); }
+.status-pill.inativa, .status-pill.excluida { color: var(--cor-perigo); background: color-mix(in srgb, var(--cor-perigo) 12%, transparent); }
+.saas-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; color: var(--cor-texto-secundario); font-size: .85rem; }
+.empresa-detail-header { display: grid; gap: 16px; margin-bottom: 20px; }
+.empresa-detail-title, .empresa-detail-actions, .empresa-detail-tabs, .audit-readonly-note { display: flex; align-items: center; gap: 10px; }
+.empresa-detail-title { justify-content: space-between; }
+.empresa-detail-title h3 { margin: 0; font-size: 1.4rem; color: var(--cor-texto); }
+.empresa-detail-title p { margin: 4px 0 0; color: var(--cor-texto-mudo); }
+.empresa-detail-actions, .empresa-detail-tabs { flex-wrap: wrap; }
+.empresa-detail-tabs { border-bottom: 1px solid var(--cor-borda); margin-bottom: 18px; }
+.empresa-detail-tab { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--cor-texto-secundario); padding: 10px 12px; cursor: pointer; font-weight: 650; }
+.empresa-detail-tab.active { color: var(--cor-primaria); border-bottom-color: var(--cor-primaria); }
+.empresa-detail-content { min-height: 220px; }
+.detail-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.detail-stat-grid article, .audit-start-card, .audit-readonly-note { border: 1px solid var(--cor-borda); border-radius: 12px; background: var(--cor-fundo-card); padding: 18px; }
+.detail-stat-grid span { display: block; color: var(--cor-texto-mudo); font-size: .8rem; }
+.detail-stat-grid strong { display: block; margin-top: 8px; color: var(--cor-texto); font-size: 1.25rem; }
+.audit-start-card { max-width: 620px; display: grid; gap: 12px; }
+.audit-start-card > i { font-size: 2rem; color: var(--cor-primaria); }
+.audit-start-card textarea { width: 100%; }
+.audit-readonly-note { margin-bottom: 16px; border-color: color-mix(in srgb, var(--cor-primaria) 40%, var(--cor-borda)); }
+.audit-readonly-note > i { color: var(--cor-primaria); font-size: 1.5rem; }
+.audit-readonly-note p { margin: 3px 0 0; color: var(--cor-texto-secundario); }
+.audit-mode .empresa-detail-actions,
+.audit-mode .saas-sidebar,
+.audit-mode .saas-header-actions,
+.audit-mode #topbar-menu,
+.audit-mode .saas-tab-section:not(#saas-tab-detalhes) { display: none !important; }
+.audit-mode .saas-console-layout { grid-template-columns: 1fr; }
+.audit-mode .saas-main { grid-column: 1; }
+
+@media (max-width: 720px) {
+  .detail-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .empresa-detail-title { align-items: flex-start; }
+  .empresa-detail-actions { display: grid; grid-template-columns: 1fr; }
+  .empresa-detail-actions .btn { width: 100%; }
+  .saas-pagination { justify-content: center; }
+}
+
+@media (max-width: 420px) {
+  .detail-stat-grid { grid-template-columns: 1fr; }
+  .empresa-detail-tabs { overflow-x: auto; flex-wrap: nowrap; }
+  .empresa-detail-tab { white-space: nowrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saas-dropdown-menu, .impersonation-pulse { animation: none !important; }
 }

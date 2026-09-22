@@ -28,6 +28,14 @@ describe('Gestão de Usuários e Troca Obrigatória de Senha', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    db.getClient.mockImplementation(() => ({
+      query: (sql, params) => {
+        const command = String(sql).trim().toUpperCase();
+        if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(command)) return Promise.resolve({ rows: [] });
+        return db.query(sql, params);
+      },
+      release: jest.fn()
+    }));
   });
 
   it('POST /api/usuarios — Administrador cadastra funcionário com senha temporária', async () => {
@@ -212,5 +220,42 @@ describe('Gestão de Usuários e Troca Obrigatória de Senha', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.usuario.ativo).toBe(false);
+  });
+
+  it('POST /api/usuarios/:id/reset-senha — invalida imediatamente a sessão anterior', async () => {
+    db.query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: adminId,
+          nome: 'Admin',
+          email: 'admin@empresa.com',
+          papel: 'administrador',
+          ativo: true,
+          must_change_password: false,
+          empresa_id: empresaA,
+          plano: 'ativo',
+          versao_sessao: 1
+        }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: funcionarioId,
+          nome: 'Funcionario 1',
+          email: 'func1@empresa.com',
+          papel: 'funcionario',
+          must_change_password: true
+        }]
+      })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 'log-1', criado_em: new Date().toISOString() }] });
+
+    const res = await request(app)
+      .post(`/api/usuarios/${funcionarioId}/reset-senha`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ novaSenhaTemporaria: 'OutraSenhaTemporaria123' });
+
+    expect(res.statusCode).toBe(200);
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('versao_sessao = versao_sessao + 1'))).toBe(true);
+    expect(db.query.mock.calls.some(([sql]) => String(sql).includes('UPDATE refresh_tokens SET revogado = TRUE'))).toBe(true);
   });
 });

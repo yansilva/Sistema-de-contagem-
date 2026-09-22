@@ -15,7 +15,8 @@ const state = {
   contagemItens: [],
   historicoImportacaoEstoque: [],
   refreshTokens: [],
-  auditLogs: []
+  auditLogs: [],
+  sessoesAuditoria: []
 };
 
 function resetMockDb() {
@@ -28,10 +29,35 @@ function resetMockDb() {
   state.historicoImportacaoEstoque = [];
   state.refreshTokens = [];
   state.auditLogs = [];
+  state.sessoesAuditoria = [];
 }
 
 async function executeMockQuery(sql, params = []) {
   const norm = sql.trim().replace(/\s+/g, ' ');
+
+  if (norm.startsWith('WITH referencia AS')) {
+    const clientes = state.empresas.filter((e) => (e.tipo || 'cliente') === 'cliente' && !e.excluida_em);
+    const ids = new Set(clientes.map((e) => e.id));
+    const usuarios = state.usuarios.filter((u) => ids.has(u.empresa_id));
+    const contagens = state.contagens.filter((c) => ids.has(c.empresa_id));
+    const agora = new Date();
+    const seteDias = new Date(agora.getTime() - 7 * 86400000);
+    return { rows: [{
+      total_empresas: clientes.length,
+      ativas: clientes.filter((e) => (e.status || 'ativa') === 'ativa').length,
+      inativas: clientes.filter((e) => e.status === 'inativa').length,
+      total_usuarios: usuarios.length,
+      usuarios_ativos: usuarios.filter((u) => u.ativo !== false).length,
+      total_admins: usuarios.filter((u) => ['administrador', 'gestor', 'admin'].includes(u.papel)).length,
+      total_produtos: state.produtos.filter((p) => ids.has(p.empresa_id) && p.ativo !== false).length,
+      total_contagens: contagens.length,
+      contagens_finalizadas: contagens.filter((c) => c.status === 'finalizada').length,
+      contagens_recentes: contagens.filter((c) => c.status === 'finalizada' && c.finalizado_em && new Date(c.finalizado_em) >= seteDias && new Date(c.finalizado_em) <= agora).length,
+      empresas_recentes: clientes.slice().sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em)).slice(0, 5),
+      atividades_recentes: state.auditLogs.filter((l) => ids.has(l.empresa_afetada_id || l.empresa_id)).slice().sort((a, b) => new Date(b.criado_em) - new Date(a.criado_em)).slice(0, 5),
+      gerado_em: agora.toISOString()
+    }] };
+  }
 
   // ===== EMPRESAS =====
   if (norm.startsWith('INSERT INTO empresas')) {
@@ -40,7 +66,12 @@ async function executeMockQuery(sql, params = []) {
       nome: params[0],
       email_contato: params[1],
       plano: params[2] || 'ativo',
+      status: 'ativa',
+      tipo: norm.includes("'plataforma'") ? 'plataforma' : 'cliente',
       trial_expira_em: params[3] ? new Date(params[3]).toISOString() : null,
+      excluida_em: null,
+      excluida_por: null,
+      motivo_exclusao: null,
       criado_em: new Date().toISOString()
     };
     state.empresas.push(novaEmpresa);
@@ -56,6 +87,23 @@ async function executeMockQuery(sql, params = []) {
   }
 
   if (norm.startsWith('SELECT') && norm.includes('FROM empresas')) {
+    if (norm.startsWith('SELECT e.*') && norm.includes('WHERE e.id=$1')) {
+      const emp = state.empresas.find((e) => e.id === params[0]);
+      if (!emp) return { rows: [] };
+      return { rows: [{
+        ...emp,
+        total_usuarios: state.usuarios.filter((u) => u.empresa_id === emp.id).length,
+        total_produtos: state.produtos.filter((p) => p.empresa_id === emp.id && p.ativo !== false).length,
+        total_contagens: state.contagens.filter((c) => c.empresa_id === emp.id).length
+      }] };
+    }
+    if (norm.startsWith('SELECT count(*)::int AS total FROM empresas e')) {
+      let empresas = [...state.empresas];
+      if (norm.includes("e.tipo = $")) empresas = empresas.filter((e) => (e.tipo || 'cliente') === params[0]);
+      if (norm.includes('e.excluida_em IS NULL')) empresas = empresas.filter((e) => !e.excluida_em);
+      if (norm.includes('e.excluida_em IS NOT NULL')) empresas = empresas.filter((e) => Boolean(e.excluida_em));
+      return { rows: [{ total: empresas.length }] };
+    }
     if (norm.includes('email_contato = $1 AND id != $2')) {
       const email = String(params[0]).toLowerCase();
       const id = params[1];
@@ -80,6 +128,11 @@ async function executeMockQuery(sql, params = []) {
                 nome: emp.nome,
                 email_contato: emp.email_contato,
                 plano: emp.plano,
+                status: emp.status || 'ativa',
+                tipo: emp.tipo || 'cliente',
+                excluida_em: emp.excluida_em || null,
+                excluida_por: emp.excluida_por || null,
+                motivo_exclusao: emp.motivo_exclusao || null,
                 trial_expira_em: emp.trial_expira_em,
                 criado_em: emp.criado_em
               }
@@ -88,21 +141,34 @@ async function executeMockQuery(sql, params = []) {
       };
     }
     if (norm.includes('FROM empresas e') && norm.includes('AS total_usuarios') && norm.includes('AS total_produtos')) {
-      const rows = state.empresas.map((e) => {
+      let empresas = [...state.empresas];
+      if (norm.includes("e.tipo = $")) empresas = empresas.filter((e) => (e.tipo || 'cliente') === params[0]);
+      if (norm.includes('e.excluida_em IS NULL')) empresas = empresas.filter((e) => !e.excluida_em);
+      const rows = empresas.map((e) => {
         const totalUsuarios = state.usuarios.filter((u) => u.empresa_id === e.id && u.ativo !== false).length;
         const totalProdutos = state.produtos.filter((p) => p.empresa_id === e.id && p.ativo !== false).length;
+        const admins = state.usuarios.filter((u) => u.empresa_id === e.id && ['administrador','gestor','admin'].includes(u.papel));
         return {
           id: e.id,
           nome: e.nome,
           email_contato: e.email_contato,
           plano: e.plano,
+          status: e.status || 'ativa',
+          tipo: e.tipo || 'cliente',
+          excluida_em: e.excluida_em || null,
           trial_expira_em: e.trial_expira_em,
           criado_em: e.criado_em,
           total_usuarios: totalUsuarios,
-          total_produtos: totalProdutos
+          total_admins: admins.length,
+          total_produtos: totalProdutos,
+          total_contagens: state.contagens.filter((c) => c.empresa_id === e.id).length,
+          administrador_principal: admins.find((u) => u.ativo !== false) || null,
+          ultima_atividade: state.auditLogs.filter((l) => l.empresa_id === e.id || l.empresa_afetada_id === e.id).sort((a,b)=>new Date(b.criado_em)-new Date(a.criado_em))[0]?.criado_em || null
         };
       });
-      return { rows };
+      const limit = Number(params[params.length - 2]);
+      const offset = Number(params[params.length - 1]);
+      return { rows: Number.isFinite(limit) && Number.isFinite(offset) ? rows.slice(offset, offset + limit) : rows };
     }
     if (norm === 'SELECT id, plano FROM empresas') {
       return { rows: state.empresas.map((e) => ({ id: e.id, plano: e.plano })) };
@@ -111,6 +177,22 @@ async function executeMockQuery(sql, params = []) {
 
   // UPDATE empresas
   if (norm.startsWith('UPDATE empresas')) {
+    if (norm.includes('SET status=$1::varchar')) {
+      const emp = state.empresas.find((e) => e.id === params[1]);
+      if (!emp) return { rows: [] };
+      emp.status = params[0];
+      if (emp.plano === 'suspenso' && params[0] === 'ativa') emp.plano = 'ativo';
+      return { rows: [emp], rowCount: 1 };
+    }
+    if (norm.includes("SET status='inativa',excluida_em=now()")) {
+      const emp = state.empresas.find((e) => e.id === params[0]);
+      if (!emp) return { rows: [] };
+      emp.status = 'inativa';
+      emp.excluida_em = new Date().toISOString();
+      emp.excluida_por = params[1];
+      emp.motivo_exclusao = params[2] || null;
+      return { rows: [emp], rowCount: 1 };
+    }
     if (norm.includes('SET plano = $1 WHERE id = $2')) {
       const plano = params[0];
       const id = params[1];
@@ -121,7 +203,7 @@ async function executeMockQuery(sql, params = []) {
       }
       return { rows: [] };
     }
-    if (norm.includes('SET nome = $1')) {
+    if (norm.includes('SET nome = $1') || norm.includes('SET nome=$1')) {
       const [nome, email, plano, trial, id] = params;
       const emp = state.empresas.find((e) => e.id === id);
       if (emp) {
@@ -192,6 +274,7 @@ async function executeMockQuery(sql, params = []) {
       senha_hash: params[3],
       papel: params[4] || 'funcionario',
       ativo: params[5] !== undefined ? Boolean(params[5]) : true,
+      versao_sessao: 1,
       must_change_password: params[6] !== undefined ? Boolean(params[6]) : false,
       criado_em: new Date().toISOString(),
       atualizado_em: new Date().toISOString()
@@ -228,11 +311,15 @@ async function executeMockQuery(sql, params = []) {
             senha_hash: user.senha_hash,
             papel: user.papel,
             ativo: user.ativo !== false,
+            versao_sessao: user.versao_sessao || 1,
             must_change_password: Boolean(user.must_change_password),
             empresa_id: user.empresa_id,
             empresa_nome: emp ? emp.nome : 'Empresa',
             plano: emp ? emp.plano : 'ativo',
-            trial_expira_em: emp ? emp.trial_expira_em : null
+            trial_expira_em: emp ? emp.trial_expira_em : null,
+            status: emp ? emp.status || 'ativa' : 'ativa',
+            excluida_em: emp ? emp.excluida_em || null : null,
+            tipo: emp ? emp.tipo || 'cliente' : 'cliente'
           }
         ]
       };
@@ -251,11 +338,15 @@ async function executeMockQuery(sql, params = []) {
             email: user.email,
             papel: user.papel,
             ativo: user.ativo !== false,
+            versao_sessao: user.versao_sessao || 1,
             must_change_password: Boolean(user.must_change_password),
             empresa_id: user.empresa_id,
             empresa_nome: emp ? emp.nome : 'Empresa',
             plano: emp ? emp.plano : 'ativo',
-            trial_expira_em: emp ? emp.trial_expira_em : null
+            trial_expira_em: emp ? emp.trial_expira_em : null,
+            status: emp ? emp.status || 'ativa' : 'ativa',
+            excluida_em: emp ? emp.excluida_em || null : null,
+            tipo: emp ? emp.tipo || 'cliente' : 'cliente'
           }
         ]
       };
@@ -301,6 +392,10 @@ async function executeMockQuery(sql, params = []) {
 
   // UPDATE usuarios (alterar senha ou status ou dados)
   if (norm.startsWith('UPDATE usuarios')) {
+    if (norm.includes('SET versao_sessao=versao_sessao+1 WHERE empresa_id=$1')) {
+      state.usuarios.filter((u) => u.empresa_id === params[0]).forEach((u) => { u.versao_sessao = (u.versao_sessao || 1) + 1; });
+      return { rows: [] };
+    }
     if (norm.includes('SET senha_hash = $1, must_change_password = FALSE')) {
       const novoHash = params[0];
       const userId = params[1];
@@ -335,6 +430,7 @@ async function executeMockQuery(sql, params = []) {
       if (user) {
         user.senha_hash = novoHash;
         user.must_change_password = true;
+        user.versao_sessao = (user.versao_sessao || 1) + 1;
         user.atualizado_em = new Date().toISOString();
         return { rows: [user] };
       }
@@ -712,6 +808,7 @@ async function executeMockQuery(sql, params = []) {
       request_id: params[17],
       operacao_id: params[18],
       evento_chave: params[19],
+      empresa_afetada_id: params[20] || null,
       criado_em: new Date().toISOString()
     };
     // Verificar unicidade (operacao_id, evento_chave)
@@ -731,7 +828,9 @@ async function executeMockQuery(sql, params = []) {
     // Busca por ID específico
     if (norm.includes('WHERE id = $1') || norm.includes('WHERE id = $')) {
       const targetId = params[0];
-      const found = state.auditLogs.find((l) => l.id === targetId);
+      const found = state.auditLogs.find((l) => l.id === targetId && (
+        !norm.includes('empresa_id = $2') || (l.escopo === 'empresa' && l.empresa_id === params[1])
+      ));
       return { rows: found ? [found] : [] };
     }
 
@@ -743,7 +842,9 @@ async function executeMockQuery(sql, params = []) {
         const m = norm.match(/empresa_id = \$(\d+)/);
         if (m) {
           const empId = params[parseInt(m[1], 10) - 1];
-          logs = logs.filter((l) => l.empresa_id === empId);
+          logs = norm.includes('OR empresa_afetada_id')
+            ? logs.filter((l) => l.empresa_id === empId || l.empresa_afetada_id === empId)
+            : logs.filter((l) => l.empresa_id === empId);
         }
       }
       if (norm.includes('criado_em >= $')) {
@@ -823,12 +924,66 @@ async function executeMockQuery(sql, params = []) {
     return { rows: logs };
   }
 
+  // ===== SESSOES DE AUDITORIA =====
+  if (norm.startsWith('INSERT INTO sessoes_auditoria')) {
+    const iniciado = new Date();
+    const sessao = {
+      id: crypto.randomUUID(),
+      ator_id: params[0],
+      empresa_id: params[1],
+      motivo: params[2] || null,
+      iniciado_em: iniciado.toISOString(),
+      expira_em: new Date(iniciado.getTime() + 30 * 60000).toISOString(),
+      encerrado_em: null,
+      motivo_encerramento: null
+    };
+    state.sessoesAuditoria.push(sessao);
+    return { rows: [sessao], rowCount: 1 };
+  }
+  if (norm.includes('FROM sessoes_auditoria')) {
+    let rows = [...state.sessoesAuditoria];
+    if (norm.includes('id=$1')) rows = rows.filter((s) => s.id === params[0]);
+    if (norm.includes('ator_id=$2')) rows = rows.filter((s) => s.ator_id === params[1]);
+    else if (norm.includes('ator_id=$1')) rows = rows.filter((s) => s.ator_id === params[0]);
+    if (norm.includes('empresa_id=$1')) rows = rows.filter((s) => s.empresa_id === params[0]);
+    if (norm.includes('count(*)')) return { rows: [{ total: rows.length }] };
+    return { rows, rowCount: rows.length };
+  }
+  if (norm.startsWith('UPDATE sessoes_auditoria')) {
+    let rows = state.sessoesAuditoria;
+    if (norm.includes('WHERE ator_id=$1')) rows = rows.filter((s) => s.ator_id === params[0] && !s.encerrado_em && new Date(s.expira_em) <= new Date());
+    else if (norm.includes('WHERE empresa_id=$1')) rows = rows.filter((s) => s.empresa_id === params[0] && !s.encerrado_em);
+    else if (norm.includes('WHERE id=$1')) rows = rows.filter((s) => s.id === params[0] && !s.encerrado_em);
+    for (const sessao of rows) {
+      sessao.encerrado_em = norm.includes('encerrado_em=expira_em') ? sessao.expira_em : new Date().toISOString();
+      sessao.motivo_encerramento = norm.includes("'expirada'") ? 'expirada' : norm.includes("'empresa_excluida'") ? 'empresa_excluida' : 'manual';
+    }
+    return { rows, rowCount: rows.length };
+  }
+
   // Fallback genérico para BEGIN, COMMIT, ROLLBACK
   return { rows: [] };
 }
 
 class MockClient {
+  constructor() { this.snapshot = null; }
   async query(text, params) {
+    const command = String(text).trim().toUpperCase();
+    if (command === 'BEGIN') {
+      this.snapshot = structuredClone(state);
+      return { rows: [] };
+    }
+    if (command === 'ROLLBACK') {
+      if (this.snapshot) {
+        for (const key of Object.keys(state)) state[key] = this.snapshot[key];
+      }
+      this.snapshot = null;
+      return { rows: [] };
+    }
+    if (command === 'COMMIT') {
+      this.snapshot = null;
+      return { rows: [] };
+    }
     return executeMockQuery(text, params);
   }
   release() {}

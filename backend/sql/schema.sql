@@ -14,13 +14,21 @@ CREATE TABLE IF NOT EXISTS empresas (
   nome VARCHAR(255) NOT NULL,
   email_contato VARCHAR(255) UNIQUE NOT NULL,
   plano VARCHAR(50) DEFAULT 'ativo' NOT NULL,
+  status VARCHAR(8) DEFAULT 'ativa' NOT NULL,
+  tipo VARCHAR(12) DEFAULT 'cliente' NOT NULL,
   trial_expira_em TIMESTAMPTZ,
+  excluida_em TIMESTAMPTZ,
+  motivo_exclusao VARCHAR(500),
   criado_em TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT chk_empresas_plano CHECK (plano IN ('trial', 'ativo', 'suspenso'))
+  CONSTRAINT chk_empresas_plano CHECK (plano IN ('trial', 'ativo', 'suspenso')),
+  CONSTRAINT chk_empresas_status CHECK (status IN ('ativa', 'inativa')),
+  CONSTRAINT chk_empresas_tipo CHECK (tipo IN ('cliente', 'plataforma'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_empresas_plano ON empresas(plano);
 CREATE INDEX IF NOT EXISTS idx_empresas_email_contato ON empresas(email_contato);
+CREATE INDEX IF NOT EXISTS idx_empresas_status_criado
+  ON empresas(status, criado_em DESC, id) WHERE excluida_em IS NULL;
 
 -- =============================================
 -- Tabela: usuarios
@@ -33,6 +41,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   senha_hash VARCHAR(255) NOT NULL,
   papel VARCHAR(20) DEFAULT 'funcionario' NOT NULL,
   ativo BOOLEAN DEFAULT TRUE NOT NULL,
+  versao_sessao INTEGER DEFAULT 1 NOT NULL CHECK (versao_sessao > 0),
   must_change_password BOOLEAN DEFAULT FALSE NOT NULL,
   criado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
   atualizado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -44,6 +53,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
 CREATE INDEX IF NOT EXISTS idx_usuarios_empresa ON usuarios(empresa_id);
 CREATE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios(email);
 CREATE INDEX IF NOT EXISTS idx_usuarios_empresa_ativo ON usuarios(empresa_id, ativo);
+
+ALTER TABLE empresas
+  ADD COLUMN IF NOT EXISTS excluida_por UUID REFERENCES usuarios(id) ON DELETE RESTRICT;
 
 -- =============================================
 -- Tabela: produtos
@@ -172,6 +184,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   escopo VARCHAR(16) NOT NULL
     CHECK (escopo IN ('empresa', 'plataforma', 'seguranca')),
   empresa_id UUID REFERENCES empresas(id) ON DELETE RESTRICT,
+  empresa_afetada_id UUID REFERENCES empresas(id) ON DELETE RESTRICT,
 
   ator_tipo VARCHAR(24) NOT NULL
     CHECK (ator_tipo IN ('usuario_empresa', 'usuario_plataforma', 'sistema', 'anonimo')),
@@ -220,3 +233,47 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_request
 CREATE INDEX IF NOT EXISTS idx_audit_logs_global_data
   ON audit_logs (escopo, criado_em DESC, id DESC)
   WHERE escopo <> 'empresa';
+
+CREATE INDEX IF NOT EXISTS idx_audit_empresa_afetada
+  ON audit_logs (empresa_afetada_id, criado_em DESC, id DESC);
+
+-- Sessões temporárias de suporte, sempre vinculadas ao operador real da plataforma.
+CREATE TABLE IF NOT EXISTS sessoes_auditoria (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ator_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+  empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE RESTRICT,
+  motivo VARCHAR(500),
+  iniciado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expira_em TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '30 minutes',
+  encerrado_em TIMESTAMPTZ,
+  motivo_encerramento VARCHAR(30),
+  CHECK (expira_em > iniciado_em),
+  CHECK ((encerrado_em IS NULL AND motivo_encerramento IS NULL)
+      OR (encerrado_em IS NOT NULL AND motivo_encerramento IS NOT NULL))
+);
+
+CREATE INDEX IF NOT EXISTS idx_sessoes_auditoria_ator
+  ON sessoes_auditoria (ator_id, iniciado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_sessoes_auditoria_empresa
+  ON sessoes_auditoria (empresa_id, iniciado_em DESC);
+
+CREATE TABLE IF NOT EXISTS password_reset_solicitacoes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  empresa_id UUID NOT NULL REFERENCES empresas(id) ON DELETE RESTRICT,
+  usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+  solicitado_por UUID NOT NULL REFERENCES usuarios(id) ON DELETE RESTRICT,
+  token_hash CHAR(64) UNIQUE NOT NULL,
+  criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expira_em TIMESTAMPTZ NOT NULL,
+  consumido_em TIMESTAMPTZ,
+  invalidado_em TIMESTAMPTZ,
+  entrega VARCHAR(10) NOT NULL DEFAULT 'pendente',
+  CHECK (expira_em > criado_em),
+  CHECK (entrega IN ('pendente', 'aceita', 'falhou'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_usuario_data
+  ON password_reset_solicitacoes (usuario_id, criado_em DESC);
+CREATE INDEX IF NOT EXISTS idx_password_reset_ativos
+  ON password_reset_solicitacoes (token_hash, expira_em)
+  WHERE consumido_em IS NULL AND invalidado_em IS NULL;

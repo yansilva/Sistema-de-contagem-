@@ -42,25 +42,19 @@ Este guia descreve o processo completo para implantar o **Sistema de Contagem** 
 
 ---
 
-## 🗄️ Passo 3: Criar as Tabelas no Banco (2 Opções)
+## 🗄️ Passo 3: Aplicar o Schema e as Migrações
 
-Você pode aplicar o schema das tabelas de duas formas:
+Use o migrador versionado para bancos novos e existentes. Ele aplica os arquivos de `backend/sql/migrations/` em ordem, registra cada versão em `schema_migrations` e usa um bloqueio do PostgreSQL para impedir duas execuções simultâneas.
 
-### Opção A — Pelo Painel do Supabase (Mais Rápida e Fácil)
-1. No Supabase, clique em **SQL Editor** (ícone `>_` na barra lateral esquerda).
-2. Clique em **New query**.
-3. Abra o arquivo [`backend/sql/schema.sql`](../backend/sql/schema.sql) deste repositório, copie todo o conteúdo e cole no editor do Supabase.
-4. Clique no botão **Run** (Executar).
-5. Em seguida, abra o arquivo [`backend/sql/migrations/001_audit_and_authorship.sql`](../backend/sql/migrations/001_audit_and_authorship.sql), cole e execute também.
-6. Pronto! As tabelas (`empresas`, `usuarios`, `produtos`, `contagens`, `audit_logs`, etc.) estarão criadas no schema `public`.
+Antes de atualizar um banco com dados, faça backup e valide a migração em uma cópia. No terminal local, informe a URL do Supabase e execute:
 
-### Opção B — Pelo Terminal via Script Automatizado
-No terminal local da sua máquina, informe a URL do Supabase e rode o script de migração:
 ```powershell
 # PowerShell:
 $env:DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[SUA-SENHA]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres"
 npm run migrate
 ```
+
+Não execute somente `schema.sql` sobre um banco antigo. As migrações adicionam status e exclusão lógica, identificam a organização da plataforma, criam sessões de auditoria e cortam sessões legadas de forma coordenada. A migração `003_corte_sessoes_legadas.sql` revoga os refresh tokens existentes uma única vez.
 
 ---
 
@@ -97,8 +91,23 @@ npm run seed:superadmin
 | `ALLOW_PUBLIC_REGISTRATION` | `false` |
 | `JWT_EXPIRA_EM` | `15m` |
 | `REFRESH_TOKEN_EXPIRA_DIAS` | `30` |
+| `APP_PUBLIC_URL` | URL pública HTTPS do projeto, usada futuramente nos links de recuperação |
 
 5. Clique em **Deploy**.
+
+### Implantação coordenada desta evolução
+
+Esta versão muda o contrato de autenticação e deve ser implantada em uma janela curta de manutenção:
+
+1. Faça backup do banco e teste `npm run migrate` em uma cópia recente.
+2. Pause operações administrativas durante a atualização.
+3. Aplique as migrações e publique backend e frontend da mesma revisão.
+4. Avise que todos precisarão entrar novamente. Tokens antigos não possuem a versão de sessão exigida pelo backend novo.
+5. Verifique login do Super Admin, listagem de empresas, bloqueio de uma conta de teste autorizada e início/fim de auditoria somente leitura.
+
+Não reverta para uma versão que restaure impersonation ou exclusão física. Se surgir um problema após a migração, aplique uma correção progressiva preservando as novas colunas e os registros de auditoria.
+
+O transporte de e-mail ainda não está configurado. A interface deve continuar mostrando **E-mail não configurado** e a API deve responder `EMAIL_NAO_CONFIGURADO` até que um provedor seja escolhido e validado. Não existe redefinição direta de senha pelo Super Admin.
 
 ---
 

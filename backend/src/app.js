@@ -122,6 +122,7 @@ app.get('/api/health', healthHandler);
 // ===== ROTAS DA API =====
 app.use('/api/auth', authRoutes);
 app.use('/api/empresas', empresasRoutes);
+app.use('/api/auditoria', require('./routes/auditoria'));
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/produtos', produtosRoutes);
 app.use('/api/estoque', estoqueRoutes);

@@ -79,6 +79,7 @@ async function registrar(tx, contexto = {}, evento = {}) {
   const {
     escopo = 'empresa',
     empresaId = null,
+    empresaAfetadaId = empresaId,
     atorTipo = 'usuario_empresa',
     atorId = null,
     atorPapel = null,
@@ -123,14 +124,14 @@ async function registrar(tx, contexto = {}, evento = {}) {
       acao, entidade, entidade_id, resultado,
       dados_anteriores, dados_novos, metadados,
       motivo, codigo_erro,
-      ip, user_agent, request_id, operacao_id, evento_chave
+      ip, user_agent, request_id, operacao_id, evento_chave, empresa_afetada_id
     ) VALUES (
       $1, $2,
       $3, $4, $5, $6,
       $7, $8, $9, $10,
       $11, $12, $13,
       $14, $15,
-      $16, $17, $18, $19, $20
+      $16, $17, $18, $19, $20, $21
     )
     RETURNING id, criado_em
   `;
@@ -155,7 +156,8 @@ async function registrar(tx, contexto = {}, evento = {}) {
     userAgent,
     requestId,
     operacaoId,
-    eventoChave
+    eventoChave,
+    empresaAfetadaId
   ];
 
   const dbClient = tx && typeof tx.query === 'function' ? tx : { query: defaultQuery };

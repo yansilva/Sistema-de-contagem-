@@ -35,6 +35,13 @@ const alterarSenhaSchema = {
   })
 };
 
+const confirmarRecuperacaoSchema = {
+  body: z.object({
+    token: z.string().regex(/^[a-f0-9]{64}$/i, 'Token de recuperação inválido'),
+    novaSenha: z.string().regex(senhaForteRegex, mensagemSenhaForte)
+  }).strict()
+};
+
 // ===== USUÁRIOS SCHEMAS =====
 const criarUsuarioSchema = {
   body: z.object({
@@ -70,15 +77,6 @@ const resetSenhaUsuarioSchema = {
   }),
   body: z.object({
     novaSenhaTemporaria: z.string().min(6, 'Nova senha temporária deve ter pelo menos 6 caracteres')
-  })
-};
-
-const resetSenhaAdminSchema = {
-  params: z.object({
-    id: z.string().uuid('ID de empresa inválido')
-  }),
-  body: z.object({
-    novaSenha: z.string().regex(senhaForteRegex, mensagemSenhaForte)
   })
 };
 
@@ -273,11 +271,11 @@ module.exports = {
   registroSchema,
   refreshSchema,
   alterarSenhaSchema,
+  confirmarRecuperacaoSchema,
   criarUsuarioSchema,
   editarUsuarioSchema,
   statusUsuarioSchema,
   resetSenhaUsuarioSchema,
-  resetSenhaAdminSchema,
   criarProdutoSchema,
   editarProdutoSchema,
   idParamSchema,

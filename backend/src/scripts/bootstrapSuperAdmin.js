@@ -28,20 +28,25 @@ async function bootstrapSuperAdmin() {
 
     // 1. Garantir organização interna da plataforma
     const empresaPlataforma = await client.query(
-      'SELECT id FROM empresas WHERE email_contato = $1',
+      'SELECT id, tipo FROM empresas WHERE email_contato = $1',
       ['plataforma@sistemadecontagem.internal']
     );
 
     let empresaId;
     if (empresaPlataforma.rows.length === 0) {
       const empRes = await client.query(
-        `INSERT INTO empresas (nome, email_contato, plano)
-       VALUES ($1, $2, $3)
+        `INSERT INTO empresas (nome, email_contato, plano, status, tipo)
+       VALUES ($1, $2, $3, 'ativa', 'plataforma')
        RETURNING id`,
         ['Plataforma Sistema de Contagem', 'plataforma@sistemadecontagem.internal', 'ativo']
       );
       empresaId = empRes.rows[0].id;
     } else {
+      if (empresaPlataforma.rows[0].tipo !== 'plataforma') {
+        throw new Error(
+          'A organização reservada existe, mas não está classificada como plataforma. Corrija a classificação antes do bootstrap.'
+        );
+      }
       empresaId = empresaPlataforma.rows[0].id;
     }
 

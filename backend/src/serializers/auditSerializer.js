@@ -1,3 +1,4 @@
+const { sanitizarObjeto } = require('../services/auditService');
 /**
  * Serializador Blindado para Logs de Auditoria
  * Formata os registros da trilha para consumo na tela de Atividades.
@@ -10,6 +11,7 @@ function serializeAuditLog(log) {
     id: log.id,
     escopo: log.escopo,
     empresa_id: log.empresa_id,
+    empresa_afetada_id: log.empresa_afetada_id,
     ator: {
       tipo: log.ator_tipo,
       id: log.ator_id,
@@ -20,9 +22,9 @@ function serializeAuditLog(log) {
     entidade: log.entidade,
     entidade_id: log.entidade_id,
     resultado: log.resultado,
-    dados_anteriores: typeof log.dados_anteriores === 'string' ? JSON.parse(log.dados_anteriores) : log.dados_anteriores,
-    dados_novos: typeof log.dados_novos === 'string' ? JSON.parse(log.dados_novos) : log.dados_novos,
-    metadados: typeof log.metadados === 'string' ? JSON.parse(log.metadados) : log.metadados,
+    dados_anteriores: sanitizarObjeto(typeof log.dados_anteriores === 'string' ? JSON.parse(log.dados_anteriores) : log.dados_anteriores),
+    dados_novos: sanitizarObjeto(typeof log.dados_novos === 'string' ? JSON.parse(log.dados_novos) : log.dados_novos),
+    metadados: sanitizarObjeto(typeof log.metadados === 'string' ? JSON.parse(log.metadados) : log.metadados),
     motivo: log.motivo,
     codigo_erro: log.codigo_erro,
     ip: log.ip,

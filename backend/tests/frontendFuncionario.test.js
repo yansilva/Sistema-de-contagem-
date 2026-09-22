@@ -109,15 +109,23 @@ describe('Área do funcionário de contagem', () => {
     expect(context.Historico.carregar).not.toHaveBeenCalled();
   });
 
-  it('mantém a área administrativa para administrador e superadmin e oculta ao mudar de perfil', () => {
-    for (const papel of ['administrador', 'super_admin']) {
-      auth.usuario.papel = papel;
-      auth.atualizarInterface();
-      expect(elements.get('home-administrador').hidden).toBe(false);
-      expect(elements.get('home-funcionario').hidden).toBe(true);
-      context.showScreen('screen-backoffice');
-      expect(elements.get('screen-backoffice').classes.has('active')).toBe(true);
-    }
+  it('separa os painéis do administrador e do superadmin e oculta ao mudar para funcionário', () => {
+    auth.usuario.papel = 'administrador';
+    auth.atualizarInterface();
+    expect(elements.get('home-administrador').hidden).toBe(false);
+    expect(elements.get('home-superadmin').hidden).toBe(true);
+    expect(elements.get('home-funcionario').hidden).toBe(true);
+    context.showScreen('screen-backoffice');
+    expect(elements.get('screen-backoffice').classes.has('active')).toBe(true);
+
+    auth.usuario.papel = 'super_admin';
+    auth.atualizarInterface();
+    expect(elements.get('home-administrador').hidden).toBe(true);
+    expect(elements.get('home-superadmin').hidden).toBe(false);
+    expect(elements.get('home-funcionario').hidden).toBe(true);
+    context.showScreen('screen-backoffice');
+    expect(elements.get('screen-backoffice').classes.has('active')).toBe(true);
+
     auth.usuario.papel = 'funcionario';
     auth.atualizarInterface();
     expect(elements.get('screen-backoffice').hidden).toBe(true);
