@@ -3,7 +3,9 @@ const EmpresaDetalhes = {
   empresa: null,
   abaAtual: 'visao-geral',
   requestId: 0,
-  recuperacaoConfigurada: false,
+  usuarioSenhaTemporaria: null,
+  focoAntesSenhaTemporaria: null,
+  salvandoSenhaTemporaria: false,
 
   async abrir(id, aba = 'visao-geral') {
     this.empresaId = id;
@@ -21,19 +23,15 @@ const EmpresaDetalhes = {
 
     const sessaoAuditoria = typeof Auditoria !== 'undefined' ? Auditoria.restaurarLocal() : null;
     const emAuditoria = document.body.classList.contains('audit-mode') && sessaoAuditoria?.empresaId === id;
-    const [res, statusReset] = await Promise.all([
-      emAuditoria
-        ? API.get('/auditoria/sessoes/' + sessaoAuditoria.id + '/resumo?page=1&limit=20')
-        : API.get('/empresas/' + id + '?page=1&limit=20'),
-      emAuditoria ? Promise.resolve(null) : API.get('/auth/recuperacao/status').catch(() => null)
-    ]);
+    const res = emAuditoria
+      ? await API.get('/auditoria/sessoes/' + sessaoAuditoria.id + '/resumo?page=1&limit=20')
+      : await API.get('/empresas/' + id + '?page=1&limit=20');
     if (requestId !== this.requestId || id !== this.empresaId) return;
     if (!res?.success) {
       if (container) container.innerHTML = '<div class="empty-state" role="alert"><p>Não foi possível abrir esta empresa.</p><button class="btn btn-outline" data-click="action-113">Voltar</button></div>';
       return;
     }
     this.empresa = res.data.empresa;
-    this.recuperacaoConfigurada = Boolean(statusReset?.data?.configurado);
     this.renderizarEstrutura();
     await this.mudarAba(aba, { dadosIniciais: emAuditoria ? null : res.data });
   },
@@ -118,9 +116,9 @@ const EmpresaDetalhes = {
     if (!usuarios.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhum usuário cadastrado.</p></div>');
     content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll"><table class="saas-table"><thead><tr><th>Usuário</th><th>Papel</th><th>Status</th><th>Recuperação</th></tr></thead><tbody>${usuarios.map((u) => {
       const administrativo = ['administrador', 'gestor', 'admin'].includes(u.papel);
-      const acao = administrativo
-        ? `<button class="btn btn-outline btn-sm" data-click="action-116" data-user-id="${u.id}" ${this.recuperacaoConfigurada ? '' : 'disabled title="Serviço de e-mail não configurado"'}>${this.recuperacaoConfigurada ? 'Enviar link' : 'E-mail não configurado'}</button>`
-        : '—';
+      const acao = administrativo && u.ativo
+        ? `<button class="btn btn-outline btn-sm" data-click="action-116" data-user-id="${u.id}" data-user-name="${this.escape(u.nome)}" data-user-email="${this.escape(u.email)}">Definir senha temporária</button>`
+        : administrativo ? 'Administrador inativo' : '—';
       return `<tr><td><strong>${this.escape(u.nome)}</strong><small>${this.escape(u.email)}</small></td><td>${this.escape(u.papel)}</td><td>${u.ativo ? 'Ativo' : 'Inativo'}</td><td>${acao}</td></tr>`;
     }).join('')}</tbody></table></div></div>`;
   },
@@ -142,11 +140,75 @@ const EmpresaDetalhes = {
     switchSaasTab('tenants');
   },
 
-  async solicitarRecuperacao(usuarioId) {
-    if (!this.recuperacaoConfigurada) return showToast('Configure primeiro um serviço de e-mail.', 'warning');
-    if (!window.confirm('Enviar um link de recuperação para o e-mail já cadastrado deste administrador?')) return;
-    const res = await API.post(`/empresas/${this.empresaId}/administradores/${usuarioId}/recuperacao`, { confirmar: true });
-    showToast(res?.success ? 'Solicitação aceita pelo serviço de e-mail.' : (res?.message || 'Falha ao enviar recuperação.'), res?.success ? 'success' : 'error');
+  abrirSenhaTemporaria(usuarioId, nome, email) {
+    this.focoAntesSenhaTemporaria = document.activeElement;
+    this.usuarioSenhaTemporaria = { id:usuarioId, nome, email };
+    const modal = document.getElementById('modal-senha-temporaria-admin');
+    const alvo = document.getElementById('senha-temporaria-admin-alvo');
+    const senha = document.getElementById('senha-temporaria-admin');
+    const confirmar = document.getElementById('confirmar-senha-temporaria-admin');
+    const erro = document.getElementById('senha-temporaria-admin-error');
+    if (alvo) alvo.textContent = `${nome} (${email})`;
+    if (senha) senha.value = '';
+    if (confirmar) confirmar.value = '';
+    if (erro) erro.textContent = '';
+    if (modal) modal.classList.add('active');
+    senha?.focus();
+  },
+
+  fecharSenhaTemporaria() {
+    const modal = document.getElementById('modal-senha-temporaria-admin');
+    const senha = document.getElementById('senha-temporaria-admin');
+    const confirmar = document.getElementById('confirmar-senha-temporaria-admin');
+    if (senha) senha.value = '';
+    if (confirmar) confirmar.value = '';
+    if (modal) modal.classList.remove('active');
+    this.usuarioSenhaTemporaria = null;
+    this.focoAntesSenhaTemporaria?.focus?.();
+    this.focoAntesSenhaTemporaria = null;
+  },
+
+  async salvarSenhaTemporaria() {
+    if (this.salvandoSenhaTemporaria || !this.usuarioSenhaTemporaria || !this.empresaId) return;
+    const senhaInput = document.getElementById('senha-temporaria-admin');
+    const confirmarInput = document.getElementById('confirmar-senha-temporaria-admin');
+    const botao = document.getElementById('btn-salvar-senha-temporaria-admin');
+    const senha = senhaInput?.value || '';
+    const confirmarSenha = confirmarInput?.value || '';
+    const erro = document.getElementById('senha-temporaria-admin-error');
+    for (const input of [senhaInput, confirmarInput]) input?.setAttribute('aria-invalid', 'false');
+    if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(senha)) {
+      if (erro) erro.textContent = 'Use ao menos 8 caracteres, com letra maiúscula, minúscula e número.';
+      senhaInput?.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    if (new TextEncoder().encode(senha).length > 72) {
+      if (erro) erro.textContent = 'A senha temporária é longa demais.';
+      senhaInput?.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    if (senha !== confirmarSenha) {
+      if (erro) erro.textContent = 'As senhas não coincidem.';
+      confirmarInput?.setAttribute('aria-invalid', 'true');
+      return;
+    }
+    this.salvandoSenhaTemporaria = true;
+    for (const input of [senhaInput, confirmarInput, botao]) if (input) input.disabled = true;
+    try {
+      const res = await API.post(
+        `/empresas/${this.empresaId}/administradores/${this.usuarioSenhaTemporaria.id}/senha-temporaria`,
+        { novaSenhaTemporaria:senha, confirmar:true }
+      );
+      if (!res?.success) {
+        if (erro) erro.textContent = res?.message || 'Não foi possível definir a senha temporária.';
+        return;
+      }
+      this.fecharSenhaTemporaria();
+      showToast('Senha temporária definida. O administrador trocará a senha no próximo acesso.', 'success');
+    } finally {
+      this.salvandoSenhaTemporaria = false;
+      for (const input of [senhaInput, confirmarInput, botao]) if (input) input.disabled = false;
+    }
   },
 
   data(value) { return value ? new Date(value).toLocaleString('pt-BR') : '—'; },

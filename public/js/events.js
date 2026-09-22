@@ -113,7 +113,10 @@ const UIActions = {
   'action-113': () => { EmpresaDetalhes.voltar(); },
   'action-114': () => { Auditoria.iniciar(); },
   'action-115': (element) => { Auditoria.carregar(element.getAttribute('data-resource')); },
-  'action-116': (element) => { EmpresaDetalhes.solicitarRecuperacao(element.getAttribute('data-user-id')); }
+  'action-116': (element) => { EmpresaDetalhes.abrirSenhaTemporaria(element.getAttribute('data-user-id'), element.getAttribute('data-user-name'), element.getAttribute('data-user-email')); },
+  'action-117': () => { EmpresaDetalhes.fecharSenhaTemporaria(); },
+  'action-118': () => { EmpresaDetalhes.salvarSenhaTemporaria(); },
+  'action-119': (element, event) => { if (event.key === 'Enter') EmpresaDetalhes.salvarSenhaTemporaria(); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

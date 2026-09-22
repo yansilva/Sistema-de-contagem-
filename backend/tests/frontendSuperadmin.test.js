@@ -27,12 +27,15 @@ describe('Contrato da interface do Super Admin', () => {
     expect(read('index.html')).toContain('Usuários, contagens, produtos e logs serão preservados');
   });
 
-  it('remove redefinição direta de senha e o fluxo de impersonation', () => {
+  it('oferece senha temporária ao administrador e mantém impersonation removido', () => {
     const bundle = [read('index.html'), read('js/empresas.js'), read('js/empresa-detalhes.js'), read('js/auditoria.js')].join('\n');
-    expect(bundle).not.toContain('reset-senha-admin');
+    expect(bundle).toContain('modal-senha-temporaria-admin');
+    expect(bundle).toContain('/senha-temporaria');
+    expect(bundle).toContain('Trocará a senha no próximo acesso');
     expect(bundle).not.toContain('/impersonar');
-    expect(bundle).not.toContain('Nova Senha do Administrador');
-    expect(bundle).toContain('E-mail não configurado');
+    expect(bundle).toContain('Nova senha temporária');
+    expect(bundle).toContain('salvandoSenhaTemporaria');
+    expect(bundle).toContain('btn-salvar-senha-temporaria-admin');
   });
 
   it('mantém modais do console ocultos até serem ativados', () => {
@@ -45,10 +48,11 @@ describe('Contrato da interface do Super Admin', () => {
     const html = read('index.html');
     const app = read('js/app.js');
     const empresas = read('js/empresas.js');
-    expect((html.match(/role="dialog"/g) || [])).toHaveLength(3);
+    expect((html.match(/role="dialog"/g) || [])).toHaveLength(4);
     expect(app).toContain('Empresas.fecharModalExclusao()');
     expect(app).toContain('Empresas.fecharModalEdicao()');
     expect(app).toContain('Empresas.fecharModalStatus()');
+    expect(app).toContain('EmpresaDetalhes.fecharSenhaTemporaria()');
     expect(empresas).toContain('focoAntesModal');
   });
 

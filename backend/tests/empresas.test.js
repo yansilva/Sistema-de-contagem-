@@ -194,4 +194,127 @@ describe('Provisionamento de empresas pela plataforma', () => {
       ]));
     });
   });
+
+  describe('POST /api/empresas/:id/administradores/:usuarioId/senha-temporaria', () => {
+    it('altera somente o administrador selecionado, encerra sua sessão e exige troca no login', async () => {
+      const tenantId = '44444444-4444-4444-8444-444444444444';
+      const tenantAdminId = '55555555-5555-4555-8555-555555555555';
+      const funcionarioId = '66666666-6666-4666-8666-666666666666';
+      const senhaAnterior = 'AnteriorSegura123';
+      const novaSenha = 'TemporariaNova123';
+      const senhaAnteriorHash = await bcrypt.hash(senhaAnterior, 4);
+      const senhaSuperHash = await bcrypt.hash('SuperSegura123', 4);
+
+      state.empresas.push({ id: tenantId, nome: 'Cliente', plano: 'ativo', tipo: 'cliente' });
+      Object.assign(state.usuarios.find((u) => u.id === superId), {
+        senha_hash: senhaSuperHash,
+        versao_sessao: 1
+      });
+      state.usuarios.push(
+        {
+          id: tenantAdminId,
+          empresa_id: tenantId,
+          nome: 'Admin Cliente',
+          email: 'admin@cliente.test',
+          papel: 'administrador',
+          ativo: true,
+          senha_hash: senhaAnteriorHash,
+          must_change_password: false,
+          versao_sessao: 2
+        },
+        {
+          id: funcionarioId,
+          empresa_id: tenantId,
+          nome: 'Funcionário Cliente',
+          email: 'funcionario@cliente.test',
+          papel: 'funcionario',
+          ativo: true,
+          senha_hash: senhaAnteriorHash,
+          must_change_password: false,
+          versao_sessao: 1
+        }
+      );
+      state.refreshTokens.push(
+        { usuario_id: tenantAdminId, token_hash: 'admin-token', revogado: false },
+        { usuario_id: funcionarioId, token_hash: 'func-token', revogado: false },
+        { usuario_id: superId, token_hash: 'super-token', revogado: false }
+      );
+
+      const res = await request(app)
+        .post(`/api/empresas/${tenantId}/administradores/${tenantAdminId}/senha-temporaria`)
+        .set('Authorization', `Bearer ${superToken}`)
+        .send({ novaSenhaTemporaria: novaSenha, confirmar: true });
+
+      expect(res.status).toBe(200);
+      const admin = state.usuarios.find((u) => u.id === tenantAdminId);
+      const funcionario = state.usuarios.find((u) => u.id === funcionarioId);
+      const superAdmin = state.usuarios.find((u) => u.id === superId);
+      expect(await bcrypt.compare(novaSenha, admin.senha_hash)).toBe(true);
+      expect(admin.must_change_password).toBe(true);
+      expect(admin.versao_sessao).toBe(3);
+      expect(await bcrypt.compare(senhaAnterior, funcionario.senha_hash)).toBe(true);
+      expect(superAdmin.senha_hash).toBe(senhaSuperHash);
+      expect(state.refreshTokens.find((t) => t.usuario_id === tenantAdminId).revogado).toBe(true);
+      expect(state.refreshTokens.find((t) => t.usuario_id === funcionarioId).revogado).toBe(false);
+      expect(state.refreshTokens.find((t) => t.usuario_id === superId).revogado).toBe(false);
+      expect(state.auditLogs).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          escopo: 'plataforma',
+          ator_id: superId,
+          empresa_afetada_id: tenantId,
+          entidade_id: tenantAdminId,
+          acao: 'senha_temporaria_definida_superadmin'
+        })
+      ]));
+      expect(JSON.stringify(state.auditLogs)).not.toContain(novaSenha);
+    });
+
+    it('recusa funcionário e usuário pertencente a outra empresa', async () => {
+      const tenantId = '44444444-4444-4444-8444-444444444444';
+      const outroTenantId = '77777777-7777-4777-8777-777777777777';
+      const tenantAdminId = '55555555-5555-4555-8555-555555555555';
+      const funcionarioId = '66666666-6666-4666-8666-666666666666';
+      const senhaAnteriorHash = await bcrypt.hash('AnteriorSegura123', 4);
+      state.empresas.push(
+        { id: tenantId, nome: 'Cliente', plano: 'ativo', tipo: 'cliente' },
+        { id: outroTenantId, nome: 'Outro Cliente', plano: 'ativo', tipo: 'cliente' }
+      );
+      state.usuarios.push(
+        { id:tenantAdminId, empresa_id:tenantId, nome:'Admin', email:'admin@cliente.test', papel:'administrador', ativo:true, senha_hash:senhaAnteriorHash },
+        { id:funcionarioId, empresa_id:tenantId, nome:'Funcionário', email:'func@cliente.test', papel:'funcionario', ativo:true, senha_hash:senhaAnteriorHash }
+      );
+
+      const funcionario = await request(app)
+        .post(`/api/empresas/${tenantId}/administradores/${funcionarioId}/senha-temporaria`)
+        .set('Authorization', `Bearer ${superToken}`)
+        .send({ novaSenhaTemporaria:'NaoPodeAlterar123', confirmar:true });
+      expect(funcionario.status).toBe(409);
+
+      const outraEmpresa = await request(app)
+        .post(`/api/empresas/${outroTenantId}/administradores/${tenantAdminId}/senha-temporaria`)
+        .set('Authorization', `Bearer ${superToken}`)
+        .send({ novaSenhaTemporaria:'NaoPodeAlterar123', confirmar:true });
+      expect(outraEmpresa.status).toBe(404);
+      expect(state.usuarios.find((u) => u.id === funcionarioId).senha_hash).toBe(senhaAnteriorHash);
+      expect(state.usuarios.find((u) => u.id === tenantAdminId).senha_hash).toBe(senhaAnteriorHash);
+    });
+
+    it('exige Super Admin e recusa senha acima do limite seguro do bcrypt', async () => {
+      const tenantId = '44444444-4444-4444-8444-444444444444';
+      const tenantAdminId = '55555555-5555-4555-8555-555555555555';
+      const senhaAnteriorHash = await bcrypt.hash('AnteriorSegura123', 4);
+      state.empresas.push({ id:tenantId, nome:'Cliente', plano:'ativo', tipo:'cliente' });
+      state.usuarios.push({
+        id:tenantAdminId, empresa_id:tenantId, nome:'Admin', email:'admin@cliente.test',
+        papel:'administrador', ativo:true, senha_hash:senhaAnteriorHash
+      });
+      const endpoint = `/api/empresas/${tenantId}/administradores/${tenantAdminId}/senha-temporaria`;
+      const corpo = { novaSenhaTemporaria:'Aa1' + 'x'.repeat(70), confirmar:true };
+
+      expect((await request(app).post(endpoint).send(corpo)).status).toBe(401);
+      expect((await request(app).post(endpoint).set('Authorization', `Bearer ${adminToken}`).send(corpo)).status).toBe(403);
+      expect((await request(app).post(endpoint).set('Authorization', `Bearer ${superToken}`).send(corpo)).status).toBe(400);
+      expect(state.usuarios.find((u) => u.id === tenantAdminId).senha_hash).toBe(senhaAnteriorHash);
+    });
+  });
 });

@@ -143,6 +143,51 @@ integration('Super Admin — PostgreSQL isolado', () => {
     }
   });
 
+  it('define senha temporária somente para o administrador escolhido', async () => {
+    const bcrypt = require('bcryptjs');
+    const empresaCId = (await mockPool.query(
+      "INSERT INTO empresas(nome,email_contato,plano) VALUES('Cliente C','clientec@teste.invalid','ativo') RETURNING id"
+    )).rows[0].id;
+    const hashAnterior = await bcrypt.hash('SenhaAnterior123', 4);
+    const adminCId = (await mockPool.query(
+      "INSERT INTO usuarios(empresa_id,nome,email,senha_hash,papel) VALUES($1,'Admin C','adminc@teste.invalid',$2,'administrador') RETURNING id",
+      [empresaCId, hashAnterior]
+    )).rows[0].id;
+    const funcionarioCId = (await mockPool.query(
+      "INSERT INTO usuarios(empresa_id,nome,email,senha_hash,papel) VALUES($1,'Funcionário C','funcionarioc@teste.invalid',$2,'funcionario') RETURNING id",
+      [empresaCId, hashAnterior]
+    )).rows[0].id;
+    await mockPool.query(
+      "INSERT INTO refresh_tokens(usuario_id,token_hash,expira_em) VALUES($1,$2,now()+interval '1 day'),($3,$4,now()+interval '1 day')",
+      [adminCId, 'b'.repeat(64), funcionarioCId, 'c'.repeat(64)]
+    );
+
+    const resposta = await request(app)
+      .post(`/api/empresas/${empresaCId}/administradores/${adminCId}/senha-temporaria`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({novaSenhaTemporaria:'TemporariaNova123', confirmar:true});
+    expect(resposta.status).toBe(200);
+
+    const admin = (await mockPool.query(
+      'SELECT senha_hash,must_change_password,versao_sessao FROM usuarios WHERE id=$1', [adminCId]
+    )).rows[0];
+    const funcionario = (await mockPool.query(
+      'SELECT senha_hash,must_change_password,versao_sessao FROM usuarios WHERE id=$1', [funcionarioCId]
+    )).rows[0];
+    expect(await bcrypt.compare('TemporariaNova123', admin.senha_hash)).toBe(true);
+    expect(admin.must_change_password).toBe(true);
+    expect(admin.versao_sessao).toBe(2);
+    expect(funcionario.senha_hash).toBe(hashAnterior);
+    expect(funcionario.must_change_password).toBe(false);
+    expect(funcionario.versao_sessao).toBe(1);
+    expect((await mockPool.query('SELECT revogado FROM refresh_tokens WHERE usuario_id=$1',[adminCId])).rows[0].revogado).toBe(true);
+    expect((await mockPool.query('SELECT revogado FROM refresh_tokens WHERE usuario_id=$1',[funcionarioCId])).rows[0].revogado).toBe(false);
+    expect((await mockPool.query(
+      "SELECT * FROM audit_logs WHERE acao='senha_temporaria_definida_superadmin' AND empresa_afetada_id=$1 AND entidade_id=$2",
+      [empresaCId,adminCId]
+    )).rowCount).toBe(1);
+  });
+
   it('exclusão lógica confirma no servidor e preserva usuários e logs', async () => {
     expect((await request(app).delete(`/api/empresas/${empresaId}`).set('Authorization',`Bearer ${token}`).send({nomeConfirmacao:'Errada'})).status).toBe(400);
     const deleted = await request(app).delete(`/api/empresas/${empresaId}`).set('Authorization',`Bearer ${token}`).send({nomeConfirmacao:'Cliente A'});

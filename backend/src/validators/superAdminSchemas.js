@@ -4,6 +4,13 @@ const motivo = z.string().trim().max(500).optional();
 const page = z.coerce.number().int().min(1).default(1);
 const limit = z.coerce.number().int().min(1).max(100).default(20);
 const pagination = z.object({ page, limit });
+const senhaTemporaria = z.string().regex(
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/,
+  'A senha temporária deve ter no mínimo 8 caracteres, com letra maiúscula, minúscula e número.'
+).refine(
+  value => Buffer.byteLength(value, 'utf8') <= 72,
+  'A senha temporária deve ter no máximo 72 bytes.'
+);
 const empresaPaginada = { params: z.object({ id }), query: pagination.strict() };
 module.exports = {
   empresaId: { params: z.object({ id }) },
@@ -27,5 +34,9 @@ module.exports = {
   sessao: {params:z.object({sessaoId:id})},
   sessaoDetalhe: {params:z.object({sessaoId:id,id})},
   paginacao: {query:pagination.strict()},
-  recuperar: {params:z.object({id,usuarioId:id}),body:z.object({confirmar:z.literal(true)}).strict()}
+  recuperar: {params:z.object({id,usuarioId:id}),body:z.object({confirmar:z.literal(true)}).strict()},
+  senhaTemporaria: {
+    params: z.object({id, usuarioId:id}),
+    body: z.object({novaSenhaTemporaria:senhaTemporaria, confirmar:z.literal(true)}).strict()
+  }
 };

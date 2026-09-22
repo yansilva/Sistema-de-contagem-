@@ -12,6 +12,7 @@ const {
   atualizar,
   alterarStatus,
   excluirEmpresa,
+  definirSenhaTemporaria,
   impersonarEmpresa
 } = require('../controllers/empresasController');
 const sa = require('../validators/superAdminSchemas');
@@ -50,6 +51,8 @@ router.post('/:id/impersonar', auth, requireSuperAdmin, impersonarEmpresa);
 
 router.post('/:id/administradores/:usuarioId/recuperacao', auth, requireSuperAdmin,
   recoveryLimiter, validate(sa.recuperar), passwordReset.solicitar);
+router.post('/:id/administradores/:usuarioId/senha-temporaria', auth, requireSuperAdmin,
+  recoveryLimiter, validate(sa.senhaTemporaria), definirSenhaTemporaria);
 
 // POST /api/empresas/registrar — onboarding de nova empresa + primeiro gestor
 router.post('/registrar', loginLimiter, validate(registroSchema), registrar);

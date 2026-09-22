@@ -10,7 +10,7 @@
 
 **Spec:** [Proposta aprovada](../specs/2026-09-21-superadmin-auditoria-proposta.md).
 
-## Estado da execução — 2026-09-21
+## Estado da execução — atualização de 2026-09-22
 
 | Etapa | Estado | Evidência resumida |
 |---|---|---|
@@ -19,20 +19,20 @@
 | 5–7 | Concluídas | Sessões de auditoria somente leitura, métricas/listagens paginadas e empresa afetada nos logs validadas com dois tenants e dois operadores. |
 | 8–9 | Concluídas | Console, detalhes e auditoria por aba implementados; temas claro/escuro e largura de 360 px verificados no navegador. |
 | 10 | Concluída | Núcleo de recuperação com hash, expiração, consumo único e revogação de sessões validado no PostgreSQL isolado. |
-| 11 | Bloqueada por dependência externa | O usuário ainda precisa escolher o provedor de e-mail. A interface e a API informam indisponibilidade sem simular envio. A redefinição direta foi removida. |
-| 12 | Concluída no escopo disponível | Build sincronizado; 132 testes aprovados e 6 condicionais ignorados; lint com zero erros e 12 avisos preexistentes; 6 cenários aprovados no PostgreSQL isolado; revisão visual concluída em desktop, 360 px e temas claro/escuro. Commit local na branch desta fase; sem push ou deploy. |
+| 11 | Bloqueada somente para transporte de e-mail | O provedor continua pendente. Como solução temporária aprovada em 2026-09-22, o Super Admin pode definir senha temporária apenas para o administrador escolhido, com troca obrigatória, corte das sessões do alvo e auditoria transacional. |
+| 12 | Concluída no escopo disponível | Build sincronizado; 134 testes aprovados e 7 condicionais ignorados; lint com zero erros e 12 avisos preexistentes; 7 cenários aprovados no PostgreSQL isolado. A atualização temporária aguarda commit e deploy. |
 
-O código está na branch local `codex/superadmin-seguro`. Não houve push, deploy nem migração no banco operacional.
+O código-base foi integrado anteriormente à `main`. A atualização temporária de senha está na árvore local da `main` e ainda aguarda commit e deploy.
 
 ### Evidência final
 
 - `npm run build` sincronizou `frontend/` e `public/`; a comparação entre as duas árvores não encontrou diferenças.
-- `npm test`: 22 suítes aprovadas, 1 suíte PostgreSQL condicional ignorada na execução comum; 132 testes aprovados e 6 ignorados.
-- PostgreSQL isolado: 6 de 6 cenários aprovados em banco temporário descartado ao final.
+- `npm test`: 22 suítes aprovadas, 1 suíte PostgreSQL condicional ignorada na execução comum; 134 testes aprovados e 7 ignorados.
+- PostgreSQL isolado: 7 de 7 cenários aprovados em banco temporário descartado ao final.
 - `npm run lint`: zero erros e 12 avisos preexistentes.
 - Navegador com dados sintéticos: métricas, lista, detalhes, usuários, status, auditoria somente leitura, restauração após recarga, saída da auditoria, temas claro/escuro, fechamento de modal por Escape e largura de 360 px conferidos.
-- Revisão de segurança: nenhum token de usuário alvo é emitido; a rota antiga de impersonation responde 410; operações de status/exclusão exigem confirmação validada no servidor; recuperação direta do Super Admin não existe; senhas, hashes e tokens não entram nos logs de auditoria.
-- Limitação explícita: o transporte real de recuperação continua indisponível até a escolha de um provedor de e-mail. A tarefa 11 permanece bloqueada e não foi simulada como concluída.
+- Revisão de segurança: nenhum token de usuário alvo é emitido; a rota antiga de impersonation responde 410; operações de status/exclusão exigem confirmação validada no servidor; a senha temporária altera somente o administrador selecionado; senhas, hashes e tokens não entram nos logs de auditoria.
+- Limitação explícita: o transporte real de recuperação continua indisponível até a escolha de um provedor de e-mail. O fluxo por link foi preservado e não é simulado como entregue.
 
 ## Global Constraints
 

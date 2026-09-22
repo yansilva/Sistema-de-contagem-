@@ -413,6 +413,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         Empresas.fecharModalEdicao();
         Empresas.fecharModalStatus();
       }
+      if (typeof EmpresaDetalhes !== 'undefined') EmpresaDetalhes.fecharSenhaTemporaria();
     }
     if (e.key === 'Tab') {
       const modal = document.querySelector('.modal.active');

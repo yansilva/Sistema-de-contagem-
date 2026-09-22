@@ -1269,6 +1269,32 @@
     </div>
   </div>
 
+  <div id="modal-senha-temporaria-admin" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-senha-temporaria-admin-titulo">
+    <div class="modal-card" style="max-width:480px;">
+      <div class="modal-header">
+        <h3 id="modal-senha-temporaria-admin-titulo"><i class="ti ti-key" style="color:var(--cor-primaria)"></i> Nova senha temporária</h3>
+        <button class="btn-close" data-click="action-117" aria-label="Fechar">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Administrador: <strong id="senha-temporaria-admin-alvo"></strong></p>
+        <p class="subtitle" style="margin:6px 0 16px;">As sessões atuais serão encerradas. Trocará a senha no próximo acesso.</p>
+        <div class="form-group">
+          <label for="senha-temporaria-admin">Senha temporária</label>
+          <input type="password" id="senha-temporaria-admin" autocomplete="new-password" aria-describedby="senha-temporaria-admin-error" placeholder="Mínimo 8 caracteres, maiúscula, minúscula e número">
+        </div>
+        <div class="form-group">
+          <label for="confirmar-senha-temporaria-admin">Confirmar senha temporária</label>
+          <input type="password" id="confirmar-senha-temporaria-admin" autocomplete="new-password" aria-describedby="senha-temporaria-admin-error" data-keydown="action-119">
+        </div>
+        <div id="senha-temporaria-admin-error" class="auth-error" role="alert" aria-live="polite"></div>
+      </div>
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+        <button class="btn btn-outline" data-click="action-117">Cancelar</button>
+        <button class="btn btn-primary" id="btn-salvar-senha-temporaria-admin" data-click="action-118"><i class="ti ti-key"></i> Definir senha temporária</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts Modularizados -->
   <script src="/js/utils.js"></script>
   <script src="/js/api.js"></script>

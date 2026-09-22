@@ -1,6 +1,11 @@
+const bcrypt = require('bcryptjs');
 const { query } = require('../config/db');
 const { transacao, registrar } = require('../services/plataformaService');
+const auditService = require('../services/auditService');
 const { AppError, NotFoundError, ConflictError } = require('../errors/AppError');
+
+const SALT_ROUNDS = 12;
+const ADMIN_ROLES = new Set(['administrador', 'gestor', 'admin']);
 
 async function bloquear(client, id) {
   const { rows } = await client.query('SELECT * FROM empresas WHERE id = $1 FOR UPDATE', [id]);
@@ -87,4 +92,55 @@ async function excluirEmpresa(req,res,next) {
 function impersonarEmpresa(req,res) {
   res.status(410).json({success:false,code:'IMPERSONATION_DESATIVADA',message:'Use o modo auditoria somente leitura.'});
 }
-module.exports={atualizar,alterarStatus,excluirEmpresa,impersonarEmpresa};
+
+async function definirSenhaTemporaria(req,res,next) {
+  try {
+    const senhaHash = await bcrypt.hash(req.body.novaSenhaTemporaria, SALT_ROUNDS);
+    const usuario = await transacao(async client => {
+      const { rows } = await client.query(
+        `SELECT u.id,u.nome,u.email,u.papel,u.ativo,u.empresa_id,e.tipo,e.excluida_em
+         FROM usuarios u JOIN empresas e ON e.id=u.empresa_id
+         WHERE u.id = $1 AND u.empresa_id = $2 FOR UPDATE OF u,e`,
+        [req.params.usuarioId, req.params.id]
+      );
+      const alvo = rows[0];
+      if (!alvo || alvo.empresa_id !== req.params.id) {
+        throw new NotFoundError('Administrador não encontrado nesta empresa.');
+      }
+      if (!alvo.ativo || !ADMIN_ROLES.has(alvo.papel) || alvo.tipo !== 'cliente' || alvo.excluida_em) {
+        throw new AppError('Administrador indisponível para redefinição.',409,'ADMINISTRADOR_INDISPONIVEL');
+      }
+      const atualizado = (await client.query(
+        `UPDATE usuarios
+         SET senha_hash = $1, must_change_password = TRUE,
+             versao_sessao = versao_sessao + 1, atualizado_em = NOW()
+         WHERE id = $2 AND empresa_id = $3
+         RETURNING id,nome,email,papel,must_change_password,versao_sessao`,
+        [senhaHash, alvo.id, alvo.empresa_id]
+      )).rows[0];
+      await client.query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [alvo.id]);
+      await auditService.registrar(client, req.auditContext || {}, {
+        escopo:'plataforma',
+        empresaAfetadaId:alvo.empresa_id,
+        atorTipo:'usuario_plataforma',
+        atorId:req.usuario.id,
+        atorPapel:req.usuario.papel,
+        atorRotulo:req.usuario.email,
+        acao:'senha_temporaria_definida_superadmin',
+        entidade:'usuario',
+        entidadeId:alvo.id,
+        resultado:'sucesso',
+        metadados:{alvo_nome:alvo.nome,alvo_email:alvo.email},
+        eventoChave:`senha_temporaria_admin_${alvo.id}`
+      });
+      return atualizado;
+    });
+    res.json({
+      success:true,
+      message:'Senha temporária definida. O administrador deverá alterá-la no próximo acesso.',
+      data:{usuario:{id:usuario.id,nome:usuario.nome,email:usuario.email,mustChangePassword:true}}
+    });
+  } catch(error) { next(error); }
+}
+
+module.exports={atualizar,alterarStatus,excluirEmpresa,impersonarEmpresa,definirSenhaTemporaria};

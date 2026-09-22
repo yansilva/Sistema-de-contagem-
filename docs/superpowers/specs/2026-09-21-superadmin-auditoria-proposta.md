@@ -103,6 +103,8 @@ O Super Admin escolhe um administrador ativo da empresa e confirma o envio ao em
 
 O transporte de e-mail precisa ser definido pelo usuário; não fingir envio quando ausente. Serviço sem configuração deve devolver indisponibilidade explícita. Distinguir solicitação, aceitação pelo serviço de envio e falha; aceitação não comprova recebimento. O link usa origem configurada e confiável, não o header Host da requisição. Não consumir token em GET de pré-visualização de email. Não registrar URLs com tokens, senha ou respostas brutas do serviço.
 
+Decisão temporária de 2026-09-22: enquanto o provedor de e-mail não for definido, o Super Admin pode escolher um administrador ativo de uma empresa cliente e atribuir uma senha temporária forte. A mesma transação marca a troca obrigatória, incrementa a versão de sessão, revoga apenas os refresh tokens do alvo e registra o evento sem a senha. Funcionários, usuários de outra empresa e contas da plataforma não podem ser selecionados. O fluxo por link permanece preservado para adoção futura.
+
 ### Exclusão
 
 Usar exclusão lógica com nome exato confirmado tanto na interface quanto no servidor. Transação bloqueia a empresa, verifica estado/nome, marca exclusão, revoga sessões e registra o evento. Registrar tentativas negadas com metadados mínimos. Preservar dados e vínculos de auditoria. A empresa não aparece na operação normal; disponibilizar filtro administrativo de excluídas.

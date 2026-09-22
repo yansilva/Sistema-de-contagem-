@@ -107,7 +107,7 @@ Esta versão muda o contrato de autenticação e deve ser implantada em uma jane
 
 Não reverta para uma versão que restaure impersonation ou exclusão física. Se surgir um problema após a migração, aplique uma correção progressiva preservando as novas colunas e os registros de auditoria.
 
-O transporte de e-mail ainda não está configurado. A interface deve continuar mostrando **E-mail não configurado** e a API deve responder `EMAIL_NAO_CONFIGURADO` até que um provedor seja escolhido e validado. Não existe redefinição direta de senha pelo Super Admin.
+O transporte de e-mail ainda não está configurado. Até que um provedor seja escolhido e validado, o Super Admin pode definir uma senha temporária para um administrador da empresa. Somente a conta escolhida é alterada; suas sessões são encerradas e a troca da senha é obrigatória no próximo acesso. O fluxo por link permanece disponível no backend para futura configuração.
 
 ---
 

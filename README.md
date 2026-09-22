@@ -108,7 +108,7 @@ O suporte usa sessões de auditoria com validade de 30 minutos. Elas mantêm a i
 
 Tokens de acesso carregam uma versão de sessão validada no banco a cada requisição. Troca de senha, inativação ou exclusão incrementam essa versão e revogam refresh tokens, exigindo novo login.
 
-A recuperação de senha de administradores foi preparada para links de uso único, com token armazenado como hash, expiração e consumo atômico. A redefinição direta pelo Super Admin foi removida. Enquanto nenhum provedor de e-mail estiver configurado, o console informa **E-mail não configurado** e a API responde `503 EMAIL_NAO_CONFIGURADO` sem criar uma solicitação.
+A recuperação por link de uso único continua preparada para quando houver um provedor de e-mail. Enquanto isso, o Super Admin pode definir uma senha temporária forte para um administrador da empresa. A operação encerra apenas as sessões desse administrador, exige a troca da senha no próximo acesso e fica registrada na auditoria sem armazenar a senha em texto puro.
 
 ### Rotação de Refresh Tokens & Detecção de Roubo
 
@@ -295,6 +295,7 @@ A API possui documentação OpenAPI 3.0 navegável e testável diretamente pelo 
 | `GET` | `/api/empresas` | super_admin | Lista empresas com filtros e paginação |
 | `PATCH` | `/api/empresas/:id/status` | super_admin | Ativa ou inativa a empresa com confirmação |
 | `DELETE` | `/api/empresas/:id` | super_admin | Aplica exclusão lógica e preserva o histórico |
+| `POST` | `/api/empresas/:id/administradores/:usuarioId/senha-temporaria` | super_admin | Define senha temporária, encerra as sessões do administrador escolhido e exige troca no próximo acesso |
 | `POST` | `/api/auditoria/sessoes` | super_admin | Inicia auditoria somente leitura de uma empresa |
 | `POST` | `/api/auditoria/sessoes/:id/encerrar` | super_admin | Encerra uma sessão de auditoria |
 | `GET` | `/api/auth/recuperacao/status` | Público | Informa se o transporte de recuperação está configurado |
