@@ -7,24 +7,32 @@
 const StockImport = {
   dadosPrevia: null,
 
+  mostrarStatus(mensagem, tipo = 'info') {
+    const status = document.getElementById('stock-upload-status');
+    if (!status) return;
+    status.textContent = mensagem;
+    status.style.display = 'block';
+    status.style.color = tipo === 'error' ? 'var(--cor-perigo)' :
+      (tipo === 'success' ? 'var(--cor-sucesso)' : 'var(--cor-texto-secundario)');
+  },
+
   /**
    * Dispara o envio do arquivo PDF selecionado
    */
-  async enviarPdf(inputEl) {
-    const file = inputEl.files[0];
+  async enviarPdf(file) {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
+      this.mostrarStatus('Selecione um arquivo no formato PDF.', 'error');
       showToast('Por favor, selecione um arquivo no formato PDF.', 'error');
-      inputEl.value = '';
       return;
     }
 
+    this.dadosPrevia = null;
     const formData = new FormData();
     formData.append('arquivo', file);
 
     const containerPrevia = document.getElementById('painel-previa-estoque');
-    const containerHistorico = document.getElementById('painel-historico-estoque');
     if (containerPrevia) {
       containerPrevia.style.display = 'block';
       containerPrevia.innerHTML = `
@@ -35,18 +43,30 @@ const StockImport = {
         </div>
       `;
     }
+    this.mostrarStatus(`Enviando e processando ${file.name}...`);
 
-    const res = await API.upload('/estoque/upload-pdf', formData);
-    inputEl.value = '';
+    let res;
+    try {
+      res = await API.upload('/estoque/upload-pdf', formData);
+    } catch {
+      res = null;
+    }
 
     if (!res || !res.success) {
       if (containerPrevia) containerPrevia.style.display = 'none';
-      showToast(res?.message || 'Falha ao processar arquivo PDF.', 'error');
+      const mensagem = res?.message || 'Falha ao processar arquivo PDF.';
+      this.mostrarStatus(`Não foi possível analisar ${file.name}: ${mensagem}`, 'error');
+      showToast(mensagem, 'error');
       return;
     }
 
     this.dadosPrevia = res.data;
     this.renderizarPrevia();
+    const total = res.data.produtos_correspondentes || 0;
+    this.mostrarStatus(total
+      ? `PDF recebido e analisado. ${total} ${total === 1 ? 'produto cadastrado pronto' : 'produtos cadastrados prontos'} para atualização. Nenhum estoque foi alterado. Revise a prévia e confirme.`
+      : 'PDF recebido e analisado, mas nenhum SKU cadastrado foi encontrado. Nenhum estoque foi alterado. Confira os códigos na prévia.',
+    total ? 'success' : 'info');
   },
 
   /**
@@ -106,7 +126,7 @@ const StockImport = {
 
     container.innerHTML = `
       <div class="card" style="margin-bottom:20px; border-top:4px solid var(--cor-primaria)">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+        <div class="stock-preview-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
           <div>
             <h3 style="margin:0; font-size:1.25rem"><i class="ti ti-file-analytics"></i> Prévia da Atualização de Estoque</h3>
             <p style="margin:4px 0 0 0; color:var(--cor-texto-mutado); font-size:0.875rem">Arquivo: <strong>${escapeHtml(nome_arquivo)}</strong></p>
@@ -197,26 +217,28 @@ const StockImport = {
     `;
   },
 
-  cancelarPrevia() {
+  cancelarPrevia(silencioso = false) {
     this.dadosPrevia = null;
     const container = document.getElementById('painel-previa-estoque');
     if (container) {
       container.style.display = 'none';
       container.innerHTML = '';
     }
+    if (!silencioso) this.mostrarStatus('Prévia cancelada. Nenhum estoque foi alterado.');
   },
 
   /**
    * Confirma a atualização do estoque no banco
    */
   async confirmarAtualizacao() {
-    if (!this.dadosPrevia || !this.dadosPrevia.produtos_para_atualizar) return;
+    if (!this.dadosPrevia || !this.dadosPrevia.produtos_para_atualizar?.length) return;
 
     const btn = document.getElementById('btn-confirmar-estoque');
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span> Gravando alterações no banco...';
     }
+    this.mostrarStatus('Atualizando o estoque dos SKUs confirmados...');
 
     const payload = {
       nome_arquivo: this.dadosPrevia.nome_arquivo,
@@ -236,12 +258,16 @@ const StockImport = {
         btn.disabled = false;
         btn.innerHTML = '<i class="ti ti-check"></i> Confirmar Atualização';
       }
-      showToast(res?.message || 'Erro ao confirmar atualização de estoque.', 'error');
+      const mensagem = res?.message || 'Erro ao confirmar atualização de estoque.';
+      this.mostrarStatus(mensagem, 'error');
+      showToast(mensagem, 'error');
       return;
     }
 
     showToast(res.message || 'Estoque atualizado com sucesso!', 'success');
-    this.cancelarPrevia();
+    this.cancelarPrevia(true);
+    const atualizados = res.data?.produtos_atualizados || 0;
+    this.mostrarStatus(`Estoque atualizado em ${atualizados} ${atualizados === 1 ? 'produto' : 'produtos'}.`, 'success');
     this.carregarHistorico();
 
     // Recarrega lista de produtos se estiver visível

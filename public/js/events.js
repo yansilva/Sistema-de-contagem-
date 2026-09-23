@@ -51,9 +51,7 @@ const UIActions = {
   'action-48': (element, event) => { Produtos.abrirNovo(); },
   'action-49': (element, event) => { Produtos.mudarPagina(-1); },
   'action-50': (element, event) => { Produtos.mudarPagina(1); },
-  'action-51': (element, event) => { StockImport.handleFileSelect(element); },
-  'action-52': (element, event) => { StockImport.cancelar(); },
-  'action-53': (element, event) => { StockImport.confirmar(); },
+  'action-51': (element) => { const file = element.files?.[0]; element.value = ''; StockImport.enviarPdf(file); },
   'action-54': (element, event) => { Usuarios.filtrar(element.value); },
   'action-55': (element, event) => { Usuarios.abrirModalCriar(); },
   'action-56': (element, event) => { Auth.alterarSenha(); },
@@ -123,10 +121,17 @@ const UIActions = {
   'action-120': (element) => { EmpresaDetalhes.abrir(element.getAttribute('data-id'), 'usuarios'); },
   'action-121': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Contagens.fecharFornecedor(); },
   'action-122': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Consulta.fecharDetalhe(); },
-  'action-123': (element) => { Consulta.baixarExcel(element.dataset.id); }
+  'action-123': (element) => { Consulta.baixarExcel(element.dataset.id); },
+  'action-124': (element, event) => { event.preventDefault(); element.classList.add('drag-over'); },
+  'action-125': (element) => { element.classList.remove('drag-over'); },
+  'action-126': (element, event) => {
+    event.preventDefault();
+    element.classList.remove('drag-over');
+    StockImport.enviarPdf(event.dataTransfer.files?.[0]);
+  }
 };
 
-for (const type of ['click', 'input', 'change', 'keydown']) {
+for (const type of ['click', 'input', 'change', 'keydown', 'dragover', 'dragleave', 'drop']) {
   document.addEventListener(type, event => {
     const element = event.target.closest('[data-' + type + ']');
     if (!element || element.disabled) return;

@@ -847,7 +847,7 @@
             </div>
           </div>
 
-          <div id="stock-upload-area" class="upload-area" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault(); this.classList.remove('drag-over'); StockImport.handleDrop(event)">
+          <div id="stock-upload-area" class="upload-area" data-dragover="action-124" data-dragleave="action-125" data-drop="action-126">
             <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
             <p style="font-weight:600; margin-bottom:4px">Arraste o PDF aqui ou clique para selecionar</p>
             <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ou ERP da Olist</p>
@@ -857,42 +857,17 @@
             </label>
           </div>
 
-          <div id="stock-upload-status" style="display:none; margin-top:12px"></div>
+          <div id="stock-upload-status" role="status" aria-live="polite" style="display:none; margin-top:12px"></div>
         </div>
 
-        <!-- Painel de Prévia da Importação -->
-        <div id="stock-preview-panel" style="display:none">
-          <div class="card" style="margin-bottom:16px">
-            <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px">
-              <i class="ti ti-list-check" style="color:var(--cor-sucesso)"></i> Prévia da Importação
-            </h3>
-            <div id="stock-preview-stats" class="kpi-grid" style="margin-bottom:16px"></div>
-            <div id="stock-preview-matched"></div>
-          </div>
-
-          <div id="stock-preview-unmatched-panel" class="card" style="margin-bottom:16px; display:none">
-            <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px; color:var(--cor-aviso)">
-              <i class="ti ti-alert-triangle"></i> SKUs Não Cadastrados (Pendências)
-            </h3>
-            <div id="stock-preview-unmatched"></div>
-          </div>
-
-          <div style="display:flex; justify-content:flex-end; gap:12px">
-            <button class="btn btn-outline" data-click="action-52">
-              <i class="ti ti-x"></i> Cancelar
-            </button>
-            <button class="btn btn-primary" id="btn-confirmar-importacao" data-click="action-53">
-              <i class="ti ti-check"></i> Confirmar Atualização de Estoque
-            </button>
-          </div>
-        </div>
+        <div id="painel-previa-estoque" style="display:none"></div>
 
         <!-- Histórico de Importações -->
         <div class="card" style="margin-top:20px">
           <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px">
             <i class="ti ti-history" style="color:var(--cor-texto-secundario)"></i> Histórico de Importações
           </h3>
-          <div id="stock-import-historico"></div>
+          <div id="lista-historico-estoque"></div>
         </div>
       </div>
 

@@ -107,8 +107,8 @@
   .pagination-controls > span { order: -1; flex-basis: 100%; text-align: center; }
   .toast { left: 12px; right: 12px; max-width: calc(100% - 24px); padding: 14px; overflow-wrap: anywhere; }
   .upload-area { padding: 24px 16px; }
-  #stock-preview-panel > div:last-child { flex-wrap: wrap; }
-  #stock-preview-panel > div:last-child .btn { flex: 1 1 auto; }
+  .stock-preview-header, .stock-preview-header > div:last-child { flex-wrap: wrap; gap: 8px; }
+  .stock-preview-header .btn { flex: 1 1 auto; }
   .quick-card[data-produtor] > div { flex-wrap: wrap; gap: 8px; }
   .quick-card h4 { min-width: 0; overflow-wrap: anywhere; }
   .app-modal { padding: 12px !important; }
