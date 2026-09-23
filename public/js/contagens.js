@@ -34,7 +34,9 @@ const Contagens = {
     const buscaInput = document.getElementById('busca-fornecedor');
     if (buscaInput) buscaInput.value = '';
     const blocoProd = document.getElementById('bloco-produtos-contagem');
-    if (blocoProd) blocoProd.style.display = 'none';
+    if (blocoProd?.open) blocoProd.close();
+    const progressoTexto = document.getElementById('progresso-contagem-texto');
+    if (progressoTexto) progressoTexto.textContent = 'Carregando produtos...';
 
     // Feedback visual instantâneo: navega imediatamente e exibe loader
     showScreen('screen-contagem');
@@ -58,7 +60,10 @@ const Contagens = {
       }
 
       this.contagemId = res.data.contagem.id;
-      await this.carregarDadosContagem();
+      if (!await this.carregarDadosContagem()) {
+        showScreen('screen-home');
+        return;
+      }
 
       showToast('Contagem iniciada. Selecione um produtor para contar.', 'info');
     } catch (err) {
@@ -76,7 +81,10 @@ const Contagens = {
     if (!this.contagemId) return;
 
     const res = await API.get(`/contagens/${this.contagemId}`);
-    if (!res || !res.success || !res.data?.contagem) return;
+    if (!res || !res.success || !res.data?.contagem) {
+      showToast(res?.message || 'Não foi possível carregar os produtos da contagem.', 'error');
+      return false;
+    }
 
     this.dadosSessao = res.data.contagem;
     this.fornecedoresLista = (this.dadosSessao.fornecedores || []).map((f) => f.fornecedor);
@@ -97,6 +105,7 @@ const Contagens = {
     if (this.fornecedorAtual) {
       this.selecionarFornecedor(this.fornecedorAtual);
     }
+    return true;
   },
 
   /**
@@ -177,7 +186,6 @@ const Contagens = {
    * Seleciona um produtor e exibe seus produtos para contagem cega
    */
   selecionarFornecedor(fornecedor) {
-    this.fornecedorAtual = fornecedor;
     const bloco = document.getElementById('bloco-produtos-contagem');
     const titulo = document.getElementById('titulo-produtor-ativo');
 
@@ -185,9 +193,10 @@ const Contagens = {
 
     const fornObj = (this.dadosSessao?.fornecedores || []).find((f) => f.fornecedor === fornecedor);
     if (!fornObj || !fornObj.produtos || fornObj.produtos.length === 0) {
-      if (bloco) bloco.style.display = 'none';
+      showToast('Este produtor não tem produtos nesta contagem.', 'error');
       return;
     }
+    this.fornecedorAtual = fornecedor;
 
     this.itensFornecedor = fornObj.produtos.map((p) => ({
       id: p.id,
@@ -200,7 +209,12 @@ const Contagens = {
 
     this.renderizarItensContagem();
     this.renderizarListaProdutores();
-    if (bloco) bloco.style.display = 'block';
+    if (bloco && !bloco.open) bloco.showModal();
+  },
+
+  fecharFornecedor() {
+    const bloco = document.getElementById('bloco-produtos-contagem');
+    if (bloco?.open) bloco.close();
   },
 
   /**

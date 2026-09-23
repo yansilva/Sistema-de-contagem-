@@ -120,7 +120,8 @@ const UIActions = {
   'action-117': () => { EmpresaDetalhes.fecharSenhaTemporaria(); },
   'action-118': () => { EmpresaDetalhes.salvarSenhaTemporaria(); },
   'action-119': (element, event) => { if (event.key === 'Enter') EmpresaDetalhes.salvarSenhaTemporaria(); },
-  'action-120': (element) => { EmpresaDetalhes.abrir(element.getAttribute('data-id'), 'usuarios'); }
+  'action-120': (element) => { EmpresaDetalhes.abrir(element.getAttribute('data-id'), 'usuarios'); },
+  'action-121': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Contagens.fecharFornecedor(); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

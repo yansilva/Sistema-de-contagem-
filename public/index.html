@@ -639,16 +639,24 @@
       </div>
       <div id="lista-produtores-cards" class="quick-cards-grid" style="margin-bottom:20px"></div>
 
-      <!-- Bloco de Produtos do Fornecedor (Contagem Cega) -->
-      <div id="bloco-produtos-contagem" style="display:none">
-        <h3 id="titulo-produtor-ativo" style="margin-bottom:16px"></h3>
+      <!-- Produtos do produtor em uma janela de contagem cega -->
+      <dialog id="bloco-produtos-contagem" class="contagem-dialog" aria-labelledby="titulo-produtor-ativo" data-click="action-121">
+        <div class="contagem-dialog-header">
+          <div>
+            <span class="contagem-dialog-eyebrow">Contagem cega · Estoque oculto</span>
+            <h3 id="titulo-produtor-ativo"></h3>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" data-click="action-121" aria-label="Fechar produtos do produtor" title="Fechar">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
         <!-- Lista de Produtos para Contagem Cega -->
-        <div id="lista-produtos-produtor"></div>
+        <div id="lista-produtos-produtor" class="contagem-dialog-lista"></div>
 
-        <button class="btn btn-primary btn-block btn-lg" id="btn-salvar-progresso-produtor" data-click="action-36" style="margin-top:20px">
+        <button class="btn btn-primary btn-block btn-lg" id="btn-salvar-progresso-produtor" data-click="action-36">
           <i class="ti ti-device-floppy"></i> Salvar progresso deste produtor
         </button>
-      </div>
+      </dialog>
 
     </div>
   </section>

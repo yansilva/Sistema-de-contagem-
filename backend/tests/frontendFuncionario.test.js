@@ -31,7 +31,10 @@ describe('Área do funcionário de contagem', () => {
           remove: (c) => classes.delete(c),
           contains: (c) => classes.has(c)
         },
-        scrollIntoView: jest.fn()
+        scrollIntoView: jest.fn(),
+        open: false,
+        showModal: jest.fn(function () { this.open = true; }),
+        close: jest.fn(function () { this.open = false; })
       });
     }
     api = {
@@ -222,7 +225,8 @@ describe('Área do funcionário de contagem', () => {
     expect(api.post).toHaveBeenCalledWith('/contagens', {});
     expect(elements.get('screen-contagem').classes.has('active')).toBe(true);
     context.contagens.selecionarFornecedor("D'Água");
-    expect(elements.get('bloco-produtos-contagem').style.display).toBe('block');
+    expect(elements.get('bloco-produtos-contagem').showModal).toHaveBeenCalledTimes(1);
+    expect(elements.get('bloco-produtos-contagem').open).toBe(true);
     expect(elements.get('lista-produtos-produtor').innerHTML).not.toContain('999999');
     context.contagens.atualizarQuantidadeItem(0, '0');
     api.put.mockImplementation(async () => {
@@ -236,5 +240,21 @@ describe('Área do funcionário de contagem', () => {
     });
     expect(elements.get('progresso-contagem-texto').textContent).toBe('1 de 1 produtos contados');
     expect(elements.get('btn-finalizar-contagem').disabled).toBe(false);
+    expect(elements.get('bloco-produtos-contagem').showModal).toHaveBeenCalledTimes(1);
+    context.contagens.fecharFornecedor();
+    expect(elements.get('bloco-produtos-contagem').open).toBe(false);
+  });
+
+  it('não anuncia contagem pronta quando os produtos não carregam', async () => {
+    api.post.mockResolvedValue({ success: true, data: { contagem: { id: 'nova-contagem' } } });
+    api.get.mockResolvedValue({ success: false, message: 'Falha ao buscar produtos' });
+
+    await context.contagens.iniciarNovaSessao();
+
+    expect(elements.get('screen-home').classes.has('active')).toBe(true);
+    expect(context.showToast).toHaveBeenCalledWith('Falha ao buscar produtos', 'error');
+    expect(context.showToast).not.toHaveBeenCalledWith(
+      'Contagem iniciada. Selecione um produtor para contar.', 'info'
+    );
   });
 });
