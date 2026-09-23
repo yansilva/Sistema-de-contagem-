@@ -1,5 +1,5 @@
 /**
- * Módulo de Importação de Estoque Atual via Relatório PDF do Tiny ERP
+ * Módulo de Importação de Estoque Atual via Relatório PDF do Tiny/Olist
  * Fluxo em 2 etapas:
  * 1. Upload e Prévia (sem alterar o banco)
  * 2. Confirmação explícita pelo administrador
@@ -30,7 +30,7 @@ const StockImport = {
       containerPrevia.innerHTML = `
         <div class="card" style="padding:24px; text-align:center">
           <span class="spinner" style="width:32px; height:32px; margin-bottom:12px"></span>
-          <h4>Processando relatório PDF do Tiny...</h4>
+          <h4>Processando relatório PDF de estoque...</h4>
           <p class="text-muted">Extraindo SKUs, quantidades e cruzando com o catálogo cadastrado.</p>
         </div>
       `;
@@ -63,7 +63,9 @@ const StockImport = {
       skus_nao_encontrados_total,
       linhas_ignoradas,
       produtos_para_atualizar,
-      skus_nao_encontrados
+      skus_nao_encontrados,
+      itens_ignorados_total = 0,
+      itens_ignorados = []
     } = this.dadosPrevia;
 
     const rowsAtualizacao = produtos_para_atualizar.map((p) => {
@@ -93,6 +95,15 @@ const StockImport = {
       </tr>
     `).join('');
 
+    const rowsIgnorados = itens_ignorados.slice(0, 50).map((p) => `
+      <tr>
+        <td><code>${escapeHtml(p.codigo || 'Sem código')}</code></td>
+        <td>${escapeHtml(p.nome_relatorio || 'Item não identificado')}</td>
+        <td style="text-align:center">${p.quantidade}</td>
+        <td style="color:var(--cor-aviso)">${escapeHtml(p.motivo)}</td>
+      </tr>
+    `).join('');
+
     container.innerHTML = `
       <div class="card" style="margin-bottom:20px; border-top:4px solid var(--cor-primaria)">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
@@ -102,7 +113,7 @@ const StockImport = {
           </div>
           <div style="display:flex; gap:8px">
             <button class="btn btn-outline" data-click="action-80">Cancelar</button>
-            <button class="btn btn-primary" id="btn-confirmar-estoque" data-click="action-81">
+            <button class="btn btn-primary" id="btn-confirmar-estoque" data-click="action-81" ${produtos_correspondentes === 0 ? 'disabled' : ''}>
               <i class="ti ti-check"></i> Confirmar Atualização (${produtos_correspondentes} produtos)
             </button>
           </div>
@@ -138,7 +149,7 @@ const StockImport = {
                 <th>Nome</th>
                 <th>Produtor</th>
                 <th style="text-align:center">Estoque Anterior</th>
-                <th style="text-align:center">Novo Estoque (Tiny)</th>
+                <th style="text-align:center">Novo Estoque (PDF)</th>
                 <th style="text-align:center">Variação</th>
               </tr>
             </thead>
@@ -151,7 +162,7 @@ const StockImport = {
         ${skus_nao_encontrados_total > 0 ? `
           <h4 style="margin:16px 0 8px 0; color:var(--cor-aviso)"><i class="ti ti-alert-triangle"></i> Pendências: SKUs Encontrados no PDF mas Não Cadastrados</h4>
           <p style="font-size:0.85rem; color:var(--cor-texto-mutado); margin-bottom:8px">
-            Estes produtos foram encontrados no relatório do Tiny, mas não constam no cadastro do sistema. Eles <strong>NÃO</strong> serão adicionados automaticamente.
+            Estes produtos foram encontrados no relatório, mas não constam no cadastro do sistema. Eles <strong>NÃO</strong> serão adicionados automaticamente.
           </p>
           <div style="max-height:200px; overflow-y:auto; border:1px solid var(--cor-borda); border-radius:6px">
             <table class="data-table" style="margin:0">
@@ -166,6 +177,19 @@ const StockImport = {
               <tbody>
                 ${rowsPendencias}
               </tbody>
+            </table>
+          </div>
+        ` : ''}
+
+        ${itens_ignorados_total > 0 ? `
+          <h4 style="margin:16px 0 8px 0; color:var(--cor-aviso)"><i class="ti ti-alert-triangle"></i> ${itens_ignorados_total} item(ns) não serão atualizados</h4>
+          <p style="font-size:0.85rem; color:var(--cor-texto-mutado); margin-bottom:8px">
+            Confira os itens sem código, com código repetido ou com estoque fracionário. O sistema só atualiza quantidades inteiras com SKU único.
+          </p>
+          <div style="max-height:200px; overflow-y:auto; border:1px solid var(--cor-borda); border-radius:6px">
+            <table class="data-table" style="margin:0">
+              <thead><tr><th>SKU</th><th>Descrição no Relatório</th><th>Quantidade</th><th>Motivo</th></tr></thead>
+              <tbody>${rowsIgnorados}</tbody>
             </table>
           </div>
         ` : ''}

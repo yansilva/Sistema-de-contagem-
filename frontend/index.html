@@ -259,7 +259,7 @@
           </button>
           <div class="action-group">
             <button class="btn btn-outline btn-sm" data-click="action-21">
-              <i class="ti ti-file-type-pdf"></i> Importar Tiny (PDF)
+              <i class="ti ti-file-type-pdf"></i> Importar Estoque (PDF)
             </button>
             <button class="btn btn-outline btn-sm" data-click="action-22">
               <i class="ti ti-file-spreadsheet"></i> Planilha Excel
@@ -834,15 +834,15 @@
         </div>
       </div>
 
-      <!-- ABA 2: IMPORTAR ESTOQUE (TINY ERP PDF) -->
+      <!-- ABA 2: IMPORTAR ESTOQUE (PDF) -->
       <div class="tab-content" id="tab-estoque">
         <div class="card" style="margin-bottom:20px">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
             <i class="ti ti-file-type-pdf" style="font-size:2rem; color:var(--cor-primaria)"></i>
             <div>
-              <h3 style="font-size:1.1rem; font-weight:700; margin:0">Importar Relatório de Estoque — Tiny ERP</h3>
+              <h3 style="font-size:1.1rem; font-weight:700; margin:0">Importar Relatório de Estoque</h3>
               <p style="font-size:0.85rem; color:var(--cor-texto-secundario); margin:4px 0 0">
-                Faça upload do relatório de estoque em PDF exportado do Tiny ERP. O sistema irá cruzar os SKUs com os produtos cadastrados e apresentar uma prévia antes de atualizar.
+                Envie o relatório de estoque em PDF exportado do Tiny ou ERP da Olist. O sistema irá cruzar os SKUs com os produtos cadastrados e apresentar uma prévia antes de atualizar.
               </p>
             </div>
           </div>
@@ -850,7 +850,7 @@
           <div id="stock-upload-area" class="upload-area" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="event.preventDefault(); this.classList.remove('drag-over'); StockImport.handleDrop(event)">
             <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
             <p style="font-weight:600; margin-bottom:4px">Arraste o PDF aqui ou clique para selecionar</p>
-            <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ERP</p>
+            <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ou ERP da Olist</p>
             <label class="btn btn-primary btn-sm" style="margin-top:12px; cursor:pointer">
               <i class="ti ti-upload"></i> Selecionar Arquivo PDF
               <input type="file" accept=".pdf" style="display:none" data-change="action-51">

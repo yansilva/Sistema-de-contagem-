@@ -7,7 +7,7 @@ function getPdfParse() {
 }
 
 /**
- * Serviço de Importação e Atualização de Estoque via Relatório PDF do Tiny ERP
+ * Serviço de Importação e Atualização de Estoque via Relatório PDF do Tiny/Olist
  *
  * Responsabilidades:
  * 1. Extração de texto do buffer PDF
@@ -101,6 +101,45 @@ function extrairLinhaTiny(linha) {
   return null;
 }
 
+const colunasOlist = /código\s*\(sku\).*preço\s+estoque/i;
+const valoresOlist = /^(.+?)\s+([+-]?\d[\d.]*,\d{2})\s+([+-]?\d[\d.]*,\d{2})(?:\s+[^\d\s]+)?\s*$/i;
+const skuOlist = /^(\d+(?:\.[A-Za-z0-9-]+)+[A-Za-z0-9-]*|\d+)\s+(.+)$/;
+
+function extrairLinhasOlist(linhas) {
+  const itens = [];
+  let pendente = '';
+  let ignoradas = 0;
+
+  for (const original of linhas) {
+    const linha = original.trim();
+    if (!linha || colunasOlist.test(linha) || /^Estoque - /.test(linha) || /^-- \d+ of \d+ --$/.test(linha)) {
+      ignoradas++;
+      continue;
+    }
+
+    // Descrições longas ocupam duas linhas no texto extraído do PDF.
+    const completa = pendente
+      ? `${pendente}${/[.-]$/.test(pendente) && /^\d+\s/.test(linha) ? '' : ' '}${linha}`
+      : linha;
+    const valores = completa.match(valoresOlist);
+    if (!valores) {
+      pendente = completa;
+      continue;
+    }
+    pendente = '';
+
+    const sku = valores[1].trim().match(skuOlist);
+    const quantidade = Number(valores[3].replace(/\./g, '').replace(',', '.'));
+    if (!sku) {
+      itens.push({ codigo: '', nome: valores[1].trim(), quantidade, motivo: 'SKU ausente' });
+    } else {
+      itens.push({ codigo: sku[1], nome: sku[2].trim(), quantidade });
+    }
+  }
+  if (pendente) ignoradas++;
+  return { itens, ignoradas };
+}
+
 /**
  * Processa o arquivo PDF e gera a prévia de atualização contra o banco de dados da empresa
  *
@@ -109,9 +148,16 @@ function extrairLinhaTiny(linha) {
  * @param {Array} produtosCadastrados - Lista de produtos da empresa já no banco
  */
 async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) {
-  const data = await getPdfParse()(pdfBuffer);
-  const textoCompleto = data.text || '';
+  const { PDFParse } = getPdfParse();
+  const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+  let textoCompleto;
+  try {
+    textoCompleto = (await parser.getText()).text || '';
+  } finally {
+    await parser.destroy();
+  }
   const linhas = textoCompleto.split(/\r?\n/);
+  const formato = linhas.some((linha) => colunasOlist.test(linha)) ? 'olist' : 'tiny';
 
   const mapaProdutosDb = new Map();
   produtosCadastrados.forEach((p) => {
@@ -121,13 +167,30 @@ async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) 
   const skusVistos = new Set();
   const produtosParaAtualizar = [];
   const skusNaoEncontrados = [];
+  const itensIgnorados = [];
   let produtosEncontrados = 0;
   let linhasIgnoradas = 0;
 
-  for (const linha of linhas) {
-    const parsed = extrairLinhaTiny(linha);
+  const olist = formato === 'olist' ? extrairLinhasOlist(linhas) : null;
+  const itens = olist ? olist.itens : linhas.map(extrairLinhaTiny);
+  if (olist) linhasIgnoradas = olist.ignoradas;
+  const frequenciaSku = new Map();
+  if (olist) {
+    for (const item of itens) {
+      if (!item.codigo) continue;
+      const sku = normalizarSku(item.codigo);
+      frequenciaSku.set(sku, (frequenciaSku.get(sku) || 0) + 1);
+    }
+  }
+
+  for (const parsed of itens) {
     if (!parsed) {
       linhasIgnoradas++;
+      continue;
+    }
+
+    if (parsed.motivo) {
+      itensIgnorados.push({ codigo: parsed.codigo, nome_relatorio: parsed.nome, quantidade: parsed.quantidade, motivo: parsed.motivo });
       continue;
     }
 
@@ -138,6 +201,15 @@ async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) 
     }
     skusVistos.add(skuNorm);
     produtosEncontrados++;
+
+    if (frequenciaSku.get(skuNorm) > 1) {
+      itensIgnorados.push({ codigo: parsed.codigo, nome_relatorio: parsed.nome, quantidade: parsed.quantidade, motivo: 'SKU repetido no PDF' });
+      continue;
+    }
+    if (!Number.isInteger(parsed.quantidade)) {
+      itensIgnorados.push({ codigo: parsed.codigo, nome_relatorio: parsed.nome, quantidade: parsed.quantidade, motivo: 'Estoque fracionário' });
+      continue;
+    }
 
     if (mapaProdutosDb.has(skuNorm)) {
       const prodDb = mapaProdutosDb.get(skuNorm);
@@ -161,10 +233,13 @@ async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) 
 
   return {
     nome_arquivo: nomeArquivo,
+    formato,
     produtos_encontrados: produtosEncontrados,
     produtos_correspondentes: produtosParaAtualizar.length,
     skus_nao_encontrados_total: skusNaoEncontrados.length,
     linhas_ignoradas: linhasIgnoradas,
+    itens_ignorados_total: itensIgnorados.length,
+    itens_ignorados: itensIgnorados,
     produtos_para_atualizar: produtosParaAtualizar,
     skus_nao_encontrados: skusNaoEncontrados
   };

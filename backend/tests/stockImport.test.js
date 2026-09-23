@@ -1,7 +1,7 @@
 const request = require('supertest');
 const db = require('../src/config/db');
 const { gerarAccessToken } = require('../src/config/jwt');
-const { extrairLinhaTiny, normalizarSku, parseQuantidade } = require('../src/services/pdfStockImportService');
+const { extrairLinhaTiny, normalizarSku, parseQuantidade, processarPdfEstoque } = require('../src/services/pdfStockImportService');
 
 jest.mock('../src/config/db', () => ({
   query: jest.fn(),
@@ -11,9 +11,8 @@ jest.mock('../src/config/db', () => ({
 
 // Mock do pdf-parse para testes previsíveis
 jest.mock('pdf-parse', () => {
-  return jest.fn().mockImplementation(() =>
-    Promise.resolve({
-      text: `
+  return { PDFParse: jest.fn().mockImplementation(() => ({
+    getText: jest.fn().mockResolvedValue({ text: `
 Relatório de Estoque - Tiny ERP
 Página 1 de 1
 Código Descrição Un Saldo
@@ -21,9 +20,9 @@ Código Descrição Un Saldo
 002 Camiseta Básica Preta UN 25
 999 Produto Desconhecido Não Cadastrado UN 8
 Total Geral 48
-`
-    })
-  );
+` }),
+    destroy: jest.fn().mockResolvedValue()
+  })) };
 });
 
 const app = require('../src/app');
@@ -43,6 +42,52 @@ describe('Importação e Atualização de Estoque via PDF do Tiny ERP', () => {
   });
 
   describe('Unidade: pdfStockImportService', () => {
+    it('lê o PDF com a API atual e fecha o parser', async () => {
+      const { PDFParse } = require('pdf-parse');
+      const preview = await processarPdfEstoque(Buffer.from('pdf'), 'tiny.pdf', []);
+      expect(preview.produtos_encontrados).toBe(3);
+      expect(PDFParse).toHaveBeenCalledTimes(1);
+      expect(PDFParse.mock.results[0].value.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('interpreta o estoque da Olist sem confundir preço, inclusive descrições quebradas', async () => {
+      const { PDFParse } = require('pdf-parse');
+      PDFParse.mockImplementationOnce(() => ({
+        getText: jest.fn().mockResolvedValue({ text: `Estoque - Depósito São Paulo
+Código (SKU) Descrição \tPreço Estoque Unidade Localização
+1.1.000760.01 Comprar Peça - Queijo Mantiqueira \t357,00 0,00 KG
+1.11.001021.01 Aliciella Antepasto de Sardinha
+- 100g \t30,00 6,00 UN
+1.1.000187.01 Peça Queijo Tulha \t1.531,66 11,89 PÇ
+1.1.000498.02 Queijo Feta \t263,00 2,49 KG
+1.1.000327-02 Queijo Sol do Japi \t63,00 -3,00 UN
+1.15.000958.01-
+1 \tCerveja Easy Pils! \t27,00 4,00 UN
+1.11.009999.01 Produto não cadastrado \t85,00 7,00 UN
+Boursin sem código \t200,00 -2,00 KG
+1 \tCerveja A \t27,00 4,00 UN
+1 \tCerveja B \t32,00 9,00 UN` }),
+        destroy: jest.fn().mockResolvedValue()
+      }));
+      const produtos = [
+        { id: 'p1', codigo: '1.1.000760.01', nome: 'Mantiqueira', estoque_atual: 5 },
+        { id: 'p2', codigo: '1.11.001021.01', nome: 'Aliciella', estoque_atual: 0 },
+        { id: 'p3', codigo: '1.1.000187.01', nome: 'Tulha', estoque_atual: 4 },
+        { id: 'p4', codigo: '1.1.000498.02', nome: 'Feta', estoque_atual: 4 },
+        { id: 'p5', codigo: '1.1.000327-02', nome: 'Sol do Japi', estoque_atual: 4 },
+        { id: 'p6', codigo: '1', nome: 'Cerveja A', estoque_atual: 4 },
+        { id: 'p7', codigo: '1.15.000958.01-1', nome: 'Easy Pils', estoque_atual: 0 }
+      ];
+      const preview = await processarPdfEstoque(Buffer.from('pdf'), 'olist.pdf', produtos);
+      expect(preview.formato).toBe('olist');
+      expect(preview.produtos_para_atualizar.map((p) => [p.codigo, p.estoque_novo])).toEqual([
+        ['1.1.000760.01', 0], ['1.11.001021.01', 6], ['1.1.000327-02', -3], ['1.15.000958.01-1', 4]
+      ]);
+      expect(preview.skus_nao_encontrados).toEqual([{ codigo: '1.11.009999.01', nome_relatorio: 'Produto não cadastrado', quantidade: 7 }]);
+      expect(preview.itens_ignorados.map((p) => p.motivo)).toEqual(expect.arrayContaining([
+        'Estoque fracionário', 'SKU ausente', 'SKU repetido no PDF'
+      ]));
+    });
     it('normalizarSku — remove espaços e padroniza caixa alta', () => {
       expect(normalizarSku(' sku-101 ')).toBe('SKU-101');
       expect(normalizarSku('001')).toBe('001');
