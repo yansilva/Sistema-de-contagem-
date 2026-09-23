@@ -691,39 +691,33 @@ async function executeMockQuery(sql, params = []) {
   }
 
   // UPDATE contagem_itens
-  if (norm.startsWith('UPDATE contagem_itens SET quantidade_contada = $1, contado_em = NOW()')) {
+  if (norm.startsWith('UPDATE contagem_itens SET quantidade_contada = $1, contado_em = CASE')) {
     const qtd = params[0];
     const fornId = params[1];
     const prodId = params[2];
     const item = state.contagemItens.find((i) => i.contagem_fornecedor_id === fornId && i.produto_id === prodId);
     if (item) {
       item.quantidade_contada = qtd;
-      item.contado_em = new Date().toISOString();
+      item.contado_em = qtd === null ? null : new Date().toISOString();
       return { rows: [item] };
     }
     return { rows: [] };
   }
 
-  // SELECT ci.id, ci.contagem_fornecedor_id, ci.estoque_referencia, ci.quantidade_contada FROM contagem_itens
-  if (norm.includes('FROM contagem_itens ci JOIN contagem_fornecedores cf ON cf.id = ci.contagem_fornecedor_id')) {
-    const contagemId = params[0];
-    const fornIds = state.contagemFornecedores.filter((f) => f.contagem_id === contagemId).map((f) => f.id);
-    const itens = state.contagemItens.filter((i) => fornIds.includes(i.contagem_fornecedor_id));
-    return { rows: itens };
+  if (norm.startsWith('UPDATE contagem_itens AS ci SET diferenca = ci.quantidade_contada')) {
+    const fornIds = state.contagemFornecedores.filter(f => f.contagem_id === params[0]).map(f => f.id);
+    const itens = state.contagemItens.filter(i => fornIds.includes(i.contagem_fornecedor_id) && i.quantidade_contada !== null);
+    return { rows: itens.map(i => {
+      i.diferenca = i.quantidade_contada - i.estoque_referencia;
+      i.situacao = i.diferenca > 0 ? 'sobra' : i.diferenca < 0 ? 'falta' : 'sem_diferenca';
+      return { contagem_fornecedor_id: i.contagem_fornecedor_id, diferenca: i.diferenca };
+    }) };
   }
 
-  if (norm.startsWith('UPDATE contagem_itens SET quantidade_contada = $1, diferenca = $2, situacao = $3 WHERE id = $4')) {
-    const qtd = params[0];
-    const dif = params[1];
-    const sit = params[2];
-    const itemId = params[3];
-    const item = state.contagemItens.find((i) => i.id === itemId);
-    if (item) {
-      item.quantidade_contada = qtd;
-      item.diferenca = dif;
-      item.situacao = sit;
-      return { rows: [item] };
-    }
+  if (norm.startsWith('UPDATE contagem_fornecedores AS cf SET tem_diferenca')) {
+    const [contagemId, ids] = params;
+    state.contagemFornecedores.filter(f => f.contagem_id === contagemId)
+      .forEach(f => { f.tem_diferenca = ids.includes(f.id); });
     return { rows: [] };
   }
 
@@ -760,9 +754,14 @@ async function executeMockQuery(sql, params = []) {
   // SELECT cf.id, cf.fornecedor, cf.tem_diferenca, cf.contado_em, COALESCE(json_agg(...) FROM contagem_fornecedores cf
   if (norm.includes('FROM contagem_fornecedores cf LEFT JOIN contagem_itens ci')) {
     const contagemId = params[0];
-    const forns = state.contagemFornecedores.filter((f) => f.contagem_id === contagemId);
+    const onlyCounted = params[1] === true;
+    const forns = state.contagemFornecedores.filter((f) => f.contagem_id === contagemId && (
+      !onlyCounted || state.contagemItens.some((i) => i.contagem_fornecedor_id === f.id && i.quantidade_contada !== null)
+    ));
     const rows = forns.map((f) => {
-      const itens = state.contagemItens.filter((i) => i.contagem_fornecedor_id === f.id);
+      const itens = state.contagemItens.filter((i) => i.contagem_fornecedor_id === f.id && (
+        !onlyCounted || i.quantidade_contada !== null
+      ));
       return {
         id: f.id,
         fornecedor: f.fornecedor,

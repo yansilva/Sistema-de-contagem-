@@ -1,15 +1,7 @@
 const { query, getClient } = require('../config/db');
-const { NotFoundError, ValidationError, ConflictError, ForbiddenError } = require('../errors/AppError');
+const { AppError, NotFoundError, ValidationError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
 const { serializeContagemDetalhe } = require('../serializers/contagemSerializer');
-
-/**
- * Helper para verificar se usuário é administrador
- */
-function isAdministrador(usuario) {
-  const p = (usuario.papel || '').toLowerCase();
-  return p === 'administrador' || p === 'gestor' || p === 'admin';
-}
 
 /**
  * POST /api/contagens
@@ -184,7 +176,7 @@ async function salvarProgresso(req, res, next) {
 
       const upd = await client.query(
         `UPDATE contagem_itens
-         SET quantidade_contada = $1, contado_em = NOW()
+         SET quantidade_contada = $1, contado_em = CASE WHEN $1 IS NULL THEN NULL ELSE NOW() END
          WHERE contagem_fornecedor_id = $2 AND produto_id = $3
          RETURNING id`,
         [qtd, fornecedorId, item.produto_id]
@@ -203,7 +195,7 @@ async function salvarProgresso(req, res, next) {
           await client.query(
             `INSERT INTO contagem_itens
              (contagem_fornecedor_id, produto_id, codigo, nome, estoque_referencia, quantidade_contada, contado_em)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+             VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6 IS NULL THEN NULL ELSE NOW() END)`,
             [fornecedorId, p.id, p.codigo, p.nome, p.estoque_atual || 0, qtd]
           );
           itensSalvos++;
@@ -292,7 +284,7 @@ async function adicionarFornecedor(req, res, next) {
 
       await client.query(
         `UPDATE contagem_itens
-         SET quantidade_contada = $1, contado_em = NOW()
+         SET quantidade_contada = $1, contado_em = CASE WHEN $1 IS NULL THEN NULL ELSE NOW() END
          WHERE contagem_fornecedor_id = $2 AND (produto_id = $3 OR codigo = $4)`,
         [qtd, fornecedorId, p.produto_id || null, p.codigo.trim()]
       );
@@ -324,9 +316,10 @@ async function finalizar(req, res, next) {
 
   try {
     const { id } = req.params;
+    await client.query('BEGIN');
 
     const contagemCheck = await client.query(
-      `SELECT id FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento'`,
+      `SELECT id FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento' FOR UPDATE`,
       [id, req.empresaId]
     );
 
@@ -337,59 +330,42 @@ async function finalizar(req, res, next) {
       );
     }
 
-    await client.query('BEGIN');
-
-    // Buscar todos os itens da contagem
+    // Apura somente quantidades registradas; NULL permanece não contado.
     const itensRes = await client.query(
-      `SELECT ci.id, ci.contagem_fornecedor_id, ci.estoque_referencia, ci.quantidade_contada
-       FROM contagem_itens ci
-       JOIN contagem_fornecedores cf ON cf.id = ci.contagem_fornecedor_id
-       WHERE cf.contagem_id = $1`,
+      `UPDATE contagem_itens AS ci
+       SET diferenca = ci.quantidade_contada - ci.estoque_referencia,
+           situacao = CASE
+             WHEN ci.quantidade_contada > ci.estoque_referencia THEN 'sobra'
+             WHEN ci.quantidade_contada < ci.estoque_referencia THEN 'falta'
+             ELSE 'sem_diferenca'
+           END
+       FROM contagem_fornecedores AS cf
+       WHERE ci.contagem_fornecedor_id = cf.id
+         AND cf.contagem_id = $1
+         AND ci.quantidade_contada IS NOT NULL
+       RETURNING ci.contagem_fornecedor_id, ci.diferenca`,
       [id]
     );
 
     if (itensRes.rows.length === 0) {
-      throw new ValidationError(
-        'Nenhum item foi encontrado nesta contagem.',
-        'SEM_ITENS'
+      throw new AppError(
+        'Registre pelo menos um produto antes de finalizar a contagem.',
+        400,
+        'SEM_ITENS_CONTADOS'
       );
     }
 
-    let temDiferencaGlobal = false;
-    const fornecedoresComDiferenca = new Set();
+    const fornecedoresComDiferenca = new Set(
+      itensRes.rows.filter(item => Number(item.diferenca) !== 0).map(item => item.contagem_fornecedor_id)
+    );
+    const temDiferencaGlobal = fornecedoresComDiferenca.size > 0;
 
-    for (const item of itensRes.rows) {
-      // Regra: se quantidade_contada for null (não contado), considera como 0 na apuração final
-      const qtdContada = item.quantidade_contada === null ? 0 : item.quantidade_contada;
-      const ref = item.estoque_referencia;
-      const diferenca = qtdContada - ref;
-
-      let situacao = 'sem_diferenca';
-      if (diferenca > 0) {
-        situacao = 'sobra';
-        temDiferencaGlobal = true;
-        fornecedoresComDiferenca.add(item.contagem_fornecedor_id);
-      } else if (diferenca < 0) {
-        situacao = 'falta';
-        temDiferencaGlobal = true;
-        fornecedoresComDiferenca.add(item.contagem_fornecedor_id);
-      }
-
-      await client.query(
-        `UPDATE contagem_itens
-         SET quantidade_contada = $1, diferenca = $2, situacao = $3
-         WHERE id = $4`,
-        [qtdContada, diferenca, situacao, item.id]
-      );
-    }
-
-    // Atualizar flags de fornecedores
-    for (const fornId of fornecedoresComDiferenca) {
-      await client.query(
-        `UPDATE contagem_fornecedores SET tem_diferenca = TRUE WHERE id = $1`,
-        [fornId]
-      );
-    }
+    await client.query(
+      `UPDATE contagem_fornecedores AS cf
+       SET tem_diferenca = cf.id = ANY($2::uuid[])
+       WHERE cf.contagem_id = $1`,
+      [id, [...fornecedoresComDiferenca]]
+    );
 
     // Finalizar contagem
     const finalResult = await client.query(
@@ -459,6 +435,10 @@ async function listar(req, res, next) {
       FROM contagens c
       LEFT JOIN usuarios u ON u.id = c.iniciado_por
       LEFT JOIN contagem_fornecedores cf ON cf.contagem_id = c.id
+        AND (c.status <> 'finalizada' OR EXISTS (
+          SELECT 1 FROM contagem_itens ci
+          WHERE ci.contagem_fornecedor_id = cf.id AND ci.quantidade_contada IS NOT NULL
+        ))
       WHERE c.empresa_id = $1
       GROUP BY c.id, u.nome
       ORDER BY c.iniciado_em DESC
@@ -490,8 +470,6 @@ async function listar(req, res, next) {
 async function detalhe(req, res, next) {
   try {
     const { id } = req.params;
-    const admin = isAdministrador(req.usuario);
-
     const contagemRes = await query(
       `SELECT c.id, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status,
               u.nome AS iniciado_por_nome
@@ -529,12 +507,14 @@ async function detalhe(req, res, next) {
              ) AS produtos
       FROM contagem_fornecedores cf
       LEFT JOIN contagem_itens ci ON ci.contagem_fornecedor_id = cf.id
+        AND ($2::boolean = FALSE OR ci.quantidade_contada IS NOT NULL)
       WHERE cf.contagem_id = $1
       GROUP BY cf.id
+      HAVING ($2::boolean = FALSE OR COUNT(ci.id) > 0)
       ORDER BY cf.fornecedor ASC
     `;
 
-    const fornecedoresRes = await query(sql, [id]);
+    const fornecedoresRes = await query(sql, [id, isFinalizada]);
 
     const contagemSerializada = serializeContagemDetalhe(
       contagem,

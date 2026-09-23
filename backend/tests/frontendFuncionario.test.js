@@ -59,6 +59,7 @@ describe('Área do funcionário de contagem', () => {
         addEventListener: jest.fn()
       },
       window: { scrollTo: jest.fn() },
+      confirm: jest.fn(() => true),
       localStorage: { getItem: jest.fn(), setItem: jest.fn() },
       sessionStorage: { getItem: jest.fn(), setItem: jest.fn() },
       URLSearchParams,
@@ -166,7 +167,7 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('screen-catalogo').classes.has('active')).toBe(true);
   });
 
-  it('abre histórico separado do back-office, sem exportação ou estoque de referência', async () => {
+  it('abre histórico em diálogo e permite Excel de diferenças sem mostrar estoque de referência', async () => {
     context.abrirHistoricoContagens();
     expect(elements.get('screen-historico-contagens').classes.has('active')).toBe(true);
     expect(context.Historico.carregar).not.toHaveBeenCalled();
@@ -174,6 +175,9 @@ describe('Área do funcionário de contagem', () => {
       success: true,
       data: {
         contagem: {
+          id: 'contagem-id',
+          status: 'finalizada',
+          tem_diferenca: true,
           iniciado_em: '2026-09-15T12:00:00Z',
           fornecedores: [
             {
@@ -183,9 +187,10 @@ describe('Área do funcionário de contagem', () => {
                   nome: 'Produto',
                   codigo: 'SKU',
                   quantidade_contada: 0,
+                  diferenca: -3,
                   estoque_referencia: 876543
                 },
-                { nome: 'Pendente', codigo: 'SKU2', quantidade_contada: null }
+                { nome: 'Igual', codigo: 'SKU2', quantidade_contada: 2, diferenca: 0 }
               ]
             }
           ]
@@ -193,10 +198,17 @@ describe('Área do funcionário de contagem', () => {
       }
     });
     await consulta.detalharContagem('contagem-id');
-    const rendered = elements.get('consulta-historico-detalhe').innerHTML;
+    const dialog = elements.get('consulta-historico-detalhe');
+    const rendered = dialog.innerHTML;
+    expect(dialog.showModal).toHaveBeenCalledTimes(1);
     expect(rendered).toContain('<strong>0</strong>');
-    expect(rendered).toContain('Não contado');
-    expect(rendered).not.toMatch(/876543|Tiny|Excel|Exportar/);
+    expect(rendered).toContain('Falta de 3');
+    expect(rendered).toContain('Excel');
+    expect(rendered).not.toMatch(/876543|Estoque de Referência|Estoque Ref/);
+    consulta.baixarExcel('contagem-id');
+    expect(api.download).toHaveBeenCalledWith('/relatorios/contagens/contagem-id/excel', expect.stringMatching(/\.xlsx$/));
+    consulta.fecharDetalhe();
+    expect(dialog.close).toHaveBeenCalledTimes(1);
   });
 
   it('inicia a contagem pelo botão central, seleciona produtor e salva zero sem expor saldo', async () => {
@@ -256,5 +268,28 @@ describe('Área do funcionário de contagem', () => {
     expect(context.showToast).not.toHaveBeenCalledWith(
       'Contagem iniciada. Selecione um produtor para contar.', 'info'
     );
+  });
+
+  it('avisa que itens não contados ficam fora e resume somente produtos registrados', async () => {
+    const c = {
+      id: 'contagem-parcial', status: 'finalizada', tem_diferenca: true,
+      fornecedores: [{ fornecedor: 'Produtor', produtos: [
+        { nome: 'Registrado', codigo: 'SKU1', quantidade_contada: 0, diferenca: -2, situacao: 'falta' }
+      ] }]
+    };
+    context.contagens.contagemId = c.id;
+    context.contagens.dadosSessao = { fornecedores: [{ produtos: [
+      { quantidade_contada: 0 }, { quantidade_contada: null }
+    ] }] };
+    api.put.mockResolvedValue({ success: true });
+    api.get.mockResolvedValue({ success: true, data: { contagem: c } });
+
+    await context.contagens.finalizarSessao();
+    expect(context.confirm).toHaveBeenCalledWith(expect.stringContaining('ficarão fora desta apuração'));
+    await context.contagens.exibirResultado(c.id);
+    expect(elements.get('resultado-metricas').innerHTML).toContain('Itens Contados');
+    expect(elements.get('resultado-metricas').innerHTML).toContain('>1</div>');
+    expect(elements.get('resultado-status-card').innerHTML).toContain('Exportar Relatório Excel');
+    expect(elements.get('resultado-divergencias').innerHTML).not.toContain('Não contado');
   });
 });

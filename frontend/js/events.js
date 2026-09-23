@@ -121,7 +121,9 @@ const UIActions = {
   'action-118': () => { EmpresaDetalhes.salvarSenhaTemporaria(); },
   'action-119': (element, event) => { if (event.key === 'Enter') EmpresaDetalhes.salvarSenhaTemporaria(); },
   'action-120': (element) => { EmpresaDetalhes.abrir(element.getAttribute('data-id'), 'usuarios'); },
-  'action-121': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Contagens.fecharFornecedor(); }
+  'action-121': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Contagens.fecharFornecedor(); },
+  'action-122': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Consulta.fecharDetalhe(); },
+  'action-123': (element) => { Consulta.baixarExcel(element.dataset.id); }
 };
 
 for (const type of ['click', 'input', 'change', 'keydown']) {

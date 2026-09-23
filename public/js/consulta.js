@@ -1,4 +1,4 @@
-/** Consultas do operador de contagem: sem edição, importação ou exportação. */
+/** Consultas do operador de contagem: leitura e Excel das diferenças finalizadas. */
 const Consulta = {
   paginaCatalogo: 1,
   paginasCatalogo: 1,
@@ -107,7 +107,7 @@ const Consulta = {
 
   async carregarHistorico() {
     const requisicao = ++this.requisicaoHistorico;
-    document.getElementById('consulta-historico-detalhe').hidden = true;
+    this.fecharDetalhe();
     this.mensagem('consulta-historico-lista', 'Carregando contagens...');
     const res = await API.get(`/contagens?page=${this.paginaHistorico}&limit=${this.limite}`);
     if (requisicao !== this.requisicaoHistorico) return;
@@ -130,15 +130,18 @@ const Consulta = {
           <span class="badge badge-neutro">${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span></div>
         <p>Iniciada por: ${escapeHtml(c.iniciado_por_nome || 'Usuário')}</p>
         <p>Produtores: ${(c.fornecedores || []).length}</p>
-        <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-72">Ver contagem</button>
+        <div class="table-toolbar">
+          <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-72">Ver contagem</button>
+          ${c.status === 'finalizada' && c.tem_diferenca ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Excel</button>` : ''}
+        </div>
       </article>`).join('');
   },
 
   async detalharContagem(id) {
     const detalhe = document.getElementById('consulta-historico-detalhe');
-    detalhe.hidden = false;
     detalhe.dataset.contagem = id;
     this.mensagem('consulta-historico-detalhe', 'Carregando detalhes...');
+    if (!detalhe.open) detalhe.showModal();
     const res = await API.get(`/contagens/${encodeURIComponent(id)}`);
     if (detalhe.dataset.contagem !== id) return;
     if (!res?.success) {
@@ -146,11 +149,30 @@ const Consulta = {
       return;
     }
     const c = res.data.contagem;
-    detalhe.innerHTML = `<h3>Quantidades registradas · ${escapeHtml(formatarData(c.iniciado_em))}</h3>` +
-      (c.fornecedores || []).map(f => `<h3>${escapeHtml(f.fornecedor)}</h3><div class="consulta-lista">` +
-        (f.produtos || []).map(p => `<article class="consulta-item"><strong>${escapeHtml(p.nome)}</strong>
-          <p>SKU: ${escapeHtml(p.codigo)}</p><p>Quantidade contada: <strong>${p.quantidade_contada == null ? 'Não contado' : escapeHtml(p.quantidade_contada)}</strong></p>
-        </article>`).join('') + '</div>').join('');
-    detalhe.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    detalhe.innerHTML = `<div class="contagem-dialog-header"><div><span class="contagem-dialog-eyebrow">Histórico de contagens</span><h3>Quantidades registradas · ${escapeHtml(formatarData(c.iniciado_em))}</h3></div>
+      <button type="button" class="btn btn-ghost btn-sm" data-click="action-122" aria-label="Fechar detalhes"><i class="ti ti-x"></i></button></div>
+      ${c.status === 'finalizada' && c.tem_diferenca ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Excel de diferenças</button>` : ''}
+      <div class="consulta-detalhe-corpo">` +
+      ((c.fornecedores || []).map(f => `<h3>${escapeHtml(f.fornecedor)}</h3><div class="consulta-lista">` +
+        (f.produtos || []).map(p => {
+          const diferenca = Number(p.diferenca);
+          const situacao = c.status === 'finalizada' && p.diferenca != null
+            ? `<span class="badge ${diferenca < 0 ? 'badge-danger' : diferenca > 0 ? 'badge-warning' : 'badge-sucesso'}">${diferenca < 0 ? `Falta de ${Math.abs(diferenca)}` : diferenca > 0 ? `Sobra de ${diferenca}` : 'Sem diferença'}</span>`
+            : '';
+          return `<article class="consulta-item"><strong>${escapeHtml(p.nome)}</strong>
+            <p>SKU: ${escapeHtml(p.codigo)}</p><p>Quantidade contada: <strong>${p.quantidade_contada == null ? 'Não contado' : escapeHtml(p.quantidade_contada)}</strong></p>${situacao}
+          </article>`;
+        }).join('') + '</div>').join('') || '<p class="consulta-vazio">Nenhum produto registrado nesta contagem.</p>') + '</div>';
+  },
+
+  fecharDetalhe() {
+    const detalhe = document.getElementById('consulta-historico-detalhe');
+    if (detalhe.open) detalhe.close();
+    detalhe.dataset.contagem = '';
+  },
+
+  baixarExcel(id) {
+    const data = new Date().toLocaleDateString('pt-BR').replace(/\//g, '_');
+    return API.download(`/relatorios/contagens/${encodeURIComponent(id)}/excel`, `diferenca_estoque_${data}.xlsx`);
   }
 };

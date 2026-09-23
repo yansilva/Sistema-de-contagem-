@@ -12,7 +12,7 @@ async function excelContagem(req, res, next) {
 
     // Verificar se a contagem pertence à empresa
     const contagem = await query(
-      `SELECT c.id, c.finalizado_em, c.tem_diferenca
+      `SELECT c.id, c.status, c.finalizado_em, c.tem_diferenca
        FROM contagens c
        WHERE c.id = $1 AND c.empresa_id = $2`,
       [id, req.empresaId]
@@ -21,13 +21,19 @@ async function excelContagem(req, res, next) {
     if (contagem.rows.length === 0) {
       throw new NotFoundError('Contagem não encontrada.', 'CONTAGEM_NAO_ENCONTRADA');
     }
+    if (contagem.rows[0].status !== 'finalizada') {
+      throw new ValidationError('Finalize a contagem antes de exportar as diferenças.');
+    }
 
     // Buscar fornecedores e itens com diferença
     const itens = await query(
-      `SELECT cf.fornecedor, ci.codigo, ci.nome, ci.qty_tiny, ci.qty_contagem, ci.diferenca
+      `SELECT cf.fornecedor, ci.codigo, ci.nome, ci.estoque_referencia,
+              ci.quantidade_contada, ci.diferenca
        FROM contagem_itens ci
        JOIN contagem_fornecedores cf ON cf.id = ci.contagem_fornecedor_id
-       WHERE cf.contagem_id = $1 AND ci.sem_diferenca = FALSE AND ci.diferenca != 0
+       WHERE cf.contagem_id = $1
+         AND ci.quantidade_contada IS NOT NULL
+         AND ci.diferenca <> 0
        ORDER BY cf.fornecedor, ci.codigo`,
       [id]
     );
@@ -41,7 +47,9 @@ async function excelContagem(req, res, next) {
 
     // Gerar Excel
     const data = contagem.rows[0].finalizado_em || new Date();
-    const buffer = await gerarExcelContagem(itens.rows, data);
+    const buffer = await gerarExcelContagem(itens.rows, data, {
+      incluirReferencia: req.usuario.papel !== 'funcionario'
+    });
 
     // Formatar nome do arquivo
     const d = new Date(data);

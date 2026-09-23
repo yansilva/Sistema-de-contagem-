@@ -146,8 +146,8 @@ const Historico = {
                   <span style="color:var(--cor-texto-mudo); font-size:.8rem; margin-left:6px">SKU: ${escapeHtml(p.codigo)}</span>
                 </div>
                 <div style="display:flex; gap:12px; align-items:center; font-size:.8125rem">
-                  <span>Tiny: <strong>${p.qty_tiny}</strong></span>
-                  <span>Físico: <strong>${p.qty_contagem}</strong></span>
+                  <span>Estoque: <strong>${p.estoque_referencia ?? '—'}</strong></span>
+                  <span>Físico: <strong>${p.quantidade_contada ?? '—'}</strong></span>
                   <span class="badge ${p.diferenca === 0 ? 'badge-neutral' : (p.diferenca > 0 ? 'badge-success' : 'badge-danger')}">
                     ${p.diferenca > 0 ? '+' : ''}${p.diferenca}
                   </span>

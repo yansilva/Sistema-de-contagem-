@@ -188,24 +188,22 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(produto).not.toHaveProperty('situacao');
   });
 
-  it('PUT /api/contagens/:id/finalizar — Apura diferenças e classifica em sobra e falta', async () => {
+  it('PUT /api/contagens/:id/finalizar — apura só itens contados em lote e preserva NULL', async () => {
     const mockClient = {
-      query: jest.fn()
-        .mockResolvedValueOnce({ rows: [{ id: contagemId }] }) // check em andamento
-        .mockResolvedValueOnce({ rows: [] }) // BEGIN
-        .mockResolvedValueOnce({
+      query: jest.fn(async sql => {
+        if (sql.includes("status = 'em_andamento'")) return { rows: [{ id: contagemId }] };
+        if (sql.includes('UPDATE contagem_itens')) return {
           rows: [
-            { id: 'item-1', contagem_fornecedor_id: 'forn-1', estoque_referencia: 15, quantidade_contada: 12 }, // 12 - 15 = -3 (falta)
-            { id: 'item-2', contagem_fornecedor_id: 'forn-1', estoque_referencia: 10, quantidade_contada: 12 }  // 12 - 10 = +2 (sobra)
+            { contagem_fornecedor_id: 'forn-1', diferenca: -3 },
+            { contagem_fornecedor_id: 'forn-1', diferenca: 2 },
+            { contagem_fornecedor_id: 'forn-2', diferenca: -10 } // zero digitado
           ]
-        }) // SELECT itens
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE item-1
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE item-2
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE fornecedor tem_diferenca
-        .mockResolvedValueOnce({
+        };
+        if (sql.includes("SET status = 'finalizada'")) return {
           rows: [{ id: contagemId, status: 'finalizada', tem_diferenca: true }]
-        }) // UPDATE contagem status = 'finalizada'
-        .mockResolvedValueOnce({ rows: [] }), // COMMIT
+        };
+        return { rows: [] };
+      }),
       release: jest.fn()
     };
 
@@ -232,6 +230,41 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.contagem.status).toBe('finalizada');
+    const itemUpdates = mockClient.query.mock.calls.filter(([sql]) => sql.includes('UPDATE contagem_itens'));
+    expect(itemUpdates).toHaveLength(1);
+    expect(itemUpdates[0][0]).toMatch(/quantidade_contada IS NOT NULL/);
+    expect(itemUpdates[0][0]).toMatch(/RETURNING/);
+    expect(mockClient.query.mock.calls.filter(([sql]) => sql.includes('UPDATE contagem_fornecedores'))).toHaveLength(1);
+  });
+
+  it('recusa finalizar quando nenhum produto foi contado', async () => {
+    const mockClient = {
+      query: jest.fn(async sql => {
+        if (sql.includes("status = 'em_andamento'")) return { rows: [{ id: contagemId }] };
+        return { rows: [] };
+      }),
+      release: jest.fn()
+    };
+    db.getClient.mockResolvedValueOnce(mockClient);
+    db.query.mockResolvedValueOnce({ rows: [{ id: funcionarioId, papel: 'funcionario', ativo: true, empresa_id: empresaId, plano: 'ativo' }] });
+
+    const res = await request(app).put(`/api/contagens/${contagemId}/finalizar`)
+      .set('Authorization', `Bearer ${funcionarioToken}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('SEM_ITENS_CONTADOS');
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+
+  it('lista somente produtores com produtos contados em sessões finalizadas', async () => {
+    db.query
+      .mockResolvedValueOnce({ rows: [{ id: funcionarioId, papel: 'funcionario', ativo: true, empresa_id: empresaId, plano: 'ativo' }] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).get('/api/contagens').set('Authorization', `Bearer ${funcionarioToken}`);
+
+    expect(res.status).toBe(200);
+    expect(db.query.mock.calls[1][0]).toMatch(/EXISTS[\s\S]*ci\.quantidade_contada IS NOT NULL/);
   });
 
   it('GET /api/contagens/:id — Após finalização, funcionário vê SOMENTE diferença e situação, SEM estoque_referencia', async () => {
@@ -295,6 +328,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(produto.diferenca).toBe(-3);
     expect(produto.situacao).toBe('falta');
     expect(produto.quantidade_contada).toBe(12);
+    expect(db.query.mock.calls[2][0]).toMatch(/ci\.quantidade_contada IS NOT NULL/);
 
     // REGRA DE OURO: O funcionário NUNCA vê o estoque Tiny de referência (15)!
     expect(produto).not.toHaveProperty('estoque_referencia');

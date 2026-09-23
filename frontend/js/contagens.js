@@ -326,7 +326,7 @@ const Contagens = {
 
     let confirmMsg = 'Deseja realmente finalizar esta contagem?';
     if (totalNaoContados > 0) {
-      confirmMsg = `Atenção: existem ${totalNaoContados} produto(s) ainda não contados (ficarão registrados como 0 unidades).\n\nDeseja confirmar a finalização da contagem e apurar as diferenças?`;
+      confirmMsg = `Existem ${totalNaoContados} produto(s) ainda não contados. Eles ficarão fora desta apuração.\n\nDeseja finalizar apenas os produtos registrados?`;
     }
 
     if (!confirm(confirmMsg)) return;
@@ -380,12 +380,12 @@ const Contagens = {
       cardEl.className = `resultado-card ${temDif ? 'erro' : 'sucesso'}`;
       cardEl.innerHTML = `
         <i class="ti ${temDif ? 'ti-alert-triangle' : 'ti-circle-check'}"></i>
-        <h2>${temDif ? 'Divergências Identificadas' : 'Estoque 100% Conciliado'}</h2>
+        <h2>${temDif ? 'Divergências Identificadas' : 'Itens contados sem divergência'}</h2>
         <p>${temDif
           ? 'Foram identificadas sobras ou faltas físicas em relação ao estoque registrado.'
           : 'A contagem física conferiu exatamente com o estoque registrado no sistema.'}
         </p>
-        ${isAdmin ? `
+        ${temDif ? `
           <button class="btn btn-primary" data-click="action-75" data-arg-0="${escapeHtml(c.id)}">
             <i class="ti ti-file-spreadsheet"></i> Exportar Relatório Excel (.xlsx)
           </button>

@@ -35,7 +35,6 @@ describe('Permissões do funcionário de contagem', () => {
     ['put', `/api/produtos/${usuario.id}`],
     ['delete', `/api/produtos/${usuario.id}`],
     ['post', '/api/produtos/importar'],
-    ['get', `/api/relatorios/contagens/${usuario.id}/excel`],
     ['post', '/api/empresas']
   ])('bloqueia %s %s antes de qualquer operação de gestão', async (method, url) => {
     const res = await request(app)[method](url).set('Authorization', `Bearer ${token}`).send({});

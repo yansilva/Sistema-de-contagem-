@@ -2,11 +2,11 @@ const ExcelJS = require('exceljs');
 
 /**
  * Gera planilha Excel com diferenças de estoque
- * @param {Array} itens - Array de objetos { fornecedor, codigo, nome, qty_tiny, qty_contagem, diferenca }
+ * @param {Array} itens - Array de objetos { fornecedor, codigo, nome, estoque_referencia, quantidade_contada, diferenca }
  * @param {Date|string} data - Data da contagem
  * @returns {Buffer} Buffer do arquivo .xlsx
  */
-async function gerarExcelContagem(itens, _data) {
+async function gerarExcelContagem(itens, _data, { incluirReferencia = true } = {}) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Estoque SaaS';
   workbook.created = new Date();
@@ -20,8 +20,8 @@ async function gerarExcelContagem(itens, _data) {
     { header: 'Fornecedor', key: 'fornecedor', width: 28 },
     { header: 'Código', key: 'codigo', width: 14 },
     { header: 'Produto', key: 'nome', width: 38 },
-    { header: 'Estoque Tiny', key: 'qty_tiny', width: 16 },
-    { header: 'Contagem Física', key: 'qty_contagem', width: 18 },
+    ...(incluirReferencia ? [{ header: 'Estoque de Referência', key: 'estoque_referencia', width: 22 }] : []),
+    { header: 'Contagem Física', key: 'quantidade_contada', width: 18 },
     { header: 'Diferença', key: 'diferenca', width: 14 }
   ];
 
@@ -42,9 +42,9 @@ async function gerarExcelContagem(itens, _data) {
       fornecedor: item.fornecedor,
       codigo: item.codigo,
       nome: item.nome,
-      qty_tiny: item.qty_tiny,
-      qty_contagem: item.qty_contagem,
-      diferenca: item.diferenca
+      ...(incluirReferencia ? { estoque_referencia: Number(item.estoque_referencia) } : {}),
+      quantidade_contada: Number(item.quantidade_contada),
+      diferenca: Number(item.diferenca)
     });
 
     // Linha zebrada
@@ -65,8 +65,8 @@ async function gerarExcelContagem(itens, _data) {
     }
 
     // Alinhamento numérico
-    row.getCell('qty_tiny').alignment = { horizontal: 'center' };
-    row.getCell('qty_contagem').alignment = { horizontal: 'center' };
+    if (incluirReferencia) row.getCell('estoque_referencia').alignment = { horizontal: 'center' };
+    row.getCell('quantidade_contada').alignment = { horizontal: 'center' };
     diffCell.alignment = { horizontal: 'center' };
   });
 
@@ -85,7 +85,7 @@ async function gerarExcelContagem(itens, _data) {
   // Auto-filter
   sheet.autoFilter = {
     from: 'A1',
-    to: `F${itens.length + 1}`
+    to: `${incluirReferencia ? 'F' : 'E'}${itens.length + 1}`
   };
 
   // Congelar cabeçalho

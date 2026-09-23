@@ -970,8 +970,8 @@
 .consulta-lista { display: grid; gap: 12px; }
 .consulta-item { padding: 18px; border: 1px solid var(--cor-borda); border-radius: var(--raio); background: var(--cor-superficie); }
 .consulta-item p { margin: 6px 0; color: var(--cor-texto-secundario); overflow-wrap: anywhere; }
-.consulta-detalhe { margin-top: 28px; }
 .consulta-detalhe h3 { margin: 20px 0 12px; }
+.consulta-detalhe .consulta-detalhe-corpo { max-height: min(560px, calc(100dvh - 190px)); overflow-y: auto; }
 .consulta-vazio { padding: 28px; text-align: center; color: var(--cor-texto-secundario); }
 @media (max-width: 720px) {
   .consulta-home-grid { grid-template-columns: minmax(0, 1fr); }
