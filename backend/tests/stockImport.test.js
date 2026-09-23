@@ -10,8 +10,12 @@ jest.mock('../src/config/db', () => ({
 }));
 
 // Mock do pdf-parse para testes previsíveis
+jest.mock('pdf-parse/worker', () => ({
+  CanvasFactory: jest.fn(),
+  getData: () => 'data:text/javascript;base64,d29ya2Vy'
+}));
 jest.mock('pdf-parse', () => {
-  return { PDFParse: jest.fn().mockImplementation(() => ({
+  const PDFParse = jest.fn().mockImplementation(() => ({
     getText: jest.fn().mockResolvedValue({ text: `
 Relatório de Estoque - Tiny ERP
 Página 1 de 1
@@ -22,7 +26,9 @@ Código Descrição Un Saldo
 Total Geral 48
 ` }),
     destroy: jest.fn().mockResolvedValue()
-  })) };
+  }));
+  PDFParse.setWorker = jest.fn();
+  return { PDFParse };
 });
 
 const app = require('../src/app');

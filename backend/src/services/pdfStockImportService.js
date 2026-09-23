@@ -1,8 +1,13 @@
-// Lazy-load: pdf-parse usa DOMMatrix (API de navegador) na inicialização,
-// o que causa crash em ambientes serverless (Vercel). Carregamos sob demanda.
+// A função serverless precisa do worker e do canvas carregados explicitamente.
+// Mantemos a inicialização sob demanda para não afetar as demais rotas.
 let _pdfParse;
 function getPdfParse() {
-  if (!_pdfParse) _pdfParse = require('pdf-parse');
+  if (!_pdfParse) {
+    const { CanvasFactory, getData } = require('pdf-parse/worker');
+    const { PDFParse } = require('pdf-parse');
+    PDFParse.setWorker(getData());
+    _pdfParse = { PDFParse, CanvasFactory };
+  }
   return _pdfParse;
 }
 
@@ -148,8 +153,8 @@ function extrairLinhasOlist(linhas) {
  * @param {Array} produtosCadastrados - Lista de produtos da empresa já no banco
  */
 async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) {
-  const { PDFParse } = getPdfParse();
-  const parser = new PDFParse({ data: new Uint8Array(pdfBuffer) });
+  const { PDFParse, CanvasFactory } = getPdfParse();
+  const parser = new PDFParse({ data: new Uint8Array(pdfBuffer), CanvasFactory });
   let textoCompleto;
   try {
     textoCompleto = (await parser.getText()).text || '';
