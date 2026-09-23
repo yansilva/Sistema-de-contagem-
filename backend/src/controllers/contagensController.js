@@ -176,7 +176,7 @@ async function salvarProgresso(req, res, next) {
 
       const upd = await client.query(
         `UPDATE contagem_itens
-         SET quantidade_contada = $1, contado_em = CASE WHEN $1 IS NULL THEN NULL ELSE NOW() END
+         SET quantidade_contada = $1, contado_em = CASE WHEN $1::integer IS NULL THEN NULL ELSE NOW() END
          WHERE contagem_fornecedor_id = $2 AND produto_id = $3
          RETURNING id`,
         [qtd, fornecedorId, item.produto_id]
@@ -195,7 +195,7 @@ async function salvarProgresso(req, res, next) {
           await client.query(
             `INSERT INTO contagem_itens
              (contagem_fornecedor_id, produto_id, codigo, nome, estoque_referencia, quantidade_contada, contado_em)
-             VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6 IS NULL THEN NULL ELSE NOW() END)`,
+             VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6::integer IS NULL THEN NULL ELSE NOW() END)`,
             [fornecedorId, p.id, p.codigo, p.nome, p.estoque_atual || 0, qtd]
           );
           itensSalvos++;

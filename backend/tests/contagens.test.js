@@ -120,6 +120,76 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(res.body.data.itens_salvos).toBe(2);
   });
 
+  it('salva progresso com quantidade vazia sem erro de tipo do PostgreSQL', async () => {
+    const produtoId = '55555555-5555-4555-8555-555555555555';
+    const mockClient = {
+      query: jest.fn(async sql => {
+        if (sql.includes('UPDATE contagem_itens')) {
+          if (/\$1\s+IS NULL/.test(sql)) {
+            const error = new Error('could not determine data type of parameter $1');
+            error.code = '42P08';
+            throw error;
+          }
+          return { rows: [{ id: produtoId }] };
+        }
+        if (sql.includes('SELECT id FROM contagens')) return { rows: [{ id: contagemId }] };
+        if (sql.includes('SELECT id FROM contagem_fornecedores')) return { rows: [{ id: '66666666-6666-4666-8666-666666666666' }] };
+        return { rows: [] };
+      }),
+      release: jest.fn()
+    };
+    db.getClient.mockResolvedValueOnce(mockClient);
+    db.query.mockResolvedValueOnce({ rows: [{
+      id: funcionarioId, papel: 'funcionario', ativo: true,
+      empresa_id: empresaId, plano: 'ativo'
+    }] });
+
+    const res = await request(app)
+      .put(`/api/contagens/${contagemId}/salvar-progresso`)
+      .set('Authorization', `Bearer ${funcionarioToken}`)
+      .send({ fornecedor: 'Fazenda A', itens: [{ produto_id: produtoId, quantidade_contada: null }] });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.itens_salvos).toBe(1);
+  });
+
+  it('inclui produto novo com quantidade vazia sem erro de tipo do PostgreSQL', async () => {
+    const produtoId = '55555555-5555-4555-8555-555555555555';
+    const mockClient = {
+      query: jest.fn(async sql => {
+        if (sql.includes('INSERT INTO contagem_itens')) {
+          if (/\$6\s+IS NULL/.test(sql)) {
+            const error = new Error('could not determine data type of parameter $6');
+            error.code = '42P08';
+            throw error;
+          }
+          return { rows: [] };
+        }
+        if (sql.includes('UPDATE contagem_itens')) return { rows: [] };
+        if (sql.includes('SELECT id, codigo, nome, estoque_atual FROM produtos')) {
+          return { rows: [{ id: produtoId, codigo: 'NOVO', nome: 'Produto novo', estoque_atual: 3 }] };
+        }
+        if (sql.includes('SELECT id FROM contagens')) return { rows: [{ id: contagemId }] };
+        if (sql.includes('SELECT id FROM contagem_fornecedores')) return { rows: [{ id: '66666666-6666-4666-8666-666666666666' }] };
+        return { rows: [] };
+      }),
+      release: jest.fn()
+    };
+    db.getClient.mockResolvedValueOnce(mockClient);
+    db.query.mockResolvedValueOnce({ rows: [{
+      id: funcionarioId, papel: 'funcionario', ativo: true,
+      empresa_id: empresaId, plano: 'ativo'
+    }] });
+
+    const res = await request(app)
+      .put(`/api/contagens/${contagemId}/salvar-progresso`)
+      .set('Authorization', `Bearer ${funcionarioToken}`)
+      .send({ fornecedor: 'Fazenda A', itens: [{ produto_id: produtoId, quantidade_contada: null }] });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body.data.itens_salvos).toBe(1);
+  });
+
   it('GET /api/contagens/:id — Funcionário NUNCA recebe estoque_referencia nem diferenca durante contagem em andamento', async () => {
     db.query
       // auth
