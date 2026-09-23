@@ -458,6 +458,16 @@
   margin-bottom: 6px;
 }
 
+#lista-produtores-cards .quick-card {
+  color: var(--cor-texto);
+  font-family: inherit;
+  text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+#lista-produtores-cards .quick-card h4 { color: inherit; }
+
 .quick-card p {
   font-size: 0.875rem;
   color: var(--cor-texto-secundario);
