@@ -167,7 +167,7 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('screen-catalogo').classes.has('active')).toBe(true);
   });
 
-  it('abre histórico em diálogo e permite Excel de diferenças sem mostrar estoque de referência', async () => {
+  it('abre histórico em diálogo e mostra referência após finalizar', async () => {
     context.abrirHistoricoContagens();
     expect(elements.get('screen-historico-contagens').classes.has('active')).toBe(true);
     expect(context.Historico.carregar).not.toHaveBeenCalled();
@@ -204,7 +204,7 @@ describe('Área do funcionário de contagem', () => {
     expect(rendered).toContain('<strong>0</strong>');
     expect(rendered).toContain('Falta de 3');
     expect(rendered).toContain('Excel');
-    expect(rendered).not.toMatch(/876543|Estoque de Referência|Estoque Ref/);
+    expect(rendered).toContain('Estoque de referência: <strong>876543</strong>');
     consulta.baixarExcel('contagem-id');
     expect(api.download).toHaveBeenCalledWith('/relatorios/contagens/contagem-id/excel', expect.stringMatching(/\.xlsx$/));
     consulta.fecharDetalhe();
@@ -274,7 +274,7 @@ describe('Área do funcionário de contagem', () => {
     const c = {
       id: 'contagem-parcial', status: 'finalizada', tem_diferenca: true,
       fornecedores: [{ fornecedor: 'Produtor', produtos: [
-        { nome: 'Registrado', codigo: 'SKU1', quantidade_contada: 0, diferenca: -2, situacao: 'falta' }
+        { nome: 'Registrado', codigo: 'SKU1', estoque_referencia: 2, quantidade_contada: 0, diferenca: -2, situacao: 'falta' }
       ] }]
     };
     context.contagens.contagemId = c.id;
@@ -291,5 +291,6 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('resultado-metricas').innerHTML).toContain('>1</div>');
     expect(elements.get('resultado-status-card').innerHTML).toContain('Exportar Relatório Excel');
     expect(elements.get('resultado-divergencias').innerHTML).not.toContain('Não contado');
+    expect(elements.get('resultado-divergencias').innerHTML).toContain('Estoque Ref: <strong>2</strong>');
   });
 });

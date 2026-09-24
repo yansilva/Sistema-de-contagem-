@@ -463,9 +463,8 @@ async function listar(req, res, next) {
  * Detalhes da contagem protegidos por RBAC e Status:
  * - Durante contagem (em_andamento): NUNCA retorna estoque_referencia nem diferenca.
  * - Após finalização:
- *    - Funcionário: Vê SOMENTE produto, quantidade_contada, diferenca, situacao.
- *                   NUNCA vê estoque_referencia!
- *    - Administrador: Vê visão completa com estoque_referencia, diferenca e situacao.
+ *    - Funcionário e administrador: veem estoque_referencia, quantidade_contada,
+ *      diferenca e situacao dos produtos contados.
  */
 async function detalhe(req, res, next) {
   try {

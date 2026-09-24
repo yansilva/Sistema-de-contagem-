@@ -1,10 +1,10 @@
 /**
  * Serializador Blindado para Contagens
  * Garante as regras invariáveis de contagem cega:
- * 1. Funcionário NUNCA recebe estoque_referencia ou estoque_atual (antes ou depois da finalização).
+ * 1. Funcionário não recebe estoque_referencia ou estoque_atual enquanto a contagem está aberta.
  * 2. Em contagem aberta (em_andamento), funcionário NUNCA recebe diferenca ou situacao.
  * 3. Somente após finalizada, funcionário recebe diferenca e situacao.
- * 4. Administrador recebe visão completa após finalização (e estoque_referencia).
+ * 4. Após finalização, todos os participantes recebem estoque_referencia, diferenca e situacao.
  */
 
 function isAdministrador(usuario = {}) {
@@ -35,21 +35,10 @@ function serializeItem(item, usuario, isFinalizada) {
     return base;
   }
 
-  // Contagem finalizada
-  if (admin) {
-    return {
-      ...base,
-      estoque_referencia: item.estoque_referencia !== undefined ? item.estoque_referencia : null,
-      diferenca: item.diferenca !== undefined ? item.diferenca : null,
-      situacao: item.situacao || null,
-      sem_diferenca: item.diferenca === 0
-    };
-  }
-
-  // Funcionário em contagem finalizada:
-  // Vê diferenca e situacao, mas NUNCA estoque_referencia
+  // Contagem finalizada: a referência fica visível ao funcionário.
   return {
     ...base,
+    estoque_referencia: item.estoque_referencia !== undefined ? item.estoque_referencia : null,
     diferenca: item.diferenca !== undefined ? item.diferenca : null,
     situacao: item.situacao || null,
     sem_diferenca: item.diferenca === 0

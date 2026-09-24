@@ -337,7 +337,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(db.query.mock.calls[1][0]).toMatch(/EXISTS[\s\S]*ci\.quantidade_contada IS NOT NULL/);
   });
 
-  it('GET /api/contagens/:id — Após finalização, funcionário vê SOMENTE diferença e situação, SEM estoque_referencia', async () => {
+  it('GET /api/contagens/:id — Após finalização, funcionário vê referência, diferença e situação', async () => {
     db.query
       // auth funcionario
       .mockResolvedValueOnce({
@@ -400,8 +400,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(produto.quantidade_contada).toBe(12);
     expect(db.query.mock.calls[2][0]).toMatch(/ci\.quantidade_contada IS NOT NULL/);
 
-    // REGRA DE OURO: O funcionário NUNCA vê o estoque Tiny de referência (15)!
-    expect(produto).not.toHaveProperty('estoque_referencia');
+    expect(produto.estoque_referencia).toBe(15);
   });
 
   it('GET /api/contagens/:id — Após finalização, administrador visualiza auditoria completa incluindo estoque_referencia', async () => {

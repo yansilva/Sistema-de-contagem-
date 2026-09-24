@@ -6,7 +6,7 @@ const ExcelJS = require('exceljs');
  * @param {Date|string} data - Data da contagem
  * @returns {Buffer} Buffer do arquivo .xlsx
  */
-async function gerarExcelContagem(itens, _data, { incluirReferencia = true } = {}) {
+async function gerarExcelContagem(itens, _data) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Estoque SaaS';
   workbook.created = new Date();
@@ -20,7 +20,7 @@ async function gerarExcelContagem(itens, _data, { incluirReferencia = true } = {
     { header: 'Fornecedor', key: 'fornecedor', width: 28 },
     { header: 'Código', key: 'codigo', width: 14 },
     { header: 'Produto', key: 'nome', width: 38 },
-    ...(incluirReferencia ? [{ header: 'Estoque de Referência', key: 'estoque_referencia', width: 22 }] : []),
+    { header: 'Estoque de Referência', key: 'estoque_referencia', width: 22 },
     { header: 'Contagem Física', key: 'quantidade_contada', width: 18 },
     { header: 'Diferença', key: 'diferenca', width: 14 }
   ];
@@ -42,7 +42,7 @@ async function gerarExcelContagem(itens, _data, { incluirReferencia = true } = {
       fornecedor: item.fornecedor,
       codigo: item.codigo,
       nome: item.nome,
-      ...(incluirReferencia ? { estoque_referencia: Number(item.estoque_referencia) } : {}),
+      estoque_referencia: Number(item.estoque_referencia),
       quantidade_contada: Number(item.quantidade_contada),
       diferenca: Number(item.diferenca)
     });
@@ -65,7 +65,7 @@ async function gerarExcelContagem(itens, _data, { incluirReferencia = true } = {
     }
 
     // Alinhamento numérico
-    if (incluirReferencia) row.getCell('estoque_referencia').alignment = { horizontal: 'center' };
+    row.getCell('estoque_referencia').alignment = { horizontal: 'center' };
     row.getCell('quantidade_contada').alignment = { horizontal: 'center' };
     diffCell.alignment = { horizontal: 'center' };
   });
@@ -85,7 +85,7 @@ async function gerarExcelContagem(itens, _data, { incluirReferencia = true } = {
   // Auto-filter
   sheet.autoFilter = {
     from: 'A1',
-    to: `${incluirReferencia ? 'F' : 'E'}${itens.length + 1}`
+    to: `F${itens.length + 1}`
   };
 
   // Congelar cabeçalho

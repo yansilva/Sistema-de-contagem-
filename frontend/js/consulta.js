@@ -160,7 +160,8 @@ const Consulta = {
             ? `<span class="badge ${diferenca < 0 ? 'badge-danger' : diferenca > 0 ? 'badge-warning' : 'badge-sucesso'}">${diferenca < 0 ? `Falta de ${Math.abs(diferenca)}` : diferenca > 0 ? `Sobra de ${diferenca}` : 'Sem diferença'}</span>`
             : '';
           return `<article class="consulta-item"><strong>${escapeHtml(p.nome)}</strong>
-            <p>SKU: ${escapeHtml(p.codigo)}</p><p>Quantidade contada: <strong>${p.quantidade_contada == null ? 'Não contado' : escapeHtml(p.quantidade_contada)}</strong></p>${situacao}
+            <p>SKU: ${escapeHtml(p.codigo)}</p><p>Quantidade contada: <strong>${p.quantidade_contada == null ? 'Não contado' : escapeHtml(p.quantidade_contada)}</strong></p>
+            ${c.status === 'finalizada' && p.estoque_referencia !== undefined ? `<p>Estoque de referência: <strong>${escapeHtml(p.estoque_referencia)}</strong></p>` : ''}${situacao}
           </article>`;
         }).join('') + '</div>').join('') || '<p class="consulta-vazio">Nenhum produto registrado nesta contagem.</p>') + '</div>';
   },

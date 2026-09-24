@@ -47,9 +47,7 @@ async function excelContagem(req, res, next) {
 
     // Gerar Excel
     const data = contagem.rows[0].finalizado_em || new Date();
-    const buffer = await gerarExcelContagem(itens.rows, data, {
-      incluirReferencia: req.usuario.papel !== 'funcionario'
-    });
+    const buffer = await gerarExcelContagem(itens.rows, data);
 
     // Formatar nome do arquivo
     const d = new Date(data);

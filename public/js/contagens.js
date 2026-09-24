@@ -5,8 +5,7 @@
  * 1. Durante a contagem: funcionário NUNCA vê estoque Tiny, referência ou diferenças.
  * 2. Diferenciação de NULL (não contado) vs 0 (contado zero unidades fisicamente).
  * 3. Após finalização:
- *    - Funcionário vê SOMENTE produto, quantidade contada, diferença e situação.
- *    - Administrador visualiza auditoria completa com estoque de referência.
+ *    - Após finalizar, funcionário e administrador veem também o estoque de referência.
  */
 const Contagens = {
   contagemId: null,
@@ -368,7 +367,6 @@ const Contagens = {
     }
 
     const c = res.data.contagem;
-    const isAdmin = Auth.isAdmin();
 
     const cardEl = document.getElementById('resultado-status-card');
     const metricasEl = document.getElementById('resultado-metricas');
@@ -446,10 +444,8 @@ const Contagens = {
             badgeSituacao = `<span class="badge badge-danger"><i class="ti ti-arrow-down"></i> Falta de ${Math.abs(p.diferenca)} un</span>`;
           }
 
-          // Se for ADMINISTRADOR: mostra estoque de referência
-          // Se for FUNCIONÁRIO: NUNCA mostra estoque de referência
-          const colunaReferenciaAdmin = isAdmin
-            ? `<span>Estoque Ref: <strong>${p.estoque_referencia !== undefined ? p.estoque_referencia : '-'}</strong></span>`
+          const colunaReferencia = c.status === 'finalizada' && p.estoque_referencia !== undefined
+            ? `<span>Estoque Ref: <strong>${escapeHtml(p.estoque_referencia)}</strong></span>`
             : '';
 
           return `
@@ -460,7 +456,7 @@ const Contagens = {
               </div>
 
               <div class="valores" style="display:flex; align-items:center; gap:16px; font-size:0.875rem">
-                ${colunaReferenciaAdmin}
+                ${colunaReferencia}
                 <span>Físico Contado: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
                 <div>${badgeSituacao}</div>
               </div>

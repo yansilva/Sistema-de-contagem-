@@ -23,7 +23,7 @@ describe('Excel de diferenças da contagem', () => {
     db.query.mockResolvedValueOnce({ rows: [usuario] });
   });
 
-  it('permite ao funcionário baixar apenas diferenças finalizadas sem revelar saldo de referência', async () => {
+  it('permite ao funcionário baixar diferenças finalizadas com saldo de referência', async () => {
     db.query.mockResolvedValueOnce({ rows: [{ id: 'c', status: 'finalizada', finalizado_em: '2026-09-23T12:00:00Z' }] });
     db.query.mockResolvedValueOnce({ rows: [item] });
     const res = await request(app)
@@ -39,8 +39,8 @@ describe('Excel de diferenças da contagem', () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(res.body);
     const sheet = workbook.worksheets[0];
-    expect(sheet.getRow(1).values).toEqual([undefined, 'Fornecedor', 'Código', 'Produto', 'Contagem Física', 'Diferença']);
-    expect(sheet.getRow(2).values).toEqual([undefined, 'Produtor', 'SKU', 'Produto', 12, -3]);
+    expect(sheet.getRow(1).values).toEqual([undefined, 'Fornecedor', 'Código', 'Produto', 'Estoque de Referência', 'Contagem Física', 'Diferença']);
+    expect(sheet.getRow(2).values).toEqual([undefined, 'Produtor', 'SKU', 'Produto', 15, 12, -3]);
     expect(db.query.mock.calls[1][0]).toMatch(/status/);
     expect(db.query.mock.calls[2][0]).toMatch(/quantidade_contada IS NOT NULL/);
   });

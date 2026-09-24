@@ -55,17 +55,16 @@ describe('Invariantes de Contagem Cega (Blind Count Security)', () => {
     iniciado_por_nome: 'Gerente Geral'
   };
 
-  describe('Invariante 1: Ocultação estrita de estoque_referencia para funcionários', () => {
+  describe('Invariante 1: Referência oculta até a finalização', () => {
     it('Funcionário em contagem ABERTA não recebe estoque_referencia', () => {
       const item = serializeItem(rawItem, usuarioFuncionario, false);
       expect(item).not.toHaveProperty('estoque_referencia');
       expect(item.estoque_referencia).toBeUndefined();
     });
 
-    it('Funcionário em contagem FINALIZADA não recebe estoque_referencia', () => {
+    it('Funcionário em contagem FINALIZADA recebe estoque_referencia', () => {
       const item = serializeItem(rawItem, usuarioFuncionario, true);
-      expect(item).not.toHaveProperty('estoque_referencia');
-      expect(item.estoque_referencia).toBeUndefined();
+      expect(item.estoque_referencia).toBe(42);
     });
 
     it('Administrador tem acesso a estoque_referencia', () => {
@@ -93,12 +92,12 @@ describe('Invariantes de Contagem Cega (Blind Count Security)', () => {
   });
 
   describe('Invariante 3: Liberação controlada de divergências apenas pós-finalização', () => {
-    it('Funcionário em contagem FINALIZADA recebe diferenca e situacao, mas NUNCA estoque_referencia', () => {
+    it('Funcionário em contagem FINALIZADA recebe referência, diferença e situação', () => {
       const item = serializeItem(rawItem, usuarioFuncionario, true);
       expect(item.diferenca).toBe(-2);
       expect(item.situacao).toBe('falta');
       expect(item.sem_diferenca).toBe(false);
-      expect(item).not.toHaveProperty('estoque_referencia');
+      expect(item.estoque_referencia).toBe(42);
     });
 
     it('Administrador em contagem FINALIZADA recebe visão completa (referencia + diferenca + situacao)', () => {
@@ -116,7 +115,7 @@ describe('Invariantes de Contagem Cega (Blind Count Security)', () => {
       expect(contagem.fornecedores[0].produtos[0].codigo).toBe('SKU-MELATO-250');
       expect(contagem.fornecedores[0].produtos[0].quantidade_contada).toBe(40);
       expect(contagem.fornecedores[0].produtos[0].diferenca).toBe(-2);
-      expect(contagem.fornecedores[0].produtos[0]).not.toHaveProperty('estoque_referencia');
+      expect(contagem.fornecedores[0].produtos[0].estoque_referencia).toBe(42);
     });
   });
 });
