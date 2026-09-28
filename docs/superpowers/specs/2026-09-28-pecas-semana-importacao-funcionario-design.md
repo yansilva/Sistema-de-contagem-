@@ -1,7 +1,7 @@
 # Peças de queijo, acompanhamento semanal e importação pelo funcionário
 
 Data: 2026-09-28
-Estado: funcionamento aprovado em conversa; documento aguardando revisão do usuário.
+Estado: funcionamento e especificação escrita aprovados pelo usuário em 2026-09-28.
 
 ## Objetivo
 
@@ -21,7 +21,7 @@ Reutilizar o fluxo de sessões, produtores, quantidades, salvamento, finalizaç�
 
 Uma área de peças com armazenamento e fluxo totalmente independentes também é possível, mas exigiria manter outro salvamento e outro histórico. A abordagem aprovada reutiliza o motor existente e separa claramente as unidades.
 
-Organizar a implementação em três entregas dependentes: modo de peças e classificação; acompanhamento semanal usando os dois modos; importação para funcionário com acesso próprio e revisão de permissões.
+Organizar a implementação em três entregas: modo de peças e classificação; acompanhamento semanal usando os dois modos; importação para funcionário com acesso próprio e revisão de permissões. O painel semanal depende do modo de peças; a importação é uma entrega independente.
 
 ## 1. Contagem de peças de queijo
 
