@@ -1575,3 +1575,13 @@
 .produto-classificacao-ajuda { font-size: .85rem; color: var(--cor-texto-secundario); margin: 8px 0 16px; }
 .quick-card h4, .contagem-dialog h3 { color: var(--cor-texto); -webkit-text-fill-color: var(--cor-texto); }
 .input-qtd-fisica[aria-invalid="true"] { border-color: var(--cor-perigo); outline: 2px solid var(--cor-perigo); }
+/* Cobertura semanal compartilhada */
+.semana-resumo { display:flex; flex-wrap:wrap; gap:18px; margin:20px 0; padding:16px; background:var(--cor-fundo-cartao); border:1px solid var(--cor-borda); border-radius:12px; }
+.semana-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr)); gap:16px; }
+.semana-card { padding:18px; border:1px solid var(--cor-borda); border-radius:12px; background:var(--cor-fundo-cartao); min-width:0; overflow-wrap:anywhere; }
+.semana-card h3 { margin:0 0 12px; }
+.semana-card .btn { white-space:normal; }
+.semana-lista { list-style:none; padding:0; margin:16px 0; }
+.semana-lista li { display:flex; flex-wrap:wrap; gap:12px; padding:14px; border-bottom:1px solid var(--cor-borda); overflow-wrap:anywhere; }
+.semana-lista strong { flex:1 1 220px; min-width:0; }
+#semana-pendencias { margin-top:24px; overflow-wrap:anywhere; }

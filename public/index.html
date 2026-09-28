@@ -223,8 +223,9 @@
           </div>
         </div>
 
-        <!-- Atalhos Rápidos Operacionais (Exatamente 3 botões como esperado pela suíte de testes) -->
+        <!-- Atalhos Rápidos Operacionais -->
         <div class="consulta-home-grid func-shortcuts-grid">
+          <button class="kpi-card consulta-home-card" data-click="semana-abrir"><span class="kpi-title"><i class="ti ti-calendar"></i> Semana de contagem</span><span class="consulta-home-description">Ver produtores contados e pendências da semana</span></button>
           <button class="kpi-card kpi-emerald consulta-home-card" data-click="action-12">
             <span class="kpi-top"><span class="kpi-title">Catálogo</span><i class="ti ti-packages"></i></span>
             <span class="kpi-value" id="funcionario-total-produtos">—</span>
@@ -254,6 +255,7 @@
 
         <!-- Barra de Ações Rápidas (Shopify Action Bar) -->
         <div class="dash-action-bar">
+          <button class="btn btn-outline" data-click="semana-abrir"><i class="ti ti-calendar"></i> Semana de contagem</button>
           <button class="btn btn-main" data-click="action-15">
             <i class="ti ti-plus"></i> Iniciar Contagem
           </button>
@@ -562,6 +564,15 @@
         <button class="btn btn-outline btn-sm" id="consulta-catalogo-proxima" data-click="action-28">Próxima</button>
       </div>
     </div>
+  </section>
+
+  <section id="screen-semana-contagem" class="screen">
+    <div class="page-header"><h2>Semana de contagem</h2><button class="btn btn-outline" data-click="action-8">Voltar ao início</button></div>
+    <p id="semana-periodo"></p>
+    <p>A cobertura considera produtos ativos registrados em contagens finalizadas nesta semana.</p>
+    <button class="btn btn-outline" data-click="semana-recarregar"><i class="ti ti-refresh" aria-hidden="true"></i> Atualizar semana</button>
+    <div id="semana-conteudo" aria-live="polite" aria-atomic="true"></div>
+    <div id="semana-pendencias" aria-live="polite"></div>
   </section>
 
   <section id="screen-produtores" class="screen">
@@ -1346,6 +1357,7 @@
   <script src="/js/contagens.js"></script>
   <script src="/js/historico.js"></script>
   <script src="/js/consulta.js"></script>
+  <script src="/js/semana.js"></script>
   <script src="/js/usuarios.js"></script>
   <script src="/js/stock-import.js"></script>
   <script src="/js/atividades.js"></script>

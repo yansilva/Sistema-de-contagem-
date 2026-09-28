@@ -128,3 +128,8 @@
   #contagem-sessoes-lista .table-toolbar > button { width: 100%; }
   #contagem-modalidade-painel > .btn-primary { width: 100%; min-height: 48px; }
 }
+@media (max-width: 600px) {
+  .semana-lista li { flex-direction:column; gap:6px; }
+  .semana-lista strong { flex:auto; }
+  .semana-card .btn { width:100%; }
+}

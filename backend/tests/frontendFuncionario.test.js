@@ -72,6 +72,7 @@ describe('Área do funcionário de contagem', () => {
       StockImport: { carregarHistorico: jest.fn() },
       Atividades: { carregar: jest.fn() }
     });
+    context.Semana = { carregar: jest.fn(), invalidar: jest.fn() };
     for (const file of ['utils.js', 'auth.js', 'consulta.js', 'contagens.js', 'app.js']) {
       vm.runInContext(fs.readFileSync(path.join(frontend, 'js', file), 'utf8'), context);
     }
@@ -96,7 +97,7 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('btn-nova-empresa').style.display).toBe('none');
     for (const element of elements.values()) if (element.admin) expect(element.hidden).toBe(true);
     const home = html.split('id="home-funcionario"')[1].split('id="home-administrador"')[0];
-    expect(home.match(/<button /g)).toHaveLength(4);
+    expect(home.match(/<button /g)).toHaveLength(5);
     expect(home).not.toMatch(/screen-backoffice|Importar|Sincroniza|Exporta/);
   });
 
@@ -270,6 +271,30 @@ describe('Área do funcionário de contagem', () => {
     expect(context.showToast).not.toHaveBeenCalledWith(
       'Contagem iniciada. Selecione um produtor para contar.', 'info'
     );
+  });
+
+  it('abre a semana para funcionário e administrador e sempre recarrega', () => {
+    const buttons = [...html.matchAll(/<button[^>]*data-click="semana-abrir"[^>]*>/g)];
+    expect(buttons).toHaveLength(2);
+    for (const papel of ['funcionario', 'administrador']) {
+      auth.usuario.papel = papel;
+      dispatch('click', buttons[0][0]);
+      expect(elements.get('screen-semana-contagem').classes.has('active')).toBe(true);
+    }
+    expect(context.Semana.carregar).toHaveBeenCalledTimes(2);
+  });
+
+  it('invalida a semana somente após finalizar com sucesso em qualquer modalidade', async () => {
+    context.contagens.contagemId = 'sessao';
+    context.contagens.exibirResultado = jest.fn();
+    api.put.mockResolvedValueOnce({ success: false }).mockResolvedValue({ success: true });
+    await context.contagens.finalizarSessao();
+    expect(context.Semana.invalidar).not.toHaveBeenCalled();
+    for (const tipo of ['geral', 'pecas_queijo']) {
+      context.contagens.tipoAtual = tipo;
+      await context.contagens.finalizarSessao();
+    }
+    expect(context.Semana.invalidar).toHaveBeenCalledTimes(2);
   });
 
   it('entradas dos dois perfis abrem modalidades sem criar sessão', async () => {

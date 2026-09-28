@@ -8,7 +8,7 @@
  */
 function showScreen(screenId) {
   const publicScreens = ['screen-login', 'screen-troca-senha-obrigatoria'];
-  const employeeScreens = ['screen-home', 'screen-modalidade-contagem', 'screen-contagem', 'screen-resultado', 'screen-catalogo', 'screen-produtores', 'screen-historico-contagens'];
+  const employeeScreens = ['screen-home', 'screen-modalidade-contagem', 'screen-contagem', 'screen-resultado', 'screen-catalogo', 'screen-produtores', 'screen-historico-contagens', 'screen-semana-contagem'];
   if (!Auth.usuario && screenId !== 'screen-login') {
     screenId = 'screen-login';
   } else if (Auth.usuario?.mustChangePassword && screenId !== 'screen-login') {
@@ -39,6 +39,8 @@ function showScreen(screenId) {
     Consulta.carregarCatalogo();
   } else if (screenId === 'screen-produtores') {
     Consulta.carregarProdutores();
+  } else if (screenId === 'screen-semana-contagem') {
+    Semana.carregar();
   } else if (screenId === 'screen-historico-contagens') {
     Consulta.carregarHistorico();
   }

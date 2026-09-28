@@ -493,6 +493,7 @@ const Contagens = {
       return;
     }
 
+    if (typeof Semana !== 'undefined') Semana.invalidar();
     showToast(this.tipoAtual === 'pecas_queijo' ? 'Contagem de peças finalizada!' : 'Contagem finalizada! Diferenças calculadas.', 'success');
     this.exibirResultado(this.contagemId);
   },
