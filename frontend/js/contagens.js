@@ -53,6 +53,7 @@ const Contagens = {
   },
 
   protegerEdicao(acao) {
+    if (this._salvando) return true;
     if (!this.edicaoPendente) return false;
     this.acaoAposEdicao = acao;
     const dialog = document.getElementById('contagem-edicao-pendente');
@@ -62,6 +63,7 @@ const Contagens = {
   },
 
   async resolverEdicao(escolha) {
+    if (this._salvando) return;
     if (escolha === 'salvar' && !await this.salvarProgressoAtual()) return;
     if (escolha === 'descartar') {
       this.edicaoPendente = false;
@@ -349,6 +351,7 @@ const Contagens = {
             <div style="width:130px">
               <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">${this.tipoAtual === 'pecas_queijo' ? 'Quantidade de peças:' : 'Qtd Física:'}</label>
               <input id="qtd-fisica-${index}" type="number" inputmode="numeric" min="0" step="1"
+                     ${this._salvando ? 'disabled' : ''}
                      placeholder="Não contado"
                      value="${valorInput}"
                      class="input-qtd-fisica"
@@ -368,6 +371,11 @@ const Contagens = {
   atualizarQuantidadeItem(index, valorStr) {
     const item = this.itensFornecedor[index];
     if (!item) return;
+    if (this._salvando) {
+      const input = document.getElementById(`qtd-fisica-${index}`);
+      if (input) input.value = item.quantidade_contada ?? '';
+      return;
+    }
     this.edicaoPendente = true;
     const limpo = valorStr.trim();
     const num = Number(limpo);
@@ -392,6 +400,7 @@ const Contagens = {
     }
 
     this._salvando = true;
+    this.bloquearEdicaoDuranteSalvamento(true);
     const btn = document.getElementById('btn-salvar-progresso-produtor');
     if (btn) {
       btn.disabled = true;
@@ -406,31 +415,40 @@ const Contagens = {
       }))
     };
 
-    let res;
-    try { res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload); }
-    catch (err) { res = null; }
-    this._salvando = false;
+    try {
+      let res;
+      try { res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload); }
+      catch (err) { res = null; }
+      if (!res || !res.success) {
+        showToast(res?.message || 'Erro ao salvar progresso.', 'error');
+        return false;
+      }
 
-    if (btn) {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar Progresso Deste Produtor';
+      showToast(`Progresso salvo para ${this.fornecedorAtual}!`, 'success');
+      this.edicaoPendente = false;
+      // O snapshot local também passa a refletir o que o servidor confirmou.
+      const fornecedor = this.dadosSessao?.fornecedores?.find(f => f.fornecedor === this.fornecedorAtual);
+      for (const produto of fornecedor?.produtos || []) {
+        const salvo = payload.itens.find(p => p.produto_id === produto.produto_id);
+        if (salvo) produto.quantidade_contada = salvo.quantidade_contada;
+      }
+      try { await this.carregarDadosContagem(); }
+      catch (err) { showToast('Progresso salvo, mas não foi possível atualizar a tela.', 'error'); }
+      return true;
+    } finally {
+      this._salvando = false;
+      this.bloquearEdicaoDuranteSalvamento(false);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar Progresso Deste Produtor';
+      }
     }
+  },
 
-    if (!res || !res.success) {
-      showToast(res?.message || 'Erro ao salvar progresso.', 'error');
-      return false;
+  bloquearEdicaoDuranteSalvamento(bloquear) {
+    for (const selector of ['.input-qtd-fisica', '.contagem-edicao-acao']) {
+      document.querySelectorAll(selector).forEach(element => { element.disabled = bloquear; });
     }
-
-    showToast(`Progresso salvo para ${this.fornecedorAtual}!`, 'success');
-    this.edicaoPendente = false;
-    // O snapshot local também passa a refletir o que o servidor confirmou.
-    const fornecedor = this.dadosSessao?.fornecedores?.find(f => f.fornecedor === this.fornecedorAtual);
-    for (const produto of fornecedor?.produtos || []) {
-      const salvo = payload.itens.find(p => p.produto_id === produto.produto_id);
-      if (salvo) produto.quantidade_contada = salvo.quantidade_contada;
-    }
-    await this.carregarDadosContagem();
-    return true;
   },
 
   /**
