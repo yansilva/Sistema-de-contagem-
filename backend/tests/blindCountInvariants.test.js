@@ -119,3 +119,14 @@ describe('Invariantes de Contagem Cega (Blind Count Security)', () => {
     });
   });
 });
+
+ describe('Modalidade e snapshots legados',()=>{
+  it('registros antigos sem tipo continuam gerais e peças propagam modo aos itens',()=>{
+    const {serializeContagemDetalhe}=require('../src/serializers/contagemSerializer');
+    const usuario={papel:'funcionario'},fornecedor={tem_diferenca:true,produtos:[{quantidade_contada:0,estoque_referencia:17,diferenca:-17,situacao:'falta'}]};
+    const geral=serializeContagemDetalhe({status:'finalizada'},[fornecedor],usuario);
+    expect(geral.tipo).toBe('geral');expect(geral.fornecedores[0].produtos[0].estoque_referencia).toBe(17);
+    const pecas=serializeContagemDetalhe({tipo:'pecas_queijo',status:'finalizada'},[fornecedor],usuario);
+    expect(pecas.fornecedores[0].produtos[0]).not.toHaveProperty('estoque_referencia');
+  });
+ });

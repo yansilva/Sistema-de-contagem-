@@ -1,5 +1,5 @@
 const { query, getClient } = require('../config/db');
-const { AppError, NotFoundError, ValidationError } = require('../errors/AppError');
+const { AppError, NotFoundError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
 const { serializeContagemDetalhe } = require('../serializers/contagemSerializer');
 
@@ -7,19 +7,21 @@ const { serializeContagemDetalhe } = require('../serializers/contagemSerializer'
  * POST /api/contagens
  * Inicia nova sessão de contagem cega.
  * Captura o snapshot imutável de estoque_referencia para todos os produtos ativos da empresa.
+ * @returns {Promise<void>}
  */
 async function iniciar(req, res, next) {
   const client = await getClient();
 
   try {
     await client.query('BEGIN');
+    const tipo = req.body?.tipo || 'geral';
 
     // 1. Criar a sessão de contagem
     const contagemRes = await client.query(
-      `INSERT INTO contagens (empresa_id, iniciado_por, status)
-       VALUES ($1, $2, 'em_andamento')
-       RETURNING id, iniciado_em, status`,
-      [req.empresaId, req.usuario.id]
+      `INSERT INTO contagens (empresa_id, iniciado_por, status, tipo)
+       VALUES ($1, $2, 'em_andamento', $3)
+       RETURNING id, iniciado_em, status, tipo`,
+      [req.empresaId, req.usuario.id, tipo]
     );
     const contagem = contagemRes.rows[0];
 
@@ -27,16 +29,17 @@ async function iniciar(req, res, next) {
     const produtosRes = await client.query(
       `SELECT id, codigo, nome, fornecedor, estoque_atual
        FROM produtos
-       WHERE empresa_id = $1 AND ativo = TRUE
+       WHERE empresa_id = $1 AND ativo = TRUE AND contagem_em_pecas = $2
        ORDER BY fornecedor ASC, nome ASC`,
-      [req.empresaId]
+      [req.empresaId, tipo === 'pecas_queijo']
     );
 
     const produtos = produtosRes.rows;
 
     if (produtos.length === 0) {
-      throw new ValidationError(
-        'Nenhum produto ativo cadastrado na empresa para contagem. Cadastre produtos antes de iniciar.',
+      throw new AppError(
+        'Nenhum produto ativo compatível com esta modalidade. Cadastre produtos antes de iniciar.',
+        400,
         'SEM_PRODUTOS'
       );
     }
@@ -74,7 +77,7 @@ async function iniciar(req, res, next) {
     for (const p of produtos) {
       const fornId = fornecedorIdMap.get(p.fornecedor.trim());
       itensValues.push("($" + paramIdx + ", $" + (paramIdx + 1) + ", $" + (paramIdx + 2) + ", $" + (paramIdx + 3) + ", $" + (paramIdx + 4) + ", NULL, NULL, NULL)");
-      itensParams.push(fornId, p.id, p.codigo, p.nome, p.estoque_atual || 0);
+      itensParams.push(fornId, p.id, p.codigo, p.nome, tipo === 'pecas_queijo' ? null : (p.estoque_atual ?? 0));
       paramIdx += 5;
     }
 
@@ -94,8 +97,8 @@ async function iniciar(req, res, next) {
       acao: 'contagem_criada',
       entidade: 'contagem',
       entidadeId: contagem.id,
-      dadosNovos: { total_fornecedores: mapaFornecedores.size, total_produtos: produtos.length },
-      whitelistCampos: ['total_fornecedores', 'total_produtos'],
+      dadosNovos: { tipo, total_fornecedores: mapaFornecedores.size, total_produtos: produtos.length },
+      whitelistCampos: ['tipo', 'total_fornecedores', 'total_produtos'],
       eventoChave: `contagem_criada_${contagem.id}`
     });
 
@@ -103,10 +106,11 @@ async function iniciar(req, res, next) {
 
     res.status(201).json({
       success: true,
-      message: 'Sessão de contagem iniciada com sucesso. Snapshot de referência registrado.',
+      message: 'Sessão de contagem iniciada com sucesso.',
       data: {
         contagem: {
           id: contagem.id,
+          tipo,
           iniciado_em: contagem.iniciado_em,
           status: contagem.status,
           total_fornecedores: mapaFornecedores.size,
@@ -126,6 +130,7 @@ async function iniciar(req, res, next) {
  * PUT /api/contagens/:id/salvar-progresso
  * Salva a contagem física informada pelo funcionário para um produtor/fornecedor.
  * Suporta NULL (não contado) e 0 (zero unidades contadas fisicamente).
+ * @returns {Promise<void>}
  */
 async function salvarProgresso(req, res, next) {
   const client = await getClient();
@@ -134,9 +139,11 @@ async function salvarProgresso(req, res, next) {
     const { id } = req.params;
     const { fornecedor, itens } = req.body;
 
+    await client.query('BEGIN');
+
     // Verificar se contagem pertence à empresa e está em andamento
     const contagemCheck = await client.query(
-      `SELECT id FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento'`,
+      `SELECT id, tipo FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento' FOR UPDATE`,
       [id, req.empresaId]
     );
 
@@ -147,7 +154,7 @@ async function salvarProgresso(req, res, next) {
       );
     }
 
-    await client.query('BEGIN');
+    const tipo = contagemCheck.rows[0].tipo || 'geral';
 
     // Localizar fornecedor na contagem
     let fornRes = await client.query(
@@ -172,7 +179,7 @@ async function salvarProgresso(req, res, next) {
     for (const item of itens) {
       const qtd = item.quantidade_contada === null || item.quantidade_contada === undefined
         ? null
-        : parseInt(item.quantidade_contada, 10);
+        : item.quantidade_contada;
 
       const upd = await client.query(
         `UPDATE contagem_itens
@@ -187,8 +194,14 @@ async function salvarProgresso(req, res, next) {
       } else {
         // Se item não estava no snapshot original, busca no catálogo e insere
         const prod = await client.query(
-          `SELECT id, codigo, nome, estoque_atual FROM produtos WHERE id = $1 AND empresa_id = $2`,
-          [item.produto_id, req.empresaId]
+          `SELECT id, codigo, nome, estoque_atual FROM produtos
+           WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
+             AND fornecedor = $3 AND contagem_em_pecas = $4
+             AND NOT EXISTS (
+               SELECT 1 FROM contagem_itens ci JOIN contagem_fornecedores cf ON cf.id = ci.contagem_fornecedor_id
+               WHERE cf.contagem_id = $5 AND ci.produto_id = produtos.id
+             )`,
+          [item.produto_id, req.empresaId, fornecedor.trim(), tipo === 'pecas_queijo', id]
         );
         if (prod.rows.length > 0) {
           const p = prod.rows[0];
@@ -196,9 +209,11 @@ async function salvarProgresso(req, res, next) {
             `INSERT INTO contagem_itens
              (contagem_fornecedor_id, produto_id, codigo, nome, estoque_referencia, quantidade_contada, contado_em)
              VALUES ($1, $2, $3, $4, $5, $6, CASE WHEN $6::integer IS NULL THEN NULL ELSE NOW() END)`,
-            [fornecedorId, p.id, p.codigo, p.nome, p.estoque_atual || 0, qtd]
+            [fornecedorId, p.id, p.codigo, p.nome, tipo === 'pecas_queijo' ? null : (p.estoque_atual ?? 0), qtd]
           );
           itensSalvos++;
+        } else {
+          throw new AppError('Produto incompatível com a modalidade, empresa ou produtor da contagem.', 400, 'ITEM_INCOMPATIVEL');
         }
       }
     }
@@ -212,7 +227,7 @@ async function salvarProgresso(req, res, next) {
       acao: 'contagem_progresso_salvo',
       entidade: 'contagem',
       entidadeId: id,
-      metadados: { fornecedor: fornecedor.trim(), itens_salvos: itensSalvos },
+      metadados: { tipo, fornecedor: fornecedor.trim(), itens_salvos: itensSalvos },
       eventoChave: `progresso_${id}_${fornecedorId}`
     });
 
@@ -222,6 +237,7 @@ async function salvarProgresso(req, res, next) {
       success: true,
       message: `Progresso salvo com sucesso para o produtor '${fornecedor}' (${itensSalvos} itens).`,
       data: {
+        tipo,
         fornecedor_id: fornecedorId,
         itens_salvos: itensSalvos
       }
@@ -237,68 +253,48 @@ async function salvarProgresso(req, res, next) {
 /**
  * POST /api/contagens/:id/fornecedor (Compatibilidade)
  * Registra contagem de um fornecedor calculando diferenças no servidor
+ * @returns {Promise<void>}
  */
 async function adicionarFornecedor(req, res, next) {
   const client = await getClient();
-
   try {
     const { id } = req.params;
     const { fornecedor, produtos } = req.body;
-
+    await client.query('BEGIN');
     const contagemCheck = await client.query(
-      `SELECT id FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento'`,
+      `SELECT id, tipo FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento' FOR UPDATE`,
       [id, req.empresaId]
     );
-
     if (contagemCheck.rows.length === 0) {
-      throw new NotFoundError(
-        'Contagem não encontrada, finalizada ou sem permissão de acesso.',
-        'CONTAGEM_INVALIDA'
-      );
+      throw new NotFoundError('Contagem não encontrada, finalizada ou sem permissão de acesso.', 'CONTAGEM_INVALIDA');
     }
-
-    await client.query('BEGIN');
-
-    // Verificar se fornecedor já existe
-    let fornRes = await client.query(
-      `SELECT id FROM contagem_fornecedores WHERE contagem_id = $1 AND fornecedor = $2`,
+    const tipo = contagemCheck.rows[0].tipo || 'geral';
+    const fornRes = await client.query(
+      'SELECT id FROM contagem_fornecedores WHERE contagem_id = $1 AND fornecedor = $2',
       [id, fornecedor.trim()]
     );
-
-    let fornecedorId;
-    if (fornRes.rows.length === 0) {
-      const ins = await client.query(
-        `INSERT INTO contagem_fornecedores (contagem_id, fornecedor, tem_diferenca)
-         VALUES ($1, $2, FALSE) RETURNING id`,
-        [id, fornecedor.trim()]
-      );
-      fornecedorId = ins.rows[0].id;
-    } else {
-      fornecedorId = fornRes.rows[0].id;
-    }
-
+    if (!fornRes.rows.length) throw new AppError('Produtor não pertence ao snapshot da contagem.', 400, 'ITEM_INCOMPATIVEL');
+    const fornecedorId = fornRes.rows[0].id;
     for (const p of produtos) {
-      const qtd = p.quantidade_contada !== undefined && p.quantidade_contada !== null
-        ? parseInt(p.quantidade_contada, 10)
-        : (p.qty_contagem !== undefined ? parseInt(p.qty_contagem, 10) : null);
-
-      await client.query(
+      const qtd = p.quantidade_contada !== undefined ? p.quantidade_contada : (p.qty_contagem ?? null);
+      const upd = await client.query(
         `UPDATE contagem_itens
-         SET quantidade_contada = $1, contado_em = CASE WHEN $1 IS NULL THEN NULL ELSE NOW() END
-         WHERE contagem_fornecedor_id = $2 AND (produto_id = $3 OR codigo = $4)`,
+         SET quantidade_contada = $1, contado_em = CASE WHEN $1::integer IS NULL THEN NULL ELSE NOW() END
+         WHERE contagem_fornecedor_id = $2 AND codigo = $4
+           AND ($3::uuid IS NULL OR produto_id = $3)
+         RETURNING id`,
         [qtd, fornecedorId, p.produto_id || null, p.codigo.trim()]
       );
+      if (!upd.rows.length) throw new AppError('ID ou código não corresponde ao snapshot deste produtor.', 400, 'ITEM_INCOMPATIVEL');
     }
-
-    await client.query('COMMIT');
-
-    res.status(201).json({
-      success: true,
-      message: `Contagem do produtor '${fornecedor}' registrada com sucesso.`,
-      data: {
-        contagem_fornecedor_id: fornecedorId
-      }
+    await auditService.registrar(client, req.auditContext || {}, {
+      empresaId: req.empresaId, atorId: req.usuario.id, atorPapel: req.usuario.papel,
+      atorRotulo: req.usuario.email, acao: 'contagem_progresso_salvo', entidade: 'contagem', entidadeId: id,
+      metadados: { tipo, fornecedor: fornecedor.trim(), itens_salvos: produtos.length },
+      eventoChave: `progresso_${id}_${fornecedorId}`
     });
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, message: `Contagem do produtor '${fornecedor}' registrada com sucesso.`, data: { tipo, contagem_fornecedor_id: fornecedorId } });
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);
@@ -310,6 +306,7 @@ async function adicionarFornecedor(req, res, next) {
 /**
  * PUT /api/contagens/:id/finalizar
  * Finaliza a contagem cega: calcula internamente diferenças e situação para cada item.
+ * @returns {Promise<void>}
  */
 async function finalizar(req, res, next) {
   const client = await getClient();
@@ -319,7 +316,7 @@ async function finalizar(req, res, next) {
     await client.query('BEGIN');
 
     const contagemCheck = await client.query(
-      `SELECT id FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento' FOR UPDATE`,
+      `SELECT id, tipo FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento' FOR UPDATE`,
       [id, req.empresaId]
     );
 
@@ -330,9 +327,18 @@ async function finalizar(req, res, next) {
       );
     }
 
+    const tipo = contagemCheck.rows[0].tipo || 'geral';
+
     // Apura somente quantidades registradas; NULL permanece não contado.
     const itensRes = await client.query(
-      `UPDATE contagem_itens AS ci
+      tipo === 'pecas_queijo'
+        ? `UPDATE contagem_itens AS ci
+           SET diferenca = NULL, situacao = NULL
+           FROM contagem_fornecedores AS cf
+           WHERE ci.contagem_fornecedor_id = cf.id AND cf.contagem_id = $1
+             AND ci.quantidade_contada IS NOT NULL
+           RETURNING ci.contagem_fornecedor_id, ci.diferenca`
+        : `UPDATE contagem_itens AS ci
        SET diferenca = ci.quantidade_contada - ci.estoque_referencia,
            situacao = CASE
              WHEN ci.quantidade_contada > ci.estoque_referencia THEN 'sobra'
@@ -356,7 +362,7 @@ async function finalizar(req, res, next) {
     }
 
     const fornecedoresComDiferenca = new Set(
-      itensRes.rows.filter(item => Number(item.diferenca) !== 0).map(item => item.contagem_fornecedor_id)
+      itensRes.rows.filter(item => tipo === 'geral' && Number(item.diferenca) !== 0).map(item => item.contagem_fornecedor_id)
     );
     const temDiferencaGlobal = fornecedoresComDiferenca.size > 0;
 
@@ -372,7 +378,7 @@ async function finalizar(req, res, next) {
       `UPDATE contagens
        SET status = 'finalizada', finalizado_em = NOW(), tem_diferenca = $1
        WHERE id = $2
-       RETURNING id, iniciado_em, finalizado_em, tem_diferenca, status`,
+       RETURNING id, tipo, iniciado_em, finalizado_em, tem_diferenca, status`,
       [temDiferencaGlobal, id]
     );
 
@@ -385,8 +391,8 @@ async function finalizar(req, res, next) {
       acao: 'contagem_finalizada',
       entidade: 'contagem',
       entidadeId: id,
-      dadosNovos: { tem_diferenca: temDiferencaGlobal, total_itens: itensRes.rows.length, fornecedores_com_diferenca: fornecedoresComDiferenca.size },
-      whitelistCampos: ['tem_diferenca', 'total_itens', 'fornecedores_com_diferenca'],
+      dadosNovos: { tipo, tem_diferenca: temDiferencaGlobal, total_itens: itensRes.rows.length, fornecedores_com_diferenca: fornecedoresComDiferenca.size },
+      whitelistCampos: ['tipo', 'tem_diferenca', 'total_itens', 'fornecedores_com_diferenca'],
       eventoChave: `contagem_finalizada_${id}`
     });
 
@@ -394,9 +400,9 @@ async function finalizar(req, res, next) {
 
     res.json({
       success: true,
-      message: 'Contagem finalizada com sucesso. Diferenças apuradas.',
+      message: tipo === 'pecas_queijo' ? 'Contagem de peças finalizada com sucesso.' : 'Contagem finalizada com sucesso. Diferenças apuradas.',
       data: {
-        contagem: finalResult.rows[0]
+        contagem: serializeContagemDetalhe({ ...finalResult.rows[0], tipo }, [], req.usuario)
       }
     });
   } catch (err) {
@@ -410,16 +416,17 @@ async function finalizar(req, res, next) {
 /**
  * GET /api/contagens
  * Lista histórico de contagens com agregação JSON
+ * @returns {Promise<void>}
  */
 async function listar(req, res, next) {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, tipo, status } = req.query;
     const pageNum = Math.max(1, parseInt(page, 10));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)));
     const offset = (pageNum - 1) * limitNum;
 
     const sql = `
-      SELECT c.id, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status,
+      SELECT c.id, c.tipo, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status,
              u.nome AS iniciado_por_nome,
              COALESCE(
                json_agg(
@@ -440,12 +447,14 @@ async function listar(req, res, next) {
           WHERE ci.contagem_fornecedor_id = cf.id AND ci.quantidade_contada IS NOT NULL
         ))
       WHERE c.empresa_id = $1
+        AND ($4::varchar IS NULL OR c.tipo = $4)
+        AND ($5::varchar IS NULL OR c.status = $5)
       GROUP BY c.id, u.nome
       ORDER BY c.iniciado_em DESC
       LIMIT $2 OFFSET $3
     `;
 
-    const result = await query(sql, [req.empresaId, limitNum, offset]);
+    const result = await query(sql, [req.empresaId, limitNum, offset, tipo || null, status || null]);
 
     res.json({
       success: true,
@@ -465,12 +474,13 @@ async function listar(req, res, next) {
  * - Após finalização:
  *    - Funcionário e administrador: veem estoque_referencia, quantidade_contada,
  *      diferenca e situacao dos produtos contados.
+ * @returns {Promise<void>}
  */
 async function detalhe(req, res, next) {
   try {
     const { id } = req.params;
     const contagemRes = await query(
-      `SELECT c.id, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status,
+      `SELECT c.id, c.tipo, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status,
               u.nome AS iniciado_por_nome
        FROM contagens c
        LEFT JOIN usuarios u ON u.id = c.iniciado_por

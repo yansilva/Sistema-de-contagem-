@@ -15,7 +15,7 @@ function isAdministrador(usuario = {}) {
 /**
  * Serializa um item individual de contagem
  */
-function serializeItem(item, usuario, isFinalizada) {
+function serializeItem(item, usuario, isFinalizada, tipo = 'geral') {
   const admin = isAdministrador(usuario);
 
   const base = {
@@ -27,6 +27,8 @@ function serializeItem(item, usuario, isFinalizada) {
     contado_em: item.contado_em || null,
     qty_contagem: item.quantidade_contada || 0
   };
+
+  if (tipo === 'pecas_queijo') return base;
 
   if (!isFinalizada) {
     if (admin) {
@@ -48,14 +50,14 @@ function serializeItem(item, usuario, isFinalizada) {
 /**
  * Serializa fornecedores e seus itens de uma contagem
  */
-function serializeFornecedor(fornecedor, usuario, isFinalizada) {
+function serializeFornecedor(fornecedor, usuario, isFinalizada, tipo = 'geral') {
   const itens = Array.isArray(fornecedor.produtos) ? fornecedor.produtos : [];
   return {
     id: fornecedor.id,
     fornecedor: fornecedor.fornecedor,
-    tem_diferenca: isAdministrador(usuario) || isFinalizada ? fornecedor.tem_diferenca : undefined,
+    ...(tipo === 'pecas_queijo' ? {} : { tem_diferenca: isAdministrador(usuario) || isFinalizada ? fornecedor.tem_diferenca : undefined }),
     contado_em: fornecedor.contado_em,
-    produtos: itens.map(p => serializeItem(p, usuario, isFinalizada))
+    produtos: itens.map(p => serializeItem(p, usuario, isFinalizada, tipo))
   };
 }
 
@@ -63,17 +65,19 @@ function serializeFornecedor(fornecedor, usuario, isFinalizada) {
  * Serializa a contagem completa com fornecedores e itens
  */
 function serializeContagemDetalhe(contagem, fornecedores = [], usuario) {
+  const tipo = contagem.tipo || 'geral';
   const isFinalizada = contagem.status === 'finalizada';
   const admin = isAdministrador(usuario);
 
   return {
     id: contagem.id,
+    tipo,
     iniciado_em: contagem.iniciado_em,
     finalizado_em: contagem.finalizado_em,
     status: contagem.status,
-    tem_diferenca: admin || isFinalizada ? contagem.tem_diferenca : undefined,
+    ...(tipo === 'pecas_queijo' ? {} : { tem_diferenca: admin || isFinalizada ? contagem.tem_diferenca : undefined }),
     iniciado_por_nome: contagem.iniciado_por_nome,
-    fornecedores: fornecedores.map(f => serializeFornecedor(f, usuario, isFinalizada))
+    fornecedores: fornecedores.map(f => serializeFornecedor(f, usuario, isFinalizada, tipo))
   };
 }
 

@@ -158,7 +158,16 @@ const confirmarAtualizacaoEstoqueSchema = {
 
 // ===== CONTAGENS SCHEMAS =====
 const iniciarContagemSchema = {
-  body: z.object({}).optional()
+  body: z.object({ tipo: z.enum(['geral', 'pecas_queijo']).default('geral') }).strict().optional()
+};
+
+const listarContagensQuerySchema = {
+  query: z.object({
+    page: z.coerce.number().int().positive().default(1),
+    limit: z.coerce.number().int().positive().max(100).default(20),
+    tipo: z.enum(['geral', 'pecas_queijo']).optional(),
+    status: z.enum(['em_andamento', 'finalizada']).optional()
+  })
 };
 
 const salvarProgressoContagemSchema = {
@@ -173,10 +182,10 @@ const salvarProgressoContagemSchema = {
           produto_id: z.string().uuid('ID do produto inválido'),
           // Quantidade física: NULL = ainda não contado; 0 = contado zero unidades
           quantidade_contada: z.number().int().min(0, 'Quantidade não pode ser negativa').nullable()
-        })
+        }).strict()
       )
       .min(1, 'Pelo menos um item deve ser informado.')
-  })
+  }).strict()
 };
 
 // Compatibilidade com adicionarFornecedor original
@@ -198,14 +207,14 @@ const adicionarFornecedorSchema = {
             .number()
             .int()
             .min(0, 'Quantidade contada não pode ser negativa')
-            .default(0),
+            .nullable().optional(),
           quantidade_contada: z.number().int().min(0).nullable().optional(),
           diferenca: z.number().int().default(0).optional(),
           sem_diferenca: z.boolean().default(true).optional()
-        })
+        }).strict()
       )
       .min(1, 'Deve conter pelo menos um item para contagem.')
-  })
+  }).strict()
 };
 
 // ===== AUDITORIA / ATIVIDADES SCHEMAS =====
@@ -286,6 +295,7 @@ module.exports = {
   importarProdutosSchema,
   confirmarAtualizacaoEstoqueSchema,
   iniciarContagemSchema,
+  listarContagensQuerySchema,
   salvarProgressoContagemSchema,
   adicionarFornecedorSchema,
   listarAtividadesQuerySchema,

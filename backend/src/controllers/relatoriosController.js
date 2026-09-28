@@ -1,6 +1,6 @@
 const { query } = require('../config/db');
 const { gerarExcelContagem } = require('../services/excel');
-const { NotFoundError, ValidationError } = require('../errors/AppError');
+const { AppError, NotFoundError, ValidationError } = require('../errors/AppError');
 
 /**
  * GET /api/relatorios/contagens/:id/excel
@@ -12,7 +12,7 @@ async function excelContagem(req, res, next) {
 
     // Verificar se a contagem pertence à empresa
     const contagem = await query(
-      `SELECT c.id, c.status, c.finalizado_em, c.tem_diferenca
+      `SELECT c.id, c.tipo, c.status, c.finalizado_em, c.tem_diferenca
        FROM contagens c
        WHERE c.id = $1 AND c.empresa_id = $2`,
       [id, req.empresaId]
@@ -20,6 +20,9 @@ async function excelContagem(req, res, next) {
 
     if (contagem.rows.length === 0) {
       throw new NotFoundError('Contagem não encontrada.', 'CONTAGEM_NAO_ENCONTRADA');
+    }
+    if (contagem.rows[0].tipo === 'pecas_queijo') {
+      throw new AppError('Relatório de diferenças não se aplica à contagem de peças.', 400, 'RELATORIO_NAO_APLICAVEL');
     }
     if (contagem.rows[0].status !== 'finalizada') {
       throw new ValidationError('Finalize a contagem antes de exportar as diferenças.');

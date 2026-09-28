@@ -13,6 +13,8 @@ const {
 } = require('../controllers/contagensController');
 const {
   idParamSchema,
+  iniciarContagemSchema,
+  listarContagensQuerySchema,
   salvarProgressoContagemSchema,
   adicionarFornecedorSchema
 } = require('../validators/schemas');
@@ -21,7 +23,7 @@ const {
 router.use(auth, tenant);
 
 // POST /api/contagens — Iniciar nova sessão de contagem cega com snapshot de estoque
-router.post('/', iniciar);
+router.post('/', validate(iniciarContagemSchema), iniciar);
 
 // PUT /api/contagens/:id/salvar-progresso — Salvar contagem física por produtor (null vs 0)
 router.put('/:id/salvar-progresso', validate(salvarProgressoContagemSchema), salvarProgresso);
@@ -33,7 +35,7 @@ router.post('/:id/fornecedor', validate(adicionarFornecedorSchema), adicionarFor
 router.put('/:id/finalizar', validate(idParamSchema), finalizar);
 
 // GET /api/contagens — Listar histórico de contagens
-router.get('/', listar);
+router.get('/', validate(listarContagensQuerySchema), listar);
 
 // GET /api/contagens/:id — Detalhe da contagem (protegido por RBAC: funcionário só vê diferenças se finalizada)
 router.get('/:id', validate(idParamSchema), detalhe);

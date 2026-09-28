@@ -60,4 +60,10 @@ describe('Excel de diferenças da contagem', () => {
     expect(res.status).toBe(404);
     expect(db.query.mock.calls[1][1]).toEqual([usuario.id, usuario.empresa_id]);
   });
+
+  it.each(['em_andamento','finalizada'])('peças %s recusam relatório antes de buscar divergências',async status=>{
+    db.query.mockResolvedValueOnce({rows:[{id:'c',tipo:'pecas_queijo',status}]});
+    const res=await request(app).get('/api/relatorios/contagens/'+usuario.id+'/excel').set('Authorization','Bearer '+gerarAccessToken(usuario));
+    expect(res.status).toBe(400);expect(res.body.code).toBe('RELATORIO_NAO_APLICAVEL');expect(db.query).toHaveBeenCalledTimes(2);
+  });
 });

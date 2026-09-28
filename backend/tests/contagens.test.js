@@ -72,6 +72,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(res.statusCode).toBe(201);
     expect(res.body.success).toBe(true);
     expect(res.body.data.contagem.id).toBe(contagemId);
+    expect(res.body.data.contagem.tipo).toBe('geral');
     expect(mockClient.query).toHaveBeenCalledWith('BEGIN');
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
@@ -79,8 +80,8 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
   it('PUT /api/contagens/:id/salvar-progresso — Permite salvar contagem diferenciando zero de não contado', async () => {
     const mockClient = {
       query: jest.fn()
-        .mockResolvedValueOnce({ rows: [{ id: contagemId }] }) // check contagem em_andamento
         .mockResolvedValueOnce({ rows: [] }) // BEGIN
+        .mockResolvedValueOnce({ rows: [{ id: contagemId, tipo: 'geral' }] }) // locked contagem em_andamento
         .mockResolvedValueOnce({ rows: [{ id: 'forn-1' }] }) // check fornecedor
         .mockResolvedValueOnce({ rows: [{ id: 'item-1' }] }) // update item 1 (12 unidades)
         .mockResolvedValueOnce({ rows: [{ id: 'item-2' }] }) // update item 2 (0 unidades contadas)
@@ -132,7 +133,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
           }
           return { rows: [{ id: produtoId }] };
         }
-        if (sql.includes('SELECT id FROM contagens')) return { rows: [{ id: contagemId }] };
+        if (sql.includes('SELECT id, tipo FROM contagens')) return { rows: [{ id: contagemId }] };
         if (sql.includes('SELECT id FROM contagem_fornecedores')) return { rows: [{ id: '66666666-6666-4666-8666-666666666666' }] };
         return { rows: [] };
       }),
@@ -169,7 +170,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
         if (sql.includes('SELECT id, codigo, nome, estoque_atual FROM produtos')) {
           return { rows: [{ id: produtoId, codigo: 'NOVO', nome: 'Produto novo', estoque_atual: 3 }] };
         }
-        if (sql.includes('SELECT id FROM contagens')) return { rows: [{ id: contagemId }] };
+        if (sql.includes('SELECT id, tipo FROM contagens')) return { rows: [{ id: contagemId }] };
         if (sql.includes('SELECT id FROM contagem_fornecedores')) return { rows: [{ id: '66666666-6666-4666-8666-666666666666' }] };
         return { rows: [] };
       }),
