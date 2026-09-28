@@ -1,6 +1,7 @@
 const { query, getClient } = require('../config/db');
 const { AppError, NotFoundError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
+const { obterCoberturaSemanal } = require('../services/coberturaSemanalService');
 const { serializeContagemDetalhe } = require('../serializers/contagemSerializer');
 
 /**
@@ -542,7 +543,16 @@ async function detalhe(req, res, next) {
   }
 }
 
+async function semana(req, res, next) {
+  try {
+    res.json({ success: true, data: await obterCoberturaSemanal(req.empresaId) });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  semana,
   iniciar,
   salvarProgresso,
   adicionarFornecedor,

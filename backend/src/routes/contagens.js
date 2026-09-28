@@ -9,7 +9,8 @@ const {
   adicionarFornecedor,
   finalizar,
   listar,
-  detalhe
+  detalhe,
+  semana
 } = require('../controllers/contagensController');
 const {
   idParamSchema,
@@ -36,6 +37,9 @@ router.put('/:id/finalizar', validate(idParamSchema), finalizar);
 
 // GET /api/contagens — Listar histórico de contagens
 router.get('/', validate(listarContagensQuerySchema), listar);
+
+// Cobertura semanal do catálogo atual, sem saldos ou estoque de referência.
+router.get('/semana', semana);
 
 // GET /api/contagens/:id — Detalhe da contagem (protegido por RBAC: funcionário só vê diferenças se finalizada)
 router.get('/:id', validate(idParamSchema), detalhe);
