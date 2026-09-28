@@ -72,4 +72,26 @@ describe('Cobertura semanal operacional', () => {
     expect(elements.get('semana-pendencias').innerHTML).toContain('SKU299');
     expect(elements.get('semana-pendencias').innerHTML).toContain('&lt;Queijo&gt;');
   });
+  it('preserva o botão focado ao abrir e fechar pendências', async () => {
+    context.API.get.mockResolvedValue({ success: true, data: dados() });
+    await semana.carregar();
+    const container = elements.get('semana-conteudo');
+    let html = container.innerHTML;
+    const botao = { dataset: { produtor: '<Produtor>' }, setAttribute: jest.fn() };
+    context.document.activeElement = botao;
+    container.querySelectorAll = () => [botao];
+    // Como no DOM, substituir os filhos remove o controle e devolve o foco ao body.
+    Object.defineProperty(container, 'innerHTML', {
+      get: () => html,
+      set: value => { html = value; context.document.activeElement = null; }
+    });
+    semana.abrirProdutor('<Produtor>');
+    expect(context.document.activeElement).toBe(botao);
+    expect(botao.setAttribute).toHaveBeenLastCalledWith('aria-expanded', 'true');
+    expect(elements.get('semana-pendencias').innerHTML).toContain('SKU0');
+    semana.abrirProdutor('<Produtor>');
+    expect(context.document.activeElement).toBe(botao);
+    expect(botao.setAttribute).toHaveBeenLastCalledWith('aria-expanded', 'false');
+    expect(elements.get('semana-pendencias').innerHTML).toBe('');
+  });
 });

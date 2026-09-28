@@ -34,7 +34,11 @@ const Semana = {
 
   abrirProdutor(fornecedor) {
     this.produtorAberto = this.produtorAberto === fornecedor ? null : fornecedor;
-    this.renderizar();
+    const container = document.getElementById('semana-conteudo');
+    container?.querySelectorAll?.('[data-click="semana-produtor"]').forEach(botao => {
+      botao.setAttribute('aria-expanded', String(botao.dataset.produtor === this.produtorAberto));
+    });
+    this.renderizarPendencias();
   },
 
   renderizar() {
@@ -62,7 +66,14 @@ const Semana = {
       const [nome, icone] = estados[p.status] || estados.pendente;
       return `<article class="semana-card"><h3>${escapeHtml(p.fornecedor)}</h3><p><i class="ti ${icone}" aria-hidden="true"></i> <strong>${nome}</strong></p><p>${p.produtos_contados} de ${p.total_produtos} produtos contados</p><button class="btn btn-outline" data-click="semana-produtor" data-produtor="${escapeHtml(p.fornecedor)}" aria-expanded="${this.produtorAberto === p.fornecedor}" aria-controls="semana-pendencias">Ver pendências (${p.produtos_pendentes.length})</button></article>`;
     }).join('')}</div>`;
-    const produtor = produtores.find(p => p.fornecedor === this.produtorAberto);
+    this.renderizarPendencias();
+  },
+
+  renderizarPendencias() {
+    const pendencias = document.getElementById('semana-pendencias');
+    if (!pendencias) return;
+    pendencias.innerHTML = '';
+    const produtor = this.dados?.produtores.find(p => p.fornecedor === this.produtorAberto);
     if (produtor && pendencias) pendencias.innerHTML = `<h3>Pendências de ${escapeHtml(produtor.fornecedor)}</h3>${produtor.produtos_pendentes.length ? `<ul class="semana-lista">${produtor.produtos_pendentes.map(p => `<li><strong>${escapeHtml(p.nome)}</strong><span>SKU: ${escapeHtml(p.codigo)}</span><span>${p.tipo === 'pecas_queijo' ? 'Peças de queijo' : 'Geral'}</span></li>`).join('')}</ul>` : '<p>Todos os produtos deste produtor estão contados nesta semana.</p>'}`;
   }
 };
