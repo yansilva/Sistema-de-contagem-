@@ -7,6 +7,7 @@ const Produtos = {
   totalPaginas: 1,
   termoBusca: '',
   fornecedorFiltro: '',
+  pecasFiltro: '',
   produtosCache: [],
 
   /**
@@ -16,6 +17,7 @@ const Produtos = {
     const params = new URLSearchParams({
       page: this.paginaAtual,
       limit: this.limitePorPagina,
+      ...(this.pecasFiltro !== '' ? { contagem_em_pecas: this.pecasFiltro } : {}),
       ...(this.termoBusca ? { search: this.termoBusca } : {}),
       ...(this.fornecedorFiltro ? { fornecedor: this.fornecedorFiltro } : {})
     });
@@ -56,9 +58,9 @@ const Produtos = {
       <div class="produto-item" id="prod-card-${escapeHtml(p.id)}">
         <div class="produto-header">
           <div>
-            <span class="produto-nome">${escapeHtml(p.nome)}</span>
+            <span class="produto-nome">${escapeHtml(p.nome)}</span> ${p.contagem_em_pecas ? '<span class="badge badge-info">Peças de queijo</span>' : ''}
             <div class="produto-codigo">
-              SKU: <code>${escapeHtml(p.codigo)}</code> &bull; Produtor: <strong>${escapeHtml(p.fornecedor)}</strong> &bull; Estoque Atual: <strong style="color:var(--cor-primaria)">${p.estoque_atual !== undefined ? p.estoque_atual : 0} un</strong>
+              SKU: <code>${escapeHtml(p.codigo)}</code> &bull; Produtor: <strong>${escapeHtml(p.fornecedor)}</strong> &bull; Estoque Atual: <strong style="color:var(--cor-primaria)">${p.estoque_atual !== undefined ? p.estoque_atual : 0} ${p.contagem_em_pecas ? 'kg (ERP)' : 'un'}</strong>
             </div>
           </div>
           <div style="display:flex; gap:6px">
@@ -102,7 +104,14 @@ const Produtos = {
   /**
    * Salva produto novo ou editado
    */
+  filtrarPecas(valor) {
+    this.pecasFiltro = valor;
+    this.paginaAtual = 1;
+    return this.carregar();
+  },
+
   async salvar() {
+    const contagem_em_pecas = document.getElementById('prod-contagem-em-pecas').checked;
     const id = document.getElementById('prod-id').value;
     const codigo = document.getElementById('prod-codigo').value.trim();
     const nome = document.getElementById('prod-nome').value.trim();
@@ -116,9 +125,9 @@ const Produtos = {
 
     let res;
     if (id) {
-      res = await API.put(`/produtos/${id}`, { codigo, nome, fornecedor, estoque_atual });
+      res = await API.put(`/produtos/${id}`, { codigo, nome, fornecedor, estoque_atual, contagem_em_pecas });
     } else {
-      res = await API.post('/produtos', { codigo, nome, fornecedor, estoque_atual });
+      res = await API.post('/produtos', { codigo, nome, fornecedor, estoque_atual, contagem_em_pecas });
     }
 
     if (!res || !res.success) {
@@ -133,6 +142,7 @@ const Produtos = {
 
   abrirNovo() {
     document.getElementById('modal-produto-titulo').textContent = 'Novo Produto';
+    document.getElementById('prod-contagem-em-pecas').checked = false;
     document.getElementById('prod-id').value = '';
     document.getElementById('prod-codigo').value = '';
     document.getElementById('prod-nome').value = '';
@@ -146,6 +156,7 @@ const Produtos = {
     if (!p) return;
 
     document.getElementById('modal-produto-titulo').textContent = 'Editar Produto';
+    document.getElementById('prod-contagem-em-pecas').checked = Boolean(p.contagem_em_pecas);
     document.getElementById('prod-id').value = p.id;
     document.getElementById('prod-codigo').value = p.codigo;
     document.getElementById('prod-nome').value = p.nome;

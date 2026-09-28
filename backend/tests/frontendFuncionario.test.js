@@ -32,6 +32,8 @@ describe('Área do funcionário de contagem', () => {
           contains: (c) => classes.has(c)
         },
         scrollIntoView: jest.fn(),
+        setAttribute: jest.fn(),
+        focus: jest.fn(),
         open: false,
         showModal: jest.fn(function () { this.open = true; }),
         close: jest.fn(function () { this.open = false; })
@@ -205,7 +207,7 @@ describe('Área do funcionário de contagem', () => {
     expect(rendered).toContain('Falta de 3');
     expect(rendered).toContain('Excel');
     expect(rendered).toContain('Estoque de referência: <strong>876543</strong>');
-    consulta.baixarExcel('contagem-id');
+    await consulta.baixarExcel('contagem-id');
     expect(api.download).toHaveBeenCalledWith('/relatorios/contagens/contagem-id/excel', expect.stringMatching(/\.xlsx$/));
     consulta.fecharDetalhe();
     expect(dialog.close).toHaveBeenCalledTimes(1);
@@ -234,7 +236,7 @@ describe('Área do funcionário de contagem', () => {
     api.post.mockResolvedValue({ success: true, data: { contagem: { id: c.id } } });
     api.get.mockResolvedValue({ success: true, data: { contagem: c } });
     await context.contagens.iniciarNovaSessao();
-    expect(api.post).toHaveBeenCalledWith('/contagens', {});
+    expect(api.post).toHaveBeenCalledWith('/contagens', { tipo: 'geral' });
     expect(elements.get('screen-contagem').classes.has('active')).toBe(true);
     context.contagens.selecionarFornecedor("D'Água");
     expect(elements.get('bloco-produtos-contagem').showModal).toHaveBeenCalledTimes(1);
@@ -268,6 +270,20 @@ describe('Área do funcionário de contagem', () => {
     expect(context.showToast).not.toHaveBeenCalledWith(
       'Contagem iniciada. Selecione um produtor para contar.', 'info'
     );
+  });
+
+  it('entradas dos dois perfis abrem modalidades sem criar sessão', async () => {
+    const button = html.match(/<button[^>]*data-click="action-11"[^>]*>/)[0];
+    dispatch('click', button);
+    await Promise.resolve();
+    expect(elements.get('screen-modalidade-contagem').classes.has('active')).toBe(true);
+    auth.usuario.papel = 'administrador';
+    const adminButton = html.match(/<button[^>]*data-click="action-15"[^>]*>/)[0];
+    dispatch('click', adminButton);
+    await Promise.resolve();
+    expect(elements.get('screen-modalidade-contagem').classes.has('active')).toBe(true);
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.put).not.toHaveBeenCalled();
   });
 
   it('avisa que itens não contados ficam fora e resume somente produtos registrados', async () => {

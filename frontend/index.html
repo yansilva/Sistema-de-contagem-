@@ -210,7 +210,7 @@
         <div class="func-hero-card">
           <span class="func-hero-badge"><i class="ti ti-scan"></i> Modo Operador • Chão de Estoque</span>
           <h2 class="func-hero-title">Olá, <span id="funcionario-home-nome">equipe</span> 👋</h2>
-          <p class="func-hero-desc">Realize a contagem física dos produtos sem visualizar o estoque do sistema. Suas contagens serão comparadas pelo gestor após a finalização.</p>
+          <p class="func-hero-desc">Realize a contagem física dos produtos sem visualizar o estoque do sistema. Escolha entre contagem geral e peças de queijo.</p>
           
           <button class="btn btn-primary btn-lg btn-func-start" id="btn-iniciar-contagem-funcionario" data-click="action-11">
             <i class="ti ti-plus"></i> Iniciar nova contagem
@@ -595,6 +595,32 @@
   <dialog id="consulta-historico-detalhe" class="contagem-dialog consulta-detalhe" aria-label="Detalhes da contagem" data-click="action-122"></dialog>
 
   <!-- ==================== TELA: CONTAGEM CEGA ATIVA ==================== -->
+  <section id="screen-modalidade-contagem" class="screen">
+    <div class="container">
+      <button class="btn btn-ghost btn-sm" data-click="action-34"><i class="ti ti-arrow-left"></i> Voltar ao início</button>
+      <h2>Contagens</h2>
+      <div class="modalidade-abas" role="tablist" aria-label="Modalidade de contagem">
+        <button id="contagem-aba-geral" class="btn btn-outline" role="tab" aria-selected="true" aria-controls="contagem-modalidade-painel" data-click="contagem-modalidade" data-keydown="contagem-modalidade-teclado" data-tipo="geral">Geral</button>
+        <button id="contagem-aba-pecas_queijo" class="btn btn-outline" role="tab" aria-selected="false" tabindex="-1" aria-controls="contagem-modalidade-painel" data-click="contagem-modalidade" data-keydown="contagem-modalidade-teclado" data-tipo="pecas_queijo">Peças de queijo</button>
+      </div>
+      <div id="contagem-modalidade-painel" role="tabpanel" aria-labelledby="contagem-aba-geral" class="card">
+        <h3 id="contagem-modalidade-titulo">Contagem geral</h3>
+        <p id="contagem-modalidade-orientacao"></p>
+        <button class="btn btn-primary" data-click="contagem-nova-modalidade"><i class="ti ti-plus"></i> Iniciar nova sessão</button>
+        <h3 class="sessoes-abertas-titulo">Sessões abertas</h3>
+        <div id="contagem-sessoes-lista" aria-live="polite"></div>
+      </div>
+    </div>
+  </section>
+  <dialog id="contagem-edicao-pendente" class="contagem-dialog" aria-labelledby="contagem-edicao-titulo">
+    <h3 id="contagem-edicao-titulo">Há quantidades sem salvar</h3>
+    <p>Salve ou descarte suas alterações antes de continuar.</p>
+    <div class="pendente-acoes">
+      <button id="contagem-edicao-salvar" class="btn btn-primary" data-click="contagem-edicao" data-escolha="salvar">Salvar e continuar</button>
+      <button class="btn btn-outline" data-click="contagem-edicao" data-escolha="descartar">Descartar e continuar</button>
+      <button class="btn btn-ghost" data-click="contagem-edicao" data-escolha="cancelar">Continuar editando</button>
+    </div>
+  </dialog>
   <section id="screen-contagem" class="screen">
     <div class="container">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
@@ -613,7 +639,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
           <div class="contagem-progresso-titulo" style="display:flex; align-items:center; gap:8px">
             <i class="ti ti-eye-off" style="color:var(--cor-primaria); font-size:1.3rem"></i>
-            <strong>Contagem Cega</strong>
+            <strong id="contagem-sessao-modalidade">Contagem geral</strong>
             <span class="badge badge-info" style="font-size:0.75rem">Estoque oculto</span>
           </div>
           <div style="display:flex; align-items:center; gap:12px; font-size:0.9rem; color:var(--cor-texto-secundario)">
@@ -820,7 +846,8 @@
           </div>
         </div>
 
-        <div id="lista-produtos"></div>
+        <div class="form-group"><label for="produto-filtro-pecas">Modalidade</label><select id="produto-filtro-pecas" data-change="produto-filtro-pecas"><option value="">Todos os produtos</option><option value="false">Geral</option><option value="true">Peças de queijo</option></select></div>
+      <div id="lista-produtos"></div>
 
         <!-- Controles de Paginação -->
         <div class="pagination-controls" id="produtos-pagination" style="display:none">
@@ -990,6 +1017,8 @@
         <input type="text" id="prod-fornecedor" placeholder="Ex: Têxtil Sul">
       </div>
       <div class="form-group">
+        <label class="produto-classificacao"><input type="checkbox" id="prod-contagem-em-pecas"> Contar em peças de queijo</label>
+        <p class="produto-classificacao-ajuda">O saldo do ERP permanece em kg. Esta classificação vale para novas sessões.</p>
         <label for="prod-estoque-atual">Estoque Atual (quantidade no sistema)</label>
         <input type="number" id="prod-estoque-atual" placeholder="Ex: 100" min="0" step="1">
       </div>

@@ -1563,3 +1563,15 @@
   .contagem-dialog { padding: 18px 14px; }
   .contagem-dialog-lista { max-height: calc(100dvh - 205px); }
 }
+/* Modalidades compartilham o mesmo motor de contagem. */
+.modalidade-abas { display: flex; gap: 8px; margin: 20px 0; }
+.modalidade-abas [aria-selected="true"] { background: var(--cor-primaria); color: #fff; border-color: var(--cor-primaria); }
+.modalidade-abas button:focus-visible { outline: 3px solid var(--cor-primaria); outline-offset: 3px; }
+#contagem-modalidade-painel > p { margin: 12px 0 20px; color: var(--cor-texto-secundario); }
+.sessoes-abertas-titulo { margin: 28px 0 14px; }
+.pendente-acoes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+.produto-classificacao { display: flex; gap: 10px; align-items: center; }
+.produto-classificacao input { width: auto; }
+.produto-classificacao-ajuda { font-size: .85rem; color: var(--cor-texto-secundario); margin: 8px 0 16px; }
+.quick-card h4, .contagem-dialog h3 { color: var(--cor-texto); -webkit-text-fill-color: var(--cor-texto); }
+.input-qtd-fisica[aria-invalid="true"] { border-color: var(--cor-perigo); outline: 2px solid var(--cor-perigo); }

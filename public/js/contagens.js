@@ -9,6 +9,95 @@
  */
 const Contagens = {
   contagemId: null,
+  tipoAtual: 'geral',
+  tipoSelecao: 'geral',
+  paginaSessoes: 1,
+  requisicaoSessoes: 0,
+  edicaoPendente: false,
+  entradasInvalidas: new Set(),
+
+  async abrirModalidade(tipo = 'geral') {
+    this.tipoSelecao = tipo === 'pecas_queijo' ? tipo : 'geral';
+    showScreen('screen-modalidade-contagem');
+    for (const modo of ['geral', 'pecas_queijo']) {
+      const tab = document.getElementById(`contagem-aba-${modo}`);
+      tab?.setAttribute('aria-selected', String(modo === this.tipoSelecao));
+      if (tab) tab.tabIndex = modo === this.tipoSelecao ? 0 : -1;
+    }
+    document.getElementById('contagem-modalidade-painel')?.setAttribute('aria-labelledby', `contagem-aba-${this.tipoSelecao}`);
+    document.getElementById(`contagem-aba-${this.tipoSelecao}`)?.focus?.();
+    document.getElementById('contagem-modalidade-titulo').textContent = this.tipoSelecao === 'pecas_queijo' ? 'Peças de queijo' : 'Contagem geral';
+    document.getElementById('contagem-modalidade-orientacao').textContent = this.tipoSelecao === 'pecas_queijo'
+      ? 'Registre quantidades inteiras de peças. O saldo do ERP em kg não é comparado nesta modalidade.'
+      : 'Conte os produtos gerais com estoque oculto. A comparação aparece após finalizar.';
+    return this.carregarSessoesAbertas(1);
+  },
+
+  async carregarSessoesAbertas(pagina = this.paginaSessoes) {
+    this.paginaSessoes = Math.max(1, Number(pagina) || 1);
+    const requisicao = ++this.requisicaoSessoes;
+    const lista = document.getElementById('contagem-sessoes-lista');
+    lista.innerHTML = '<p class="consulta-vazio" role="status">Carregando sessões abertas...</p>';
+    try {
+      const res = await API.get(`/contagens?tipo=${this.tipoSelecao}&status=em_andamento&page=${this.paginaSessoes}&limit=20`);
+      if (requisicao !== this.requisicaoSessoes) return;
+      if (!res?.success) throw new Error('carregamento');
+      const sessoes = res.data.contagens || [];
+      const temProxima = res.data.pagination?.totalPages ? this.paginaSessoes < res.data.pagination.totalPages : sessoes.length === 20;
+      lista.innerHTML = sessoes.map(c => `<article class="consulta-item table-toolbar"><div><strong>${escapeHtml(formatarData(c.iniciado_em))}</strong><p>${escapeHtml(c.iniciado_por_nome || 'Usuário')} · Em andamento</p></div><button class="btn btn-outline" data-click="contagem-continuar" data-id="${escapeHtml(c.id)}">Continuar sessão</button></article>`).join('') || '<p class="consulta-vazio">Nenhuma sessão aberta nesta modalidade. Inicie uma nova contagem.</p>';
+      lista.innerHTML += `<div class="pagination-controls"><button class="btn btn-outline btn-sm" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes - 1}" ${this.paginaSessoes <= 1 ? 'disabled' : ''}>Anterior</button><span>Página ${this.paginaSessoes}</span><button class="btn btn-outline btn-sm" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes + 1}" ${!temProxima ? 'disabled' : ''}>Próxima</button></div>`;
+    } catch (err) {
+      if (requisicao !== this.requisicaoSessoes) return;
+      lista.innerHTML = `<p class="consulta-vazio">Não foi possível carregar as sessões.</p><button class="btn btn-outline" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes}">Tentar novamente</button>`;
+    }
+  },
+
+  protegerEdicao(acao) {
+    if (!this.edicaoPendente) return false;
+    this.acaoAposEdicao = acao;
+    const dialog = document.getElementById('contagem-edicao-pendente');
+    if (!dialog.open) dialog.showModal();
+    document.getElementById('contagem-edicao-salvar')?.focus();
+    return true;
+  },
+
+  async resolverEdicao(escolha) {
+    if (escolha === 'salvar' && !await this.salvarProgressoAtual()) return;
+    if (escolha === 'descartar') {
+      this.edicaoPendente = false;
+      this.entradasInvalidas.clear();
+      if (this.fornecedorAtual) this.selecionarFornecedor(this.fornecedorAtual);
+    }
+    const acao = this.acaoAposEdicao;
+    this.acaoAposEdicao = null;
+    document.getElementById('contagem-edicao-pendente').close();
+    if (escolha !== 'cancelar') await acao?.();
+  },
+
+  async continuarSessao(id) {
+    if (this.protegerEdicao(() => this.continuarSessao(id))) return;
+    if (this._carregandoSessao || this._iniciando) return;
+    this._carregandoSessao = true;
+    try {
+      const res = await API.get(`/contagens/${encodeURIComponent(id)}`);
+      if (!res?.success || !res.data?.contagem) throw new Error('carregamento');
+      if (res.data.contagem.status !== 'em_andamento') return this.exibirResultado(id);
+      this.fecharFornecedor();
+      Consulta.fecharDetalhe();
+      this.contagemId = res.data.contagem.id;
+      this.fornecedorAtual = null;
+      this.itensFornecedor = [];
+      this.filtroProdutores = '';
+      document.getElementById('busca-fornecedor').value = '';
+      this.aplicarDadosSessao(res.data.contagem);
+      showScreen('screen-contagem');
+      document.getElementById('busca-fornecedor')?.focus();
+    } catch (err) {
+      showToast('Não foi possível abrir a sessão. Tente novamente.', 'error');
+    } finally {
+      this._carregandoSessao = false;
+    }
+  },
   fornecedoresLista: [],
   fornecedorAtual: null,
   itensFornecedor: [],
@@ -19,8 +108,10 @@ const Contagens = {
   /**
    * Inicia uma nova sessão de contagem cega com snapshot do estoque atual
    */
-  async iniciarNovaSessao() {
-    if (this._iniciando) return;
+  async iniciarNovaSessao(tipo = 'geral') {
+    if (this.protegerEdicao(() => this.iniciarNovaSessao(tipo))) return;
+    if (this._iniciando || this._carregandoSessao) return;
+    this.tipoAtual = tipo === 'pecas_queijo' ? tipo : 'geral';
     this._iniciando = true;
 
     this.contagemId = null;
@@ -45,13 +136,13 @@ const Contagens = {
         <div style="grid-column: 1 / -1; padding: 48px 24px; text-align: center; color: var(--cor-texto-secundario);">
           <div class="spinner" style="margin: 0 auto 16px auto; width: 36px; height: 36px; border: 3px solid var(--cor-borda); border-top-color: var(--cor-primaria); border-radius: 50%;"></div>
           <p style="font-weight: 600; font-size: 1rem; color: var(--cor-texto);">Iniciando sessão de contagem...</p>
-          <p style="font-size: 0.85rem; color: var(--cor-texto-mutado); margin-top: 4px;">Gerando snapshot de estoque dos fornecedores</p>
+          <p style="font-size: 0.85rem; color: var(--cor-texto-mutado); margin-top: 4px;">Preparando produtos da modalidade selecionada</p>
         </div>
       `;
     }
 
     try {
-      const res = await API.post('/contagens', {});
+      const res = await API.post('/contagens', { tipo: this.tipoAtual });
       if (!res || !res.success || !res.data?.contagem) {
         showToast(res?.message || 'Falha ao iniciar contagem no servidor.', 'error');
         showScreen('screen-home');
@@ -85,7 +176,14 @@ const Contagens = {
       return false;
     }
 
-    this.dadosSessao = res.data.contagem;
+    this.aplicarDadosSessao(res.data.contagem);
+    return true;
+  },
+
+  aplicarDadosSessao(contagem) {
+    this.dadosSessao = contagem;
+    this.tipoAtual = contagem.tipo || 'geral';
+    document.getElementById('contagem-sessao-modalidade').textContent = this.tipoAtual === 'pecas_queijo' ? 'Peças de queijo' : 'Contagem geral';
     this.fornecedoresLista = (this.dadosSessao.fornecedores || []).map((f) => f.fornecedor);
 
     // Mapeia produtores que já possuem itens contados
@@ -165,7 +263,7 @@ const Contagens = {
       return `
         <button class="quick-card ${isAtivo ? 'selected' : ''}" style="cursor:pointer; padding:14px; border:2px solid ${isAtivo ? 'var(--cor-primaria)' : 'var(--cor-borda)'}" data-produtor="${escapeHtml(f.fornecedor)}" data-click="action-73">
           <div style="display:flex; justify-content:space-between; align-items:center">
-            <h4 style="margin:0; font-size:1rem"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
+            <h4 style="margin:0; font-size:1rem; color:var(--cor-texto)"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
             ${badge}
           </div>
           <p style="margin:6px 0 0 0; font-size:0.8rem; color:var(--cor-texto-mutado)">${contados} de ${total} produtos com contagem física registrada</p>
@@ -185,6 +283,12 @@ const Contagens = {
    * Seleciona um produtor e exibe seus produtos para contagem cega
    */
   selecionarFornecedor(fornecedor) {
+    if (fornecedor !== this.fornecedorAtual && this.protegerEdicao(() => this.selecionarFornecedor(fornecedor))) return;
+    if (fornecedor === this.fornecedorAtual && this.edicaoPendente) {
+      const dialog = document.getElementById('bloco-produtos-contagem');
+      if (!dialog.open) dialog.showModal();
+      return;
+    }
     const bloco = document.getElementById('bloco-produtos-contagem');
     const titulo = document.getElementById('titulo-produtor-ativo');
 
@@ -230,7 +334,7 @@ const Contagens = {
         : '';
 
       const statusItem = p.quantidade_contada !== null && p.quantidade_contada !== undefined
-        ? `<span class="badge badge-sucesso"><i class="ti ti-check"></i> ${p.quantidade_contada} un</span>`
+        ? `<span class="badge badge-sucesso"><i class="ti ti-check"></i> ${p.quantidade_contada} ${this.tipoAtual === 'pecas_queijo' ? 'peças' : 'un'}</span>`
         : '<span class="badge badge-neutro">Pendente</span>';
 
       return `
@@ -243,7 +347,7 @@ const Contagens = {
           <div class="contagem-item-controls" style="display:flex; align-items:center; gap:12px">
             <div>${statusItem}</div>
             <div style="width:130px">
-              <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">Qtd Física:</label>
+              <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">${this.tipoAtual === 'pecas_queijo' ? 'Quantidade de peças:' : 'Qtd Física:'}</label>
               <input id="qtd-fisica-${index}" type="number" inputmode="numeric" min="0" step="1"
                      placeholder="Não contado"
                      value="${valorInput}"
@@ -262,21 +366,32 @@ const Contagens = {
    * '0' ou número >= 0 = zero ou número contado
    */
   atualizarQuantidadeItem(index, valorStr) {
+    const item = this.itensFornecedor[index];
+    if (!item) return;
+    this.edicaoPendente = true;
     const limpo = valorStr.trim();
-    if (limpo === '') {
-      this.itensFornecedor[index].quantidade_contada = null;
-    } else {
-      const num = parseInt(limpo, 10);
-      this.itensFornecedor[index].quantidade_contada = isNaN(num) || num < 0 ? 0 : num;
-    }
+    const num = Number(limpo);
+    const valido = limpo === '' || (Number.isSafeInteger(num) && num >= 0);
+    const input = document.getElementById(`qtd-fisica-${index}`);
+    input?.setCustomValidity?.(valido ? '' : 'Informe uma quantidade inteira maior ou igual a zero.');
+    input?.setAttribute?.('aria-invalid', String(!valido));
+    if (!valido) { this.entradasInvalidas.add(index); return; }
+    this.entradasInvalidas.delete(index);
+    item.quantidade_contada = limpo === '' ? null : num;
   },
 
   /**
    * Salva o progresso da contagem do produtor atual
    */
   async salvarProgressoAtual() {
-    if (!this.fornecedorAtual) return;
+    if (this._salvando) return false;
+    if (!this.fornecedorAtual) return false;
+    if (this.entradasInvalidas.size) {
+      showToast('Informe quantidades inteiras maiores ou iguais a zero.', 'error');
+      return false;
+    }
 
+    this._salvando = true;
     const btn = document.getElementById('btn-salvar-progresso-produtor');
     if (btn) {
       btn.disabled = true;
@@ -291,7 +406,10 @@ const Contagens = {
       }))
     };
 
-    const res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload);
+    let res;
+    try { res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload); }
+    catch (err) { res = null; }
+    this._salvando = false;
 
     if (btn) {
       btn.disabled = false;
@@ -300,11 +418,19 @@ const Contagens = {
 
     if (!res || !res.success) {
       showToast(res?.message || 'Erro ao salvar progresso.', 'error');
-      return;
+      return false;
     }
 
     showToast(`Progresso salvo para ${this.fornecedorAtual}!`, 'success');
+    this.edicaoPendente = false;
+    // O snapshot local também passa a refletir o que o servidor confirmou.
+    const fornecedor = this.dadosSessao?.fornecedores?.find(f => f.fornecedor === this.fornecedorAtual);
+    for (const produto of fornecedor?.produtos || []) {
+      const salvo = payload.itens.find(p => p.produto_id === produto.produto_id);
+      if (salvo) produto.quantidade_contada = salvo.quantidade_contada;
+    }
     await this.carregarDadosContagem();
+    return true;
   },
 
   /**
@@ -312,6 +438,7 @@ const Contagens = {
    */
   async finalizarSessao() {
     if (!this.contagemId) return;
+    if (this.protegerEdicao(() => this.finalizarSessao())) return;
 
     // Verificar se há itens não contados
     let totalNaoContados = 0;
@@ -348,7 +475,7 @@ const Contagens = {
       return;
     }
 
-    showToast('Contagem finalizada! Diferenças calculadas.', 'success');
+    showToast(this.tipoAtual === 'pecas_queijo' ? 'Contagem de peças finalizada!' : 'Contagem finalizada! Diferenças calculadas.', 'success');
     this.exibirResultado(this.contagemId);
   },
 
@@ -372,11 +499,12 @@ const Contagens = {
     const metricasEl = document.getElementById('resultado-metricas');
     const listaDivergenciasEl = document.getElementById('resultado-divergencias');
 
-    const temDif = c.tem_diferenca;
+    const pecas = c.tipo === 'pecas_queijo';
+    const temDif = !pecas && c.tem_diferenca;
 
     if (cardEl) {
       cardEl.className = `resultado-card ${temDif ? 'erro' : 'sucesso'}`;
-      cardEl.innerHTML = `
+      cardEl.innerHTML = pecas ? '<i class="ti ti-package"></i><h2>Peças de queijo</h2><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
         <i class="ti ${temDif ? 'ti-alert-triangle' : 'ti-circle-check'}"></i>
         <h2>${temDif ? 'Divergências Identificadas' : 'Itens contados sem divergência'}</h2>
         <p>${temDif
@@ -407,7 +535,7 @@ const Contagens = {
     });
 
     if (metricasEl) {
-      metricasEl.innerHTML = `
+      metricasEl.innerHTML = pecas ? `<div class="metrica"><div class="metrica-valor">${totalItens}</div><div class="metrica-label">Itens Contados</div></div><div class="metrica"><div class="metrica-valor">${(c.fornecedores || []).flatMap(f => f.produtos || []).reduce((n, p) => n + Number(p.quantidade_contada || 0), 0)}</div><div class="metrica-label">Quantidade de peças</div></div>` : `
         <div class="metrica">
           <div class="metrica-valor">${c.fornecedores?.length || 0}</div>
           <div class="metrica-label">Produtores</div>
@@ -436,7 +564,7 @@ const Contagens = {
       const secoes = (c.fornecedores || []).map((f) => {
         const produtosHtml = (f.produtos || []).map((p) => {
           let badgeSituacao;
-          if (p.diferenca === 0 || p.situacao === 'sem_diferenca') {
+          if (pecas) { badgeSituacao = ''; } else if (p.diferenca === 0 || p.situacao === 'sem_diferenca') {
             badgeSituacao = '<span class="badge badge-sucesso"><i class="ti ti-check"></i> Sem diferença</span>';
           } else if (p.diferenca > 0 || p.situacao === 'sobra') {
             badgeSituacao = `<span class="badge badge-warning"><i class="ti ti-arrow-up"></i> Sobra de ${p.diferenca} un</span>`;
@@ -444,7 +572,7 @@ const Contagens = {
             badgeSituacao = `<span class="badge badge-danger"><i class="ti ti-arrow-down"></i> Falta de ${Math.abs(p.diferenca)} un</span>`;
           }
 
-          const colunaReferencia = c.status === 'finalizada' && p.estoque_referencia !== undefined
+          const colunaReferencia = !pecas && c.status === 'finalizada' && p.estoque_referencia !== undefined
             ? `<span>Estoque Ref: <strong>${escapeHtml(p.estoque_referencia)}</strong></span>`
             : '';
 
@@ -457,7 +585,7 @@ const Contagens = {
 
               <div class="valores" style="display:flex; align-items:center; gap:16px; font-size:0.875rem">
                 ${colunaReferencia}
-                <span>Físico Contado: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
+                <span>${pecas ? 'Quantidade de peças' : 'Físico Contado'}: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
                 <div>${badgeSituacao}</div>
               </div>
             </div>
@@ -481,7 +609,9 @@ const Contagens = {
     showScreen('screen-resultado');
   },
 
-  baixarExcelDiferencas(id) {
+  async baixarExcelDiferencas(id) {
+    const res = await API.get(`/contagens/${encodeURIComponent(id)}`);
+    if (!res?.success || res.data?.contagem?.tipo === 'pecas_queijo') return;
     const dataAtual = new Date().toLocaleDateString('pt-BR').replace(/\//g, '_');
     API.download(`/relatorios/contagens/${id}/excel`, `diferenca_estoque_${dataAtual}.xlsx`);
   }

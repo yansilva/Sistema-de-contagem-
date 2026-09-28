@@ -121,3 +121,10 @@
   .btn, .btn-sm, .btn-theme, .tab { min-height: 44px; }
   .btn-ghost, .btn-danger.btn-sm { min-width: 44px; }
 }
+@media (max-width: 600px) {
+  .modalidade-abas > button { flex: 1; min-height: 48px; }
+  .pendente-acoes > button { width: 100%; min-height: 48px; }
+  #contagem-sessoes-lista .table-toolbar { align-items: stretch; gap: 12px; }
+  #contagem-sessoes-lista .table-toolbar > button { width: 100%; }
+  #contagem-modalidade-painel > .btn-primary { width: 100%; min-height: 48px; }
+}

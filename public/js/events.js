@@ -1,5 +1,18 @@
 /** Ações permitidas da interface. Sem avaliação de código vindo do HTML. */
 const UIActions = {
+  'contagem-modalidade': element => { Contagens.abrirModalidade(element.dataset.tipo); },
+  'contagem-modalidade-teclado': (element, event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const tipo = event.key === 'Home' ? 'geral' : event.key === 'End' ? 'pecas_queijo' : element.dataset.tipo === 'geral' ? 'pecas_queijo' : 'geral';
+    Contagens.abrirModalidade(tipo);
+    document.getElementById(`contagem-aba-${tipo}`).focus();
+  },
+  'contagem-continuar': element => { Contagens.continuarSessao(element.dataset.id); },
+  'contagem-sessoes-pagina': element => { Contagens.carregarSessoesAbertas(Number(element.dataset.page)); },
+  'contagem-nova-modalidade': () => { Contagens.iniciarNovaSessao(Contagens.tipoSelecao); },
+  'contagem-edicao': element => { Contagens.resolverEdicao(element.dataset.escolha); },
+  'produto-filtro-pecas': element => { Produtos.filtrarPecas(element.value); },
   'action-0': (element, event) => { showScreen('screen-registro'); },
   'action-1': (element, event) => { showScreen('screen-backoffice'); },
   'action-2': (element, event) => { toggleTheme(); },
@@ -11,16 +24,16 @@ const UIActions = {
   'action-8': (element, event) => { showScreen('screen-home'); },
   'action-9': (element, event) => { if(event.key==='Enter') Auth.trocarSenhaObrigatoria(); },
   'action-10': (element, event) => { Auth.trocarSenhaObrigatoria(); },
-  'action-11': (element, event) => { Contagens.iniciarNovaSessao(); },
+  'action-11': (element, event) => { Contagens.abrirModalidade('geral'); },
   'action-12': (element, event) => { Consulta.abrirCatalogo(); },
   'action-13': (element, event) => { showScreen('screen-produtores'); },
   'action-14': (element, event) => { showScreen('screen-historico-contagens'); },
-  'action-15': (element, event) => { Contagens.iniciarNovaSessao(); },
+  'action-15': (element, event) => { Contagens.abrirModalidade('geral'); },
   'action-16': (element, event) => { showScreen('screen-backoffice'); switchTab('produtos'); },
   'action-17': (element, event) => { showScreen('screen-backoffice'); switchTab('produtos'); },
   'action-18': (element, event) => { showScreen('screen-backoffice'); switchTab('historico'); },
   'action-19': (element, event) => { showScreen('screen-backoffice'); },
-  'action-20': (element, event) => { Contagens.iniciarNovaSessao(); },
+  'action-20': (element, event) => { Contagens.abrirModalidade('geral'); },
   'action-21': (element, event) => { showScreen('screen-backoffice'); switchTab('estoque'); },
   'action-22': (element, event) => { showScreen('screen-backoffice'); switchTab('produtos'); },
   'action-23': (element, event) => { showScreen('screen-backoffice'); switchTab('historico'); },

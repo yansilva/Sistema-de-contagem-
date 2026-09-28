@@ -54,10 +54,11 @@ const Historico = {
 
     listaEl.innerHTML = this.contagens.map(c => {
       const dataFormatada = formatarData(c.finalizado_em || c.iniciado_em);
-      const temDif = c.tem_diferenca;
+      const pecas = c.tipo === 'pecas_queijo';
+      const temDif = !pecas && c.tem_diferenca;
       const statusIcon = temDif ? 'ti-alert-triangle' : 'ti-circle-check';
       const statusColor = temDif ? 'var(--cor-perigo)' : 'var(--cor-sucesso)';
-      const statusTexto = temDif ? 'Divergências Encontradas' : 'Conciliado 100%';
+      const statusTexto = pecas ? 'Peças de queijo' : c.status !== 'finalizada' ? 'Geral · Em andamento' : temDif ? 'Divergências Encontradas' : 'Conciliado 100%';
       const badgeClass = temDif ? 'badge-danger' : 'badge-success';
 
       const fornecedores = Array.isArray(c.fornecedores) ? c.fornecedores : [];
@@ -75,7 +76,7 @@ const Historico = {
               <div class="hist-chips">
                 ${fornecedores.map(f => `
                   <span class="hist-chip">
-                    ${escapeHtml(f.fornecedor)} ${f.tem_diferenca ? '⚠️' : '✓'}
+                    ${escapeHtml(f.fornecedor)} ${pecas || c.status !== 'finalizada' ? '' : f.tem_diferenca ? '⚠️' : '✓'}
                   </span>
                 `).join('')}
               </div>
@@ -123,6 +124,7 @@ const Historico = {
       }
 
       const c = res.data.contagem;
+      const pecas = c.tipo === 'pecas_queijo';
       const fornecedores = c.fornecedores || [];
 
       if (fornecedores.length === 0) {
@@ -135,7 +137,7 @@ const Historico = {
           <div class="grupo-header">
             <span><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</span>
             <span class="badge ${f.tem_diferenca ? 'badge-danger' : 'badge-success'}">
-              ${f.tem_diferenca ? 'Com Divergência' : 'Sem Divergência'}
+              ${pecas ? 'Peças de queijo' : c.status !== 'finalizada' ? 'Em andamento' : f.tem_diferenca ? 'Com Divergência' : 'Sem Divergência'}
             </span>
           </div>
           <div class="grupo-body">
@@ -146,11 +148,11 @@ const Historico = {
                   <span style="color:var(--cor-texto-mudo); font-size:.8rem; margin-left:6px">SKU: ${escapeHtml(p.codigo)}</span>
                 </div>
                 <div style="display:flex; gap:12px; align-items:center; font-size:.8125rem">
-                  <span>Estoque: <strong>${p.estoque_referencia ?? '—'}</strong></span>
-                  <span>Físico: <strong>${p.quantidade_contada ?? '—'}</strong></span>
-                  <span class="badge ${p.diferenca === 0 ? 'badge-neutral' : (p.diferenca > 0 ? 'badge-success' : 'badge-danger')}">
+                  ${!pecas && c.status === 'finalizada' ? `<span>Estoque: <strong>${p.estoque_referencia ?? '—'}</strong></span>` : ''}
+                  <span>${pecas ? 'Quantidade de peças' : 'Físico'}: <strong>${p.quantidade_contada ?? '—'}</strong></span>
+                  ${!pecas && c.status === 'finalizada' ? `<span class="badge ${p.diferenca === 0 ? 'badge-neutral' : (p.diferenca > 0 ? 'badge-success' : 'badge-danger')}">
                     ${p.diferenca > 0 ? '+' : ''}${p.diferenca}
-                  </span>
+                  </span>` : ''}
                 </div>
               </div>
             `).join('')}
@@ -163,7 +165,9 @@ const Historico = {
   /**
    * Dispara o download da planilha Excel de divergências
    */
-  baixarExcel(id) {
+  async baixarExcel(id) {
+    const res = await API.get(`/contagens/${encodeURIComponent(id)}`);
+    if (!res?.success || res.data?.contagem?.tipo === 'pecas_queijo') return;
     const dataAtual = new Date().toLocaleDateString('pt-BR').replace(/\//g, '_');
     API.download(`/relatorios/contagens/${id}/excel`, `relatorio_divergencias_${dataAtual}.xlsx`);
   }

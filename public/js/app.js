@@ -8,7 +8,7 @@
  */
 function showScreen(screenId) {
   const publicScreens = ['screen-login', 'screen-troca-senha-obrigatoria'];
-  const employeeScreens = ['screen-home', 'screen-contagem', 'screen-resultado', 'screen-catalogo', 'screen-produtores', 'screen-historico-contagens'];
+  const employeeScreens = ['screen-home', 'screen-modalidade-contagem', 'screen-contagem', 'screen-resultado', 'screen-catalogo', 'screen-produtores', 'screen-historico-contagens'];
   if (!Auth.usuario && screenId !== 'screen-login') {
     screenId = 'screen-login';
   } else if (Auth.usuario?.mustChangePassword && screenId !== 'screen-login') {
@@ -78,7 +78,7 @@ async function carregarDashboard() {
                   return `
                     <tr>
                       <td><strong>${dataStr}</strong></td>
-                      <td>${statusBadge}</td>
+                      <td>${statusBadge}<br>${c.tipo === 'pecas_queijo' ? 'Peças de queijo' : 'Geral'}</td>
                       <td><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72">Ver Detalhes</button></td>
                     </tr>
                   `;
@@ -166,7 +166,7 @@ async function carregarDashboard() {
         if (tbody) {
           tbody.innerHTML = contagens.slice(0, 5).map(c => {
             const dataStr = c.iniciado_em ? new Date(c.iniciado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-            const difBadge = c.tem_diferenca
+            const difBadge = c.tipo === 'pecas_queijo' ? '<span class="badge badge-info">Peças de queijo</span>' : c.status !== 'finalizada' ? '<span class="badge badge-warning">Geral · Em andamento</span>' : c.tem_diferenca
               ? '<span class="badge badge-danger"><i class="ti ti-alert-triangle"></i> Com divergência</span>'
               : '<span class="badge badge-success"><i class="ti ti-check"></i> Sem diferença</span>';
             return `
