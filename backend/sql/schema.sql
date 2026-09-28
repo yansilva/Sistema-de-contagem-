@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS produtos (
   codigo VARCHAR(100) NOT NULL, -- SKU do Tiny / Produto
   nome VARCHAR(255) NOT NULL,
   fornecedor VARCHAR(255) NOT NULL, -- Produtor / Fornecedor
+  contagem_em_pecas BOOLEAN NOT NULL DEFAULT FALSE,
   estoque_atual INTEGER DEFAULT 0 NOT NULL, -- Estoque atual importado do relatório Tiny
   ativo BOOLEAN DEFAULT TRUE NOT NULL,
   criado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,
@@ -114,6 +115,7 @@ CREATE TABLE IF NOT EXISTS contagens (
   iniciado_em TIMESTAMPTZ DEFAULT NOW(),
   finalizado_em TIMESTAMPTZ,
   tem_diferenca BOOLEAN DEFAULT FALSE NOT NULL,
+  tipo VARCHAR(20) NOT NULL DEFAULT 'geral' CONSTRAINT chk_contagens_tipo CHECK (tipo IN ('geral', 'pecas_queijo')),
   status VARCHAR(20) DEFAULT 'em_andamento' NOT NULL,
   CONSTRAINT chk_contagens_status CHECK (status IN ('nao_iniciada', 'em_andamento', 'finalizada', 'cancelada'))
 );
@@ -147,7 +149,7 @@ CREATE TABLE IF NOT EXISTS contagem_itens (
   produto_id UUID REFERENCES produtos(id) ON DELETE SET NULL,
   codigo VARCHAR(100) NOT NULL,
   nome VARCHAR(255) NOT NULL,
-  estoque_referencia INTEGER DEFAULT 0 NOT NULL, -- Snapshot imutável no momento da contagem
+  estoque_referencia INTEGER DEFAULT 0, -- Snapshot imutável no momento da contagem
   quantidade_contada INTEGER NULL, -- NULL = não contado; 0 = contado zero unidades
   diferenca INTEGER NULL, -- quantidade_contada - estoque_referencia
   situacao VARCHAR(30) NULL, -- 'sem_diferenca', 'sobra', 'falta'

@@ -14,6 +14,7 @@ async function listar(req, res, next) {
       limit = 20,
       search,
       fornecedor,
+      contagem_em_pecas,
       sort = 'fornecedor',
       order = 'asc'
     } = req.query;
@@ -30,6 +31,11 @@ async function listar(req, res, next) {
     if (fornecedor) {
       params.push(fornecedor.trim());
       whereClauses += ` AND fornecedor = $${params.length}`;
+    }
+
+    if (contagem_em_pecas !== undefined) {
+      params.push(contagem_em_pecas);
+      whereClauses += ` AND contagem_em_pecas = $${params.length}`;
     }
 
     // Contagem total para paginação
@@ -54,7 +60,7 @@ async function listar(req, res, next) {
 
     params.push(limit, offset);
     const sql = `
-      SELECT id, codigo, nome, fornecedor, ${admin ? 'estoque_atual,' : ''} criado_em, atualizado_em
+      SELECT id, codigo, nome, fornecedor, contagem_em_pecas, ${admin ? 'estoque_atual,' : ''} criado_em, atualizado_em
       FROM produtos
       ${whereClauses}
       ORDER BY ${sortCol} ${sortDir}, codigo ASC
@@ -114,16 +120,16 @@ async function criar(req, res, next) {
   let inTransaction = false;
 
   try {
-    const { codigo, nome, fornecedor, estoque_atual = 0 } = req.body;
+    const { codigo, nome, fornecedor, estoque_atual = 0, contagem_em_pecas = false } = req.body;
 
     await client.query('BEGIN');
     inTransaction = true;
 
     const result = await client.query(
-      `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, codigo, nome, fornecedor, estoque_atual, criado_em, atualizado_em`,
-      [req.empresaId, codigo.trim(), nome.trim(), fornecedor.trim(), parseInt(estoque_atual, 10) || 0]
+      `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas, criado_em, atualizado_em`,
+      [req.empresaId, codigo.trim(), nome.trim(), fornecedor.trim(), parseInt(estoque_atual, 10) || 0, contagem_em_pecas]
     );
 
     const produto = result.rows[0];
@@ -136,8 +142,8 @@ async function criar(req, res, next) {
       acao: 'produto_criado',
       entidade: 'produto',
       entidadeId: produto.id,
-      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual },
-      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual'],
+      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual, contagem_em_pecas: produto.contagem_em_pecas },
+      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual', 'contagem_em_pecas'],
       eventoChave: `produto_criado_${produto.id}`
     });
 
@@ -184,11 +190,11 @@ async function editar(req, res, next) {
 
   try {
     const { id } = req.params;
-    const { codigo, nome, fornecedor, estoque_atual } = req.body;
+    const { codigo, nome, fornecedor, estoque_atual, contagem_em_pecas } = req.body;
 
     // Buscar estado anterior
     const anteriorRes = await client.query(
-      'SELECT id, codigo, nome, fornecedor, estoque_atual FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
+      'SELECT id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
       [id, req.empresaId]
     );
     if (!anteriorRes || !anteriorRes.rows || anteriorRes.rows.length === 0) {
@@ -216,6 +222,11 @@ async function editar(req, res, next) {
       updates.push(`estoque_atual = $${params.length}`);
     }
 
+    if (contagem_em_pecas !== undefined) {
+      params.push(contagem_em_pecas);
+      updates.push(`contagem_em_pecas = $${params.length}`);
+    }
+
     if (updates.length === 0) {
       return res.json({ success: true, message: 'Nenhuma alteração enviada.' });
     }
@@ -229,7 +240,7 @@ async function editar(req, res, next) {
       UPDATE produtos
       SET ${updates.join(', ')}
       WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
-      RETURNING id, codigo, nome, fornecedor, estoque_atual, atualizado_em
+      RETURNING id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas, atualizado_em
     `;
 
     const result = await client.query(sql, params);
@@ -248,9 +259,9 @@ async function editar(req, res, next) {
       acao: 'produto_editado',
       entidade: 'produto',
       entidadeId: produto.id,
-      dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, estoque_atual: anterior.estoque_atual },
-      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual },
-      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual'],
+      dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, estoque_atual: anterior.estoque_atual, contagem_em_pecas: anterior.contagem_em_pecas },
+      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual, contagem_em_pecas: produto.contagem_em_pecas },
+      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual', 'contagem_em_pecas'],
       eventoChave: `produto_editado_${produto.id}`
     });
 

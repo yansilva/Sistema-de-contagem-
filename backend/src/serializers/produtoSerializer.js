@@ -17,6 +17,7 @@ function serializeProduto(produto, usuario) {
     codigo: produto.codigo,
     nome: produto.nome,
     fornecedor: produto.fornecedor,
+    contagem_em_pecas: produto.contagem_em_pecas === true,
     ativo: produto.ativo,
     criado_em: produto.criado_em,
     atualizado_em: produto.atualizado_em

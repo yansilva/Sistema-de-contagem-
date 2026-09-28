@@ -86,6 +86,7 @@ const criarProdutoSchema = {
     codigo: z.string().min(1, 'Código / SKU é obrigatório').trim(),
     nome: z.string().min(1, 'Nome é obrigatório').trim(),
     fornecedor: z.string().min(1, 'Produtor / Fornecedor é obrigatório').trim(),
+    contagem_em_pecas: z.boolean().optional().default(false),
     estoque_atual: z.number().int().optional().default(0)
   })
 };
@@ -98,6 +99,7 @@ const editarProdutoSchema = {
     codigo: z.string().min(1, 'Código não pode ser vazio').trim().optional(),
     nome: z.string().min(1, 'Nome não pode ser vazio').trim().optional(),
     fornecedor: z.string().min(1, 'Fornecedor não pode ser vazio').trim().optional(),
+    contagem_em_pecas: z.boolean().optional(),
     estoque_atual: z.number().int().optional()
   })
 };
@@ -112,6 +114,7 @@ const listarProdutosQuerySchema = {
   query: z.object({
     page: z.coerce.number().int().positive().default(1),
     limit: z.coerce.number().int().positive().max(100).default(20),
+    contagem_em_pecas: z.enum(['true', 'false']).transform(value => value === 'true').optional(),
     search: z.string().trim().optional(),
     fornecedor: z.string().trim().optional(),
     sort: z.enum(['nome', 'codigo', 'fornecedor', 'criado_em', 'estoque_atual']).default('fornecedor'),

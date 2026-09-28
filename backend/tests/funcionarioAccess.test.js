@@ -55,13 +55,15 @@ describe('Permissões do funcionário de contagem', () => {
             nome: 'Produto',
             codigo: 'SKU',
             fornecedor: 'Produtor',
-            estoque_atual: 4567
+            estoque_atual: 4567,
+            contagem_em_pecas: true
           }
         ]
       });
     const res = await request(app).get('/api/produtos').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.data.produtos[0].nome).toBe('Produto');
+    expect(res.body.data.produtos[0].contagem_em_pecas).toBe(true);
     expect(res.body.data.produtos[0]).not.toHaveProperty('estoque_atual');
   });
 

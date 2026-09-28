@@ -16,6 +16,16 @@ jest.mock('../src/config/db', () => ({
 
 const app = require('../src/app');
 
+describe('Validação de classificação', () => {
+  const schemas = require('../src/validators/schemas');
+  it('aceita booleano na criação e edição e interpreta filtro false', () => {
+    expect(schemas.criarProdutoSchema.body.parse({codigo:'Q',nome:'Queijo',fornecedor:'F',contagem_em_pecas:true}).contagem_em_pecas).toBe(true);
+    expect(schemas.editarProdutoSchema.body.parse({contagem_em_pecas:false}).contagem_em_pecas).toBe(false);
+    expect(schemas.listarProdutosQuerySchema.query.parse({contagem_em_pecas:'false'}).contagem_em_pecas).toBe(false);
+    expect(() => schemas.listarProdutosQuerySchema.query.parse({contagem_em_pecas:'yes'})).toThrow();
+  });
+});
+
 describe('Produtos API (CRUD, Paginação e Permissões)', () => {
   const empresaId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
   const gestorId = '11111111-1111-1111-1111-111111111111';
