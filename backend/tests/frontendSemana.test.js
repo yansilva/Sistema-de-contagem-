@@ -13,7 +13,8 @@ describe('Cobertura semanal operacional', () => {
       { fornecedor: 'Novo', total_produtos: 1, produtos_contados: 0, status: 'pendente', produtos_pendentes: [] }]
   });
   beforeEach(() => {
-    elements = new Map(['semana-conteudo', 'semana-periodo', 'semana-pendencias'].map(id => [id, { innerHTML: '', textContent: '' }]));
+    elements = new Map(['semana-conteudo', 'semana-periodo', 'semana-grade', 'semana-filtros', 'semana-resultado', 'semana-busca', 'semana-detalhe-0', 'semana-detalhe-1', 'semana-detalhe-2'].map(id => [id, { innerHTML: '', textContent: '' }]));
+    elements.get('semana-grade').querySelectorAll = () => ['<Produtor>', 'Completo', 'Novo'].map((produtor, indice) => ({ dataset: { produtor, indice: String(indice) }, setAttribute: jest.fn() }));
     context = vm.createContext({ document: { getElementById: id => elements.get(id), addEventListener: jest.fn() }, API: { get: jest.fn() }, showScreen: jest.fn() });
     vm.runInContext(fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8'), context);
     const file = path.join(root, 'js/semana.js');
@@ -25,11 +26,11 @@ describe('Cobertura semanal operacional', () => {
     expect(semana).toBeDefined();
     context.API.get.mockResolvedValue({ success: true, data: dados() });
     await semana.carregar();
-    const html = elements.get('semana-conteudo').innerHTML;
+    const html = elements.get('semana-grade').innerHTML;
     expect(html).toContain('8 de 12');
     for (const status of ['Contado', 'Parcial', 'Pendente']) expect(html).toContain(status);
     dispatch('click', html.match(/<button[^>]*data-click="semana-produtor"[^>]*>/)[0], { fromChild: true });
-    const pendencias = elements.get('semana-pendencias').innerHTML;
+    const pendencias = elements.get('semana-detalhe-0').innerHTML;
     expect(pendencias).toContain('&lt;Produtor&gt;');
     expect(pendencias).toContain('Peças de queijo');
     expect(pendencias.match(/<li>/g)).toHaveLength(4);
@@ -55,7 +56,7 @@ describe('Cobertura semanal operacional', () => {
     await semana.carregar();
     antiga({ success: true, data: dados() });
     await primeira;
-    expect(elements.get('semana-conteudo').innerHTML).toContain('12 de 12');
+    expect(elements.get('semana-grade').innerHTML).toContain('12 de 12');
     context.API.get.mockImplementationOnce(() => new Promise(resolve => { antiga = resolve; }));
     const terceira = semana.carregar();
     semana.invalidar();
@@ -69,13 +70,13 @@ describe('Cobertura semanal operacional', () => {
     await semana.carregar();
     semana.abrirProdutor('<Produtor>');
     expect(semana.dados.produtores[0].produtos_pendentes).toHaveLength(300);
-    expect(elements.get('semana-pendencias').innerHTML).toContain('SKU299');
-    expect(elements.get('semana-pendencias').innerHTML).toContain('&lt;Queijo&gt;');
+    expect(elements.get('semana-detalhe-0').innerHTML).toContain('SKU299');
+    expect(elements.get('semana-detalhe-0').innerHTML).toContain('&lt;Queijo&gt;');
   });
   it('preserva o botão focado ao abrir e fechar pendências', async () => {
     context.API.get.mockResolvedValue({ success: true, data: dados() });
     await semana.carregar();
-    const container = elements.get('semana-conteudo');
+    const container = elements.get('semana-grade');
     let html = container.innerHTML;
     const botao = { dataset: { produtor: '<Produtor>' }, setAttribute: jest.fn() };
     context.document.activeElement = botao;
@@ -88,10 +89,50 @@ describe('Cobertura semanal operacional', () => {
     semana.abrirProdutor('<Produtor>');
     expect(context.document.activeElement).toBe(botao);
     expect(botao.setAttribute).toHaveBeenLastCalledWith('aria-expanded', 'true');
-    expect(elements.get('semana-pendencias').innerHTML).toContain('SKU0');
+    expect(elements.get('semana-detalhe-0').innerHTML).toContain('SKU0');
     semana.abrirProdutor('<Produtor>');
     expect(context.document.activeElement).toBe(botao);
     expect(botao.setAttribute).toHaveBeenLastCalledWith('aria-expanded', 'false');
-    expect(elements.get('semana-pendencias').innerHTML).toBe('');
+    expect(elements.get('semana-detalhe-0').innerHTML).toBe('');
+  });
+
+  it('abre as pendências ao tocar o corpo do cartão do produtor', async () => {
+    context.API.get.mockResolvedValue({ success: true, data: dados() });
+    await semana.carregar();
+    const corpo = elements.get('semana-grade').innerHTML.match(/<div[^>]*data-click="semana-produtor-card"[^>]*>/)?.[0];
+    expect(corpo).toBeDefined();
+    dispatch('click', corpo);
+    expect(elements.get('semana-detalhe-0').innerHTML).toContain('SKU0');
+    dispatch('click', corpo);
+    expect(elements.get('semana-detalhe-0').innerHTML).toBe('');
+  });
+
+  it('filtra por situação sem mudar os totais da semana e permite voltar a todos', async () => {
+    context.API.get.mockResolvedValue({ success: true, data: dados() });
+    await semana.carregar();
+    const resumo = elements.get('semana-conteudo').innerHTML;
+    expect(resumo).toContain('1 de 3');
+    dispatch('click', '<button data-click="semana-filtro" data-status="pendente">Pendentes</button>');
+    expect(elements.get('semana-grade').innerHTML).toContain('Novo');
+    expect(elements.get('semana-grade').innerHTML).not.toContain('Completo');
+    expect(elements.get('semana-grade').innerHTML).not.toContain('&lt;Produtor&gt;');
+    expect(elements.get('semana-conteudo').innerHTML).toContain('1 de 3');
+    dispatch('click', '<button data-click="semana-filtro" data-status="todos">Todos</button>');
+    expect(elements.get('semana-grade').innerHTML).toContain('Completo');
+  });
+
+  it('busca produtores ignorando caixa e acentos, mantendo o campo focado', async () => {
+    const exemplo = dados();
+    exemplo.produtores[2].fornecedor = 'Águas do Norte';
+    context.API.get.mockResolvedValue({ success: true, data: exemplo });
+    await semana.carregar();
+    const busca = elements.get('semana-busca');
+    context.document.activeElement = busca;
+    dispatch('input', '<input data-input="semana-busca" value="aguas">');
+    expect(elements.get('semana-grade').innerHTML).toContain('Águas do Norte');
+    expect(elements.get('semana-grade').innerHTML).not.toContain('Completo');
+    expect(context.document.activeElement).toBe(busca);
+    dispatch('input', '<input data-input="semana-busca" value="inexistente">');
+    expect(elements.get('semana-grade').innerHTML).toContain('Nenhum produtor encontrado');
   });
 });

@@ -129,9 +129,14 @@
   #contagem-modalidade-painel > .btn-primary { width: 100%; min-height: 48px; }
 }
 @media (max-width: 600px) {
+  .semana-introducao { align-items:stretch; flex-direction:column; }
+  .semana-visao-geral { padding:24px; align-items:flex-start; }
+  .semana-medidor { width:94px; height:94px; border-width:8px; }
+  .semana-medidor strong { font-size:1.35rem; }
+  .semana-filtros { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .semana-grid { grid-template-columns:1fr; }
   .semana-lista li { flex-direction:column; gap:6px; }
   .semana-lista strong { flex:auto; }
-  .semana-card .btn { width:100%; }
 }
 
 @media (max-width: 600px) {

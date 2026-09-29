@@ -19,6 +19,7 @@ function loadFrontendEvents(context) {
     );
     const element = {
       disabled: /\bdisabled(?:\s|>|=)/.test(tag),
+      value: attributes.value ?? '',
       dataset: Object.fromEntries(Object.entries(attributes)
         .filter(([key]) => key.startsWith('data-'))
         .map(([key, value]) => [key.slice(5), value])),

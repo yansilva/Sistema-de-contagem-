@@ -5,6 +5,9 @@ const UIActions = {
   'semana-abrir': () => { showScreen('screen-semana-contagem'); },
   'semana-recarregar': () => { Semana.carregar(); },
   'semana-produtor': element => { Semana.abrirProdutor(element.dataset.produtor); },
+  'semana-produtor-card': element => { Semana.abrirProdutor(element.dataset.produtor); },
+  'semana-filtro': element => { Semana.filtrar(element.dataset.status); },
+  'semana-busca': element => { Semana.buscar(element.value); },
   'contagem-modalidade': element => { Contagens.abrirModalidade(element.dataset.tipo); },
   'contagem-modalidade-teclado': (element, event) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
