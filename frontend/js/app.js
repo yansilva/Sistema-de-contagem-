@@ -171,7 +171,7 @@ async function carregarDashboard() {
         if (tbody) {
           tbody.innerHTML = contagens.slice(0, 5).map(c => {
             const dataStr = c.iniciado_em ? new Date(c.iniciado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-            const difBadge = c.tipo === 'pecas_queijo' ? '<span class="badge badge-info">Peças de queijo</span>' : c.status !== 'finalizada' ? '<span class="badge badge-warning">Geral · Em andamento</span>' : c.tem_diferenca
+            const difBadge = c.tipo === 'pecas_queijo' ? `<span class="badge ${c.status === 'finalizada' ? 'badge-success' : 'badge-warning'}">Peças de queijo · ${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span>` : c.status !== 'finalizada' ? '<span class="badge badge-warning">Geral · Em andamento</span>' : c.tem_diferenca
               ? '<span class="badge badge-danger"><i class="ti ti-alert-triangle"></i> Com divergência</span>'
               : '<span class="badge badge-success"><i class="ti ti-check"></i> Sem diferença</span>';
             return `

@@ -35,7 +35,7 @@ const Historico = {
         listaEl.innerHTML = `
           <div style="text-align:center; padding:40px 20px; color:var(--cor-texto-secundario)">
             <i class="ti ti-history-off" style="font-size:2.5rem; margin-bottom:8px; display:block"></i>
-            Nenhuma sessão de contagem finalizada até o momento.
+            Nenhuma sessão de contagem disponível até o momento.
           </div>
         `;
       }
@@ -55,11 +55,12 @@ const Historico = {
     listaEl.innerHTML = this.contagens.map(c => {
       const dataFormatada = formatarData(c.finalizado_em || c.iniciado_em);
       const pecas = c.tipo === 'pecas_queijo';
-      const temDif = !pecas && c.tem_diferenca;
-      const statusIcon = temDif ? 'ti-alert-triangle' : 'ti-circle-check';
-      const statusColor = temDif ? 'var(--cor-perigo)' : 'var(--cor-sucesso)';
-      const statusTexto = pecas ? 'Peças de queijo' : c.status !== 'finalizada' ? 'Geral · Em andamento' : temDif ? 'Divergências Encontradas' : 'Conciliado 100%';
-      const badgeClass = temDif ? 'badge-danger' : 'badge-success';
+      const finalizada = c.status === 'finalizada';
+      const temDif = !pecas && finalizada && c.tem_diferenca;
+      const statusIcon = !finalizada ? 'ti-clock' : temDif ? 'ti-alert-triangle' : 'ti-circle-check';
+      const statusColor = !finalizada ? 'var(--cor-aviso)' : temDif ? 'var(--cor-perigo)' : 'var(--cor-sucesso)';
+      const statusTexto = pecas ? `Peças de queijo · ${finalizada ? 'Finalizada' : 'Em andamento'}` : !finalizada ? 'Geral · Em andamento' : temDif ? 'Divergências Encontradas' : 'Conciliado 100%';
+      const badgeClass = !finalizada ? 'badge-warning' : temDif ? 'badge-danger' : 'badge-success';
 
       const fornecedores = Array.isArray(c.fornecedores) ? c.fornecedores : [];
 
@@ -136,8 +137,8 @@ const Historico = {
         <div class="grupo-fornecedor">
           <div class="grupo-header">
             <span><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</span>
-            <span class="badge ${f.tem_diferenca ? 'badge-danger' : 'badge-success'}">
-              ${pecas ? 'Peças de queijo' : c.status !== 'finalizada' ? 'Em andamento' : f.tem_diferenca ? 'Com Divergência' : 'Sem Divergência'}
+            <span class="badge ${c.status !== 'finalizada' ? 'badge-warning' : !pecas && f.tem_diferenca ? 'badge-danger' : 'badge-success'}">
+              ${pecas ? `Peças de queijo · ${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}` : c.status !== 'finalizada' ? 'Em andamento' : f.tem_diferenca ? 'Com Divergência' : 'Sem Divergência'}
             </span>
           </div>
           <div class="grupo-body">

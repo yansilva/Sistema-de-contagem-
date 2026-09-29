@@ -15,6 +15,7 @@ const Contagens = {
   requisicaoSessoes: 0,
   edicaoPendente: false,
   entradasInvalidas: new Set(),
+  itensTocados: new Set(),
 
   async abrirModalidade(tipo = 'geral') {
     this.tipoSelecao = tipo === 'pecas_queijo' ? tipo : 'geral';
@@ -68,6 +69,7 @@ const Contagens = {
     if (escolha === 'descartar') {
       this.edicaoPendente = false;
       this.entradasInvalidas.clear();
+      this.itensTocados.clear();
       if (this.fornecedorAtual) this.selecionarFornecedor(this.fornecedorAtual);
     }
     const acao = this.acaoAposEdicao;
@@ -89,6 +91,7 @@ const Contagens = {
       this.contagemId = res.data.contagem.id;
       this.fornecedorAtual = null;
       this.itensFornecedor = [];
+      this.itensTocados.clear();
       this.filtroProdutores = '';
       document.getElementById('busca-fornecedor').value = '';
       this.aplicarDadosSessao(res.data.contagem);
@@ -119,6 +122,7 @@ const Contagens = {
     this.contagemId = null;
     this.fornecedorAtual = null;
     this.itensFornecedor = [];
+    this.itensTocados.clear();
     this.produtoresConcluidos.clear();
     this.dadosSessao = null;
     this.filtroProdutores = '';
@@ -302,6 +306,8 @@ const Contagens = {
       return;
     }
     this.fornecedorAtual = fornecedor;
+    this.itensTocados.clear();
+    this.entradasInvalidas.clear();
 
     this.itensFornecedor = fornObj.produtos.map((p) => ({
       id: p.id,
@@ -377,6 +383,8 @@ const Contagens = {
       return;
     }
     this.edicaoPendente = true;
+    // Um input explícito também confirma recontagem com a mesma quantidade.
+    this.itensTocados.add(item.produto_id);
     const limpo = valorStr.trim();
     const num = Number(limpo);
     const valido = limpo === '' || (Number.isSafeInteger(num) && num >= 0);
@@ -398,6 +406,7 @@ const Contagens = {
       showToast('Informe quantidades inteiras maiores ou iguais a zero.', 'error');
       return false;
     }
+    if (this.itensTocados.size === 0) return true;
 
     this._salvando = true;
     this.bloquearEdicaoDuranteSalvamento(true);
@@ -409,7 +418,7 @@ const Contagens = {
 
     const payload = {
       fornecedor: this.fornecedorAtual,
-      itens: this.itensFornecedor.map((p) => ({
+      itens: this.itensFornecedor.filter(p => this.itensTocados.has(p.produto_id)).map((p) => ({
         produto_id: p.produto_id,
         quantidade_contada: p.quantidade_contada
       }))
@@ -426,6 +435,7 @@ const Contagens = {
 
       showToast(`Progresso salvo para ${this.fornecedorAtual}!`, 'success');
       this.edicaoPendente = false;
+      this.itensTocados.clear();
       // O snapshot local também passa a refletir o que o servidor confirmou.
       const fornecedor = this.dadosSessao?.fornecedores?.find(f => f.fornecedor === this.fornecedorAtual);
       for (const produto of fornecedor?.produtos || []) {

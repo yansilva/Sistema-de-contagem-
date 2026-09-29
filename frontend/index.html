@@ -295,11 +295,11 @@
 
           <div class="kpi-card" data-click="action-18" style="cursor:pointer">
             <div class="kpi-top">
-              <span class="kpi-title">Contagens Realizadas</span>
+              <span class="kpi-title">Sessões recentes</span>
               <div class="kpi-icon" style="background:var(--cor-primaria-bg); color:var(--cor-primaria)"><i class="ti ti-clipboard-check"></i></div>
             </div>
             <div class="kpi-value" id="kpi-total-contagens">—</div>
-            <div class="kpi-badge positive"><i class="ti ti-history"></i> Sessões concluídas</div>
+            <div class="kpi-badge positive"><i class="ti ti-history"></i> Sessões disponíveis no painel</div>
           </div>
 
         </div>
@@ -568,12 +568,14 @@
   </section>
 
   <section id="screen-semana-contagem" class="screen">
+    <div class="container consulta-container">
     <div class="page-header"><h2>Semana de contagem</h2><button class="btn btn-outline" data-click="action-8">Voltar ao início</button></div>
     <p id="semana-periodo"></p>
-    <p>A cobertura considera produtos ativos registrados em contagens finalizadas nesta semana.</p>
+    <p>A cobertura considera produtos ativos com quantidade registrada nesta semana em sessões finalizadas.</p>
     <button class="btn btn-outline" data-click="semana-recarregar"><i class="ti ti-refresh" aria-hidden="true"></i> Atualizar semana</button>
     <div id="semana-conteudo" aria-live="polite" aria-atomic="true"></div>
     <div id="semana-pendencias" aria-live="polite"></div>
+    </div>
   </section>
 
   <section id="screen-produtores" class="screen">
@@ -720,6 +722,7 @@
 
 
       <section id="screen-importar-estoque" class="screen">
+        <div class="container consulta-container">
         <div class="page-header"><h2>Importar estoque</h2><button class="btn btn-outline" data-click="estoque-voltar">Voltar ao início</button></div>
         <div class="card" style="margin-bottom:20px">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
@@ -751,6 +754,7 @@
             <i class="ti ti-history" style="color:var(--cor-texto-secundario)"></i> Histórico de Importações
           </h3>
           <div id="lista-historico-estoque"></div>
+        </div>
         </div>
       </section>
 
@@ -861,7 +865,7 @@
           <div class="bo-kpi-card">
             <div class="bo-kpi-icon icon-contagens"><i class="ti ti-clipboard-check"></i></div>
             <div class="bo-kpi-content">
-              <span class="bo-kpi-label">Contagens Concluídas</span>
+              <span class="bo-kpi-label">Última sessão disponível</span>
               <span class="bo-kpi-value" id="bo-kpi-contagens">—</span>
             </div>
           </div>
@@ -927,7 +931,7 @@
       <!-- ABA 4: HISTÓRICO -->
       <div class="tab-content" id="tab-historico">
         <div class="historico-counter">
-          Total de contagens finalizadas: <strong id="historico-counter-total">0</strong>
+          Sessões exibidas: <strong id="historico-counter-total">0</strong>
         </div>
         <div id="lista-historico"></div>
       </div>

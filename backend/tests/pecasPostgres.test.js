@@ -19,6 +19,17 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
       .replace(/  tipo VARCHAR\(20\) NOT NULL DEFAULT 'geral'[^\n]*\n/, '')
       .replace('estoque_referencia INTEGER DEFAULT 0,','estoque_referencia INTEGER DEFAULT 0 NOT NULL,');
     await mockPool.query(schema);
+    const colunasAntigas = (await mockPool.query(`
+      SELECT table_name, column_name, is_nullable FROM information_schema.columns
+      WHERE table_schema='public' AND (
+        (table_name='produtos' AND column_name='contagem_em_pecas') OR
+        (table_name='contagens' AND column_name='tipo') OR
+        (table_name='contagem_itens' AND column_name='estoque_referencia')
+      )
+    `)).rows;
+    expect(colunasAntigas).toEqual([
+      { table_name: 'contagem_itens', column_name: 'estoque_referencia', is_nullable: 'NO' }
+    ]);
     empresaId=(await mockPool.query("INSERT INTO empresas(nome,email_contato) VALUES('Peças','pecas@teste.invalid') RETURNING id")).rows[0].id;
     empresasDaFixture.push(empresaId);
     produtoId=(await mockPool.query("INSERT INTO produtos(empresa_id,codigo,nome,fornecedor,estoque_atual) VALUES($1,'ANTIGO','Antigo','Queijaria',17) RETURNING id",[empresaId])).rows[0].id;
@@ -40,6 +51,8 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
     try {
       // Limpa somente IDs gerados por esta suíte no banco descartável validado no beforeAll.
       await mockPool.query('DELETE FROM audit_logs WHERE empresa_id=ANY($1::uuid[]) OR empresa_afetada_id=ANY($1::uuid[])',[empresasDaFixture]);
+      // Remove sessões antes dos usuários referenciados em contado_por.
+      await mockPool.query('DELETE FROM contagens WHERE empresa_id=ANY($1::uuid[])', [empresasDaFixture]);
       await mockPool.query('DELETE FROM empresas WHERE id=ANY($1::uuid[])',[empresasDaFixture]);
     } finally { await mockPool.end(); }
   });
@@ -131,6 +144,67 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
     const r=await api('post','/api/contagens',{tipo});expect(r.status).toBe(201);expect(r.body.data.contagem.tipo).toBe(tipo);return r.body.data.contagem.id;
   }
   async function itens(id) { return (await mockPool.query('SELECT ci.* FROM contagem_itens ci JOIN contagem_fornecedores cf ON cf.id=ci.contagem_fornecedor_id WHERE cf.contagem_id=$1 ORDER BY ci.codigo',[id])).rows; }
+  it('retomada semanal preserva data e ator intocados e registra recontagem com mesmo valor', async () => {
+    const vm = require('vm');
+    const cobertura = require('../src/services/coberturaSemanalService').obterCoberturaSemanal;
+    const a = await produto('SEMANA_A', false, 'Semana temporal');
+    const b = await produto('SEMANA_B', false, 'Semana temporal');
+    const agora = (await mockPool.query('SELECT NOW() AS agora')).rows[0].agora;
+    const semana = (await cobertura(empresaId, agora)).semana;
+    const domingo = new Date(new Date(semana.inicio).getTime() - 1000);
+    const atorAntigo = (await mockPool.query("SELECT id FROM usuarios WHERE empresa_id=$1 AND papel='administrador'", [empresaId])).rows[0].id;
+
+    async function retomar() {
+      const id = await iniciar('geral');
+      await mockPool.query('UPDATE contagem_itens SET quantidade_contada=5,contado_em=$1,contado_por=$2 WHERE produto_id=$3 AND contagem_fornecedor_id IN (SELECT id FROM contagem_fornecedores WHERE contagem_id=$4)', [domingo, atorAntigo, a.id, id]);
+      const node = { value: '', textContent: '', open: false, showModal() { this.open = true; }, style: {} };
+      const context = vm.createContext({
+        document: { getElementById: () => node, querySelectorAll: () => [] },
+        showToast() {},
+        API: {
+          get: async route => (await api('get', '/api' + route)).body,
+          put: async (route, body) => {
+            const r = await api('put', '/api' + route, body);
+            expect(r.status).toBe(200);
+            return r.body;
+          }
+        }
+      });
+      vm.runInContext(fs.readFileSync(path.join(__dirname, '../../frontend/js/contagens.js'), 'utf8') + '\nglobalThis.contagens = Contagens;', context);
+      const contagens = context.contagens;
+      contagens.renderizarListaProdutores = () => {};
+      contagens.renderizarItensContagem = () => {};
+      contagens.atualizarBarraProgresso = () => {};
+      contagens.contagemId = id;
+      await contagens.carregarDadosContagem();
+      contagens.selecionarFornecedor('Semana temporal');
+      return { id, contagens };
+    }
+
+    const primeira = await retomar();
+    const indexB = primeira.contagens.itensFornecedor.findIndex(p => p.produto_id === b.id);
+    primeira.contagens.atualizarQuantidadeItem(indexB, '0');
+    expect(await primeira.contagens.salvarProgressoAtual()).toBe(true);
+    const preservado = (await itens(primeira.id)).find(p => p.produto_id === a.id);
+    expect(preservado.contado_em).toEqual(domingo);
+    expect(preservado.contado_por).toBe(atorAntigo);
+    expect(preservado.quantidade_contada).toBe(5);
+    expect((await api('put', '/api/contagens/' + primeira.id + '/finalizar')).status).toBe(200);
+    const parcial = (await cobertura(empresaId, agora)).produtores.find(p => p.fornecedor === 'Semana temporal');
+    expect(parcial).toMatchObject({ status: 'parcial', produtos_contados: 1, total_produtos: 2 });
+    expect(parcial.produtos_pendentes.map(p => p.id)).toEqual([a.id]);
+
+    const segunda = await retomar();
+    const indexA = segunda.contagens.itensFornecedor.findIndex(p => p.produto_id === a.id);
+    segunda.contagens.atualizarQuantidadeItem(indexA, '5');
+    expect(await segunda.contagens.salvarProgressoAtual()).toBe(true);
+    const recontado = (await itens(segunda.id)).find(p => p.produto_id === a.id);
+    expect(recontado.quantidade_contada).toBe(5);
+    expect(recontado.contado_em.getTime()).toBeGreaterThanOrEqual(new Date(semana.inicio).getTime());
+    expect((await api('put', '/api/contagens/' + segunda.id + '/finalizar')).status).toBe(200);
+    const completo = (await cobertura(empresaId, agora)).produtores.find(p => p.fornecedor === 'Semana temporal');
+    expect(completo).toMatchObject({ status: 'contado', produtos_contados: 2, produtos_pendentes: [] });
+  });
   it('modalidade filtra snapshot, zero conta e finalização parcial mantém saldo ERP',async()=>{
     const p1=await produto('PECA1',true),p2=await produto('PECA2',true),geral=await produto('GERAL2');
     const id=await iniciar();const snap=await itens(id);

@@ -86,6 +86,102 @@ describe('Modalidade de peças', () => {
   });
 
   const session = (tipo = 'pecas_queijo', id = 'pecas') => ({ id, tipo, status: 'em_andamento', fornecedores: [{ fornecedor: 'Produtor', produtos: [{ produto_id: 'sku', nome: 'Queijo', codigo: 'Q', quantidade_contada: null }] }] });
+  it('explica data por produto e usa contêineres e legendas compatíveis com os valores exibidos', () => {
+    expect(html).toContain('produtos ativos com quantidade registrada nesta semana em sessões finalizadas');
+    for (const id of ['screen-semana-contagem', 'screen-importar-estoque']) {
+      expect(html).toMatch(new RegExp(`id="${id}"[^>]*>\\s*<div class="container consulta-container">`));
+    }
+    expect(html).toContain('Sessões recentes');
+    expect(html.includes('Sessões disponíveis no painel')).toBe(true);
+    expect(html).toContain('Última sessão disponível');
+    expect(html).toContain('Sessões exibidas:');
+    expect(html).not.toContain('Total de contagens finalizadas:');
+  });
+  it('retomada envia somente registros tocados, incluindo mesmo valor, zero e limpeza', async () => {
+    const c = session();
+    c.fornecedores[0].produtos = [
+      { produto_id: 'antigo', codigo: 'A', nome: 'Antigo', quantidade_contada: 5 },
+      { produto_id: 'novo', codigo: 'B', nome: 'Novo', quantidade_contada: null },
+      { produto_id: 'limpar', codigo: 'C', nome: 'Limpar', quantidade_contada: 9 }
+    ];
+    api.get.mockResolvedValue({ success: true, data: { contagem: c } });
+    api.put.mockImplementation(async (url, payload) => {
+      for (const item of payload.itens) {
+        c.fornecedores[0].produtos.find(p => p.produto_id === item.produto_id).quantidade_contada = item.quantidade_contada;
+      }
+      return { success: true };
+    });
+    await context.contagens.continuarSessao(c.id);
+    context.contagens.selecionarFornecedor('Produtor');
+    context.contagens.atualizarQuantidadeItem(1, '0');
+    await context.contagens.salvarProgressoAtual();
+    expect(api.put).toHaveBeenLastCalledWith('/contagens/pecas/salvar-progresso', {
+      fornecedor: 'Produtor', itens: [{ produto_id: 'novo', quantidade_contada: 0 }]
+    });
+    api.put.mockClear();
+    await context.contagens.salvarProgressoAtual();
+    expect(api.put).not.toHaveBeenCalled();
+    context.contagens.atualizarQuantidadeItem(0, '5');
+    context.contagens.atualizarQuantidadeItem(2, '');
+    await context.contagens.salvarProgressoAtual();
+    expect(api.put).toHaveBeenLastCalledWith('/contagens/pecas/salvar-progresso', {
+      fornecedor: 'Produtor', itens: [
+        { produto_id: 'antigo', quantidade_contada: 5 },
+        { produto_id: 'limpar', quantidade_contada: null }
+      ]
+    });
+  });
+  it('falha e cancelamento conservam os registros tocados; descarte limpa a intenção', async () => {
+    const c = session();
+    c.fornecedores[0].produtos.push({ produto_id: 'intocado', codigo: 'I', nome: 'Intocado', quantidade_contada: 8 });
+    api.get.mockResolvedValue({ success: true, data: { contagem: c } });
+    await context.contagens.continuarSessao(c.id);
+    context.contagens.selecionarFornecedor('Produtor');
+    context.contagens.atualizarQuantidadeItem(0, '0');
+    api.put.mockResolvedValueOnce({ success: false });
+    expect(await context.contagens.salvarProgressoAtual()).toBe(false);
+    context.contagens.protegerEdicao(() => {});
+    await context.contagens.resolverEdicao('cancelar');
+    api.put.mockResolvedValueOnce({ success: true });
+    await context.contagens.salvarProgressoAtual();
+    expect(api.put).toHaveBeenLastCalledWith('/contagens/pecas/salvar-progresso', {
+      fornecedor: 'Produtor', itens: [{ produto_id: 'sku', quantidade_contada: 0 }]
+    });
+    context.contagens.atualizarQuantidadeItem(1, '8');
+    context.contagens.protegerEdicao(() => {});
+    await context.contagens.resolverEdicao('descartar');
+    api.put.mockClear();
+    await context.contagens.salvarProgressoAtual();
+    expect(api.put).not.toHaveBeenCalled();
+  });
+  it.each(['em_andamento', 'finalizada'])('admin distingue peças %s em cartão, detalhe e recentes', async status => {
+    auth.usuario.papel = 'administrador';
+    const c = session();
+    c.status = status;
+    const estado = status === 'finalizada' ? 'Finalizada' : 'Em andamento';
+    const classe = status === 'finalizada' ? 'badge-success' : 'badge-warning';
+    context.historico.contagens = [c];
+    context.historico.renderizar();
+    const card = elements.get('lista-historico').innerHTML;
+    expect(card).toContain('Peças de queijo');
+    expect(card).toContain(estado);
+    expect(card).toContain(classe);
+    if (status === 'em_andamento') expect(card).toContain('ti-clock');
+    elements.set('hist-card-pecas', { classList: { contains: () => false, add: jest.fn() } });
+    elements.set('hist-body-pecas', { innerHTML: '' });
+    api.get.mockImplementation(async url => ({ success: true, data: url === '/contagens/pecas' ? { contagem: c } : { contagens: [c] } }));
+    await context.historico.toggleDetalhes(c.id);
+    const detalhe = elements.get('hist-body-pecas').innerHTML;
+    expect(detalhe).toContain('Peças de queijo');
+    expect(detalhe).toContain(estado);
+    expect(detalhe).toContain(classe);
+    await vm.runInContext('carregarDashboard()', context);
+    const recentes = elements.get('admin-recent-tbody').innerHTML;
+    expect(recentes).toContain('Peças de queijo');
+    expect(recentes).toContain(estado);
+    expect(recentes).toContain(classe);
+    for (const rendered of [card, detalhe, recentes]) expect(rendered).not.toMatch(/Estoque:|diferença|divergência|Excel|kg/i);
+  });
   it('troca de aba por evento preserva sessão e não cria ou finaliza contagem', async () => {
     context.contagens.contagemId = 'geral-ativa';
     await context.contagens.abrirModalidade('geral');
