@@ -7,6 +7,7 @@
 const StockImport = {
   dadosPrevia: null,
   _versao: 0,
+  _versaoHistorico: 0,
   _confirmando: false,
 
   abrir() {
@@ -15,6 +16,7 @@ const StockImport = {
   },
 
   limparSessao() {
+    this._versaoHistorico += 1;
     this.cancelarPrevia(true);
     const status = document.getElementById('stock-upload-status');
     if (status) { status.textContent = ''; status.style.display = 'none'; }
@@ -312,10 +314,10 @@ const StockImport = {
 
     container.innerHTML = '<div class="loading"><span class="spinner"></span> Carregando histórico...</div>';
 
-    const versao = this._versao;
+    const versao = ++this._versaoHistorico;
     let res;
     try { res = await API.get('/estoque/historico'); } catch { res = null; }
-    if (versao !== this._versao) return;
+    if (versao !== this._versaoHistorico) return;
     if (!res || !res.success) {
       container.innerHTML = '<p class="text-muted">Não foi possível carregar o histórico de importações.</p>';
       return;

@@ -20,7 +20,7 @@ function showScreen(screenId) {
     screenId = Auth.usuario ? 'screen-home' : 'screen-login';
   }
   if (screenId !== 'screen-importar-estoque' && document.getElementById('screen-importar-estoque')?.classList.contains('active')) {
-    if (typeof StockImport !== 'undefined' && StockImport.cancelarPrevia) StockImport.cancelarPrevia(true);
+    if (typeof StockImport !== 'undefined' && StockImport.cancelarPrevia && !StockImport._confirmando) StockImport.cancelarPrevia(true);
   }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
@@ -235,7 +235,6 @@ function switchTab(tabId) {
     Historico.carregar();
   } else if (tabId === 'usuarios' && typeof Usuarios !== 'undefined') {
     Usuarios.carregar();
-
   } else if (tabId === 'atividades' && typeof Atividades !== 'undefined') {
     Atividades.carregar();
   }

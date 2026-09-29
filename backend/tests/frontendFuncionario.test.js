@@ -114,6 +114,57 @@ describe('Área do funcionário de contagem', () => {
     expect(context.StockImport.limparSessao).toHaveBeenCalled();
   });
 
+  it.each([
+    ['sucesso antes da resposta', { success: true, data: { produtos_atualizados: 1 } }, 'Estoque atualizado', true],
+    ['sucesso depois da resposta', { success: true, data: { produtos_atualizados: 1 } }, 'Estoque atualizado', false],
+    ['falha antes da resposta', { success: false, message: 'Falha de gravação' }, 'Não foi possível', true],
+    ['falha depois da resposta', { success: false, message: 'Falha de gravação' }, 'Não foi possível', false]
+  ])('mantém resultado de %s ao sair e voltar durante confirmação', async (_, resultado, mensagem, reabrirAntes) => {
+    auth.atualizarInterface();
+    context.FormData = class { append() {} };
+    vm.runInContext(fs.readFileSync(path.join(frontend, 'js/stock-import.js'), 'utf8') + '\nglobalThis.realStockImport = StockImport;', context);
+    const stock = context.realStockImport;
+    api.upload = jest.fn().mockResolvedValue({ success: true, data: {
+      nome_arquivo: 'estoque.pdf', produtos_encontrados: 1, produtos_correspondentes: 1,
+      produtos_para_atualizar: [{ codigo: 'SKU', nome: 'Produto', fornecedor: 'Produtor', estoque_novo: 5 }],
+      skus_nao_encontrados: [], skus_nao_encontrados_total: 0, linhas_ignoradas: 0
+    } });
+    stock.abrir();
+    await stock.enviarPdf({ name: 'estoque.pdf' });
+    let resolve;
+    api.post.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    const pending = stock.confirmarAtualizacao();
+    context.showScreen('screen-home');
+    if (reabrirAntes) stock.abrir();
+    resolve(resultado);
+    await pending;
+    if (!reabrirAntes) stock.abrir();
+    expect(elements.get('stock-upload-status').textContent).toContain(mensagem);
+    expect(elements.get('stock-upload-status').textContent).not.toContain('Atualizando');
+    expect(api.post).toHaveBeenCalledTimes(1);
+    if (!resultado.success) expect(stock.dadosPrevia).not.toBeNull();
+  });
+
+  it('descarta confirmação antiga ao trocar identidade durante saída', async () => {
+    auth.atualizarInterface();
+    vm.runInContext(fs.readFileSync(path.join(frontend, 'js/stock-import.js'), 'utf8') + '\nglobalThis.realStockImport = StockImport;', context);
+    const stock = context.realStockImport;
+    stock.dadosPrevia = { nome_arquivo: 'estoque.pdf', produtos_para_atualizar: [{codigo:'SKU', estoque_novo:5}] };
+    stock.abrir();
+    let resolve;
+    api.post.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    const pending = stock.confirmarAtualizacao();
+    context.showScreen('screen-home');
+    auth.usuario = { id: 99, papel: 'funcionario', nome: 'Outro' };
+    auth.atualizarInterface();
+    stock.abrir();
+    resolve({success:true,data:{produtos_atualizados:1}});
+    await pending;
+    expect(stock.dadosPrevia).toBeNull();
+    expect(elements.get('stock-upload-status').textContent).toBe('');
+    expect(context.showToast).not.toHaveBeenCalledWith(expect.anything(), 'success');
+  });
+
   it('logout limpa os dados de importação e a identidade', async () => {
     auth.atualizarInterface();
     context.StockImport.limparSessao.mockClear();

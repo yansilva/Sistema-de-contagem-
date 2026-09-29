@@ -1588,3 +1588,5 @@
 
 #screen-importar-estoque .data-table { min-width: 560px; }
 #screen-importar-estoque .page-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
+
+#stock-pdf-file { max-width: 100%; margin-top: 8px; }

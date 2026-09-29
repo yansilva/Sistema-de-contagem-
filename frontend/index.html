@@ -736,10 +736,8 @@
             <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
             <p style="font-weight:600; margin-bottom:4px">Arraste o PDF aqui ou clique para selecionar</p>
             <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ou ERP da Olist</p>
-            <label class="btn btn-primary btn-sm" style="margin-top:12px; cursor:pointer">
-              <i class="ti ti-upload"></i> Selecionar Arquivo PDF
-              <input type="file" accept=".pdf" style="display:none" data-change="action-51">
-            </label>
+            <label for="stock-pdf-file" style="display:block; margin-top:12px; font-weight:600">Selecionar Arquivo PDF</label>
+            <input id="stock-pdf-file" type="file" accept=".pdf" data-change="action-51">
           </div>
 
           <div id="stock-upload-status" role="status" aria-live="polite" style="display:none; margin-top:12px"></div>

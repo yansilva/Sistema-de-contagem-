@@ -119,6 +119,13 @@ describe('Importação de estoque pelo seletor de PDF', () => {
     }));
     expect(elements.get('stock-upload-status').textContent).toMatch(/estoque atualizado/i);
   });
+  it('oferece seletor nativo de PDF focável com nome acessível', () => {
+    const tag = html.match(/<input[^>]+accept="\.pdf"[^>]+data-change="action-51"[^>]*>/)[0];
+    expect(tag).not.toMatch(/display\s*:\s*none|\bhidden|tabindex="-1"/);
+    const id = tag.match(/id="([^"]+)"/)[1];
+    expect(html).toContain('for="' + id + '"');
+  });
+
   it('abre tela única compartilhada', () => {
     expect(html).toContain('id="screen-importar-estoque"');
     expect((html.match(/id="stock-upload-area"/g) || []).length).toBe(1);
@@ -159,6 +166,26 @@ describe('Importação de estoque pelo seletor de PDF', () => {
     expect(context.stockImport.dadosPrevia).toBeNull();
     await context.stockImport.confirmarAtualizacao();
     expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('histórico pendente não fica preso após upload e cancelamento', async () => {
+    let resolve;
+    api.get.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    const pending = context.stockImport.carregarHistorico();
+    await context.stockImport.enviarPdf({ name: 'estoque.pdf' });
+    context.stockImport.cancelarPrevia();
+    resolve({success:true,data:{historico:[]}});
+    await pending;
+    expect(elements.get('lista-historico-estoque').innerHTML).toContain('Nenhuma importação');
+  });
+  it('histórico de identidade antiga não reaparece após limpar sessão', async () => {
+    let resolve;
+    api.get.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    const pending = context.stockImport.carregarHistorico();
+    context.stockImport.limparSessao();
+    resolve({success:true,data:{historico:[{nome_arquivo:'antigo.pdf',usuario_nome:'Antigo'}]}});
+    await pending;
+    expect(elements.get('lista-historico-estoque').innerHTML).toBe('');
   });
 
   it('cancelamento apaga a prévia sem confirmar', async () => {
