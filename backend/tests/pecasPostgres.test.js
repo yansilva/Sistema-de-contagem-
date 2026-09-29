@@ -95,6 +95,17 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
   async function produto(codigo,pecas=false,fornecedor='Queijaria',empresa=empresaId) {
     return (await mockPool.query('INSERT INTO produtos(empresa_id,codigo,nome,fornecedor,estoque_atual,contagem_em_pecas) VALUES($1,$2,$2,$3,17,$4) RETURNING *',[empresa,codigo,fornecedor,pecas])).rows[0];
   }
+  it('confirmação com SKU repetido normalizado não grava saldo, histórico ou auditoria',async()=>{
+    const p=await produto('PDF_DUPLICADO');
+    const logsAntes=(await mockPool.query("SELECT count(*)::int AS total FROM audit_logs WHERE empresa_id=$1 AND acao='estoque_atualizado'",[empresaId])).rows[0].total;
+    for(const codigo of [p.codigo,' '+p.codigo+' ',p.codigo.toLowerCase()]) {
+      const r=await api('post','/api/estoque/confirmar-atualizacao',{nome_arquivo:'duplicado.pdf',atualizacoes:[{codigo:p.codigo,estoque_atual:8},{codigo,estoque_atual:9}]});
+      expect(r.status).toBe(400);expect(r.body.success).toBe(false);
+      expect((await mockPool.query('SELECT estoque_atual FROM produtos WHERE id=$1',[p.id])).rows[0].estoque_atual).toBe(17);
+    }
+    expect((await mockPool.query("SELECT id FROM historico_importacao_estoque WHERE nome_arquivo='duplicado.pdf'")).rows).toHaveLength(0);
+    expect((await mockPool.query("SELECT count(*)::int AS total FROM audit_logs WHERE empresa_id=$1 AND acao='estoque_atualizado'",[empresaId])).rows[0].total).toBe(logsAntes);
+  });
   it('funcionário confirma estoque próprio sem mudar snapshots ou classificação',async()=>{
     const p=await produto('PDF_PROPRIO');const id=await iniciar('geral');
     await mockPool.query('UPDATE produtos SET contagem_em_pecas=true WHERE id=$1',[p.id]);

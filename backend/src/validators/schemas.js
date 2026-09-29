@@ -153,6 +153,10 @@ const confirmarAtualizacaoEstoqueSchema = {
         })
       )
       .min(1, 'Nenhuma atualização de estoque fornecida para confirmação.')
+      .refine((itens) => {
+        const codigos = itens.map((item) => item.codigo.trim().toUpperCase());
+        return new Set(codigos).size === codigos.length;
+      }, 'SKU repetido na confirmação de estoque.')
   })
 };
 

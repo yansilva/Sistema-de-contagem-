@@ -164,6 +164,12 @@ Boursin sem código \t200,00 -2,00 KG
       const r=await request(app).get('/api/estoque/historico?empresa_id=outra').set('Authorization',`Bearer ${adminToken}`);
       expect(r.status).toBe(200);expect(db.query.mock.calls[1][1]).toEqual([empresaId]);
     });
+    it.each(['001',' 001 '])('confirmação duplicada com %s recusa o lote antes de gravar',async(codigo)=>{
+      db.query.mockResolvedValueOnce({rows:[actor()]});
+      const client={query:jest.fn().mockResolvedValue({rows:[{id:'p1'}]}),release:jest.fn()};db.getClient.mockResolvedValueOnce(client);
+      const r=await request(app).post('/api/estoque/confirmar-atualizacao').set('Authorization',`Bearer ${adminToken}`).send({nome_arquivo:'duplicado.pdf',atualizacoes:[{codigo:'001',estoque_atual:8},{codigo,estoque_atual:9}]});
+      expect(r.status).toBe(400);expect(r.body.success).toBe(false);expect(db.getClient).not.toHaveBeenCalled();expect(client.query).not.toHaveBeenCalled();
+    });
     it('confirmação fracionária é recusada antes de qualquer gravação',async()=>{
       db.query.mockResolvedValueOnce({rows:[actor()]});
       const r=await request(app).post('/api/estoque/confirmar-atualizacao').set('Authorization',`Bearer ${adminToken}`).send({nome_arquivo:'tiny.pdf',atualizacoes:[{codigo:'001',estoque_atual:3.5}]});
