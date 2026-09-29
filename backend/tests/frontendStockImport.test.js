@@ -39,7 +39,7 @@ describe('Importação de estoque pelo seletor de PDF', () => {
         addEventListener: jest.fn()
       },
       FormData: class { append() {} },
-      API: api,
+      API: api, Auth: {isAdmin:jest.fn(()=>true)}, showScreen:jest.fn(),
       Produtos: { carregar: jest.fn() },
       escapeHtml: (value) => String(value),
       showToast: jest.fn()
@@ -60,6 +60,7 @@ describe('Importação de estoque pelo seletor de PDF', () => {
     };
 
     listeners.get('change')({ target: input });
+    expect(input.value).toBe('');
     expect(api.upload).toHaveBeenCalledWith('/estoque/upload-pdf', expect.anything());
     expect(elements.get('stock-upload-status').textContent).toMatch(/processando|enviando/i);
     await new Promise(setImmediate);
@@ -117,5 +118,65 @@ describe('Importação de estoque pelo seletor de PDF', () => {
       atualizacoes: [{ codigo: 'SKU-1', estoque_atual: 5 }]
     }));
     expect(elements.get('stock-upload-status').textContent).toMatch(/estoque atualizado/i);
+  });
+  it('abre tela única compartilhada', () => {
+    expect(html).toContain('id="screen-importar-estoque"');
+    expect((html.match(/id="stock-upload-area"/g) || []).length).toBe(1);
+    expect((html.match(/id="painel-previa-estoque"/g) || []).length).toBe(1);
+    context.stockImport.abrir();
+    expect(context.showScreen).toHaveBeenCalledWith('screen-importar-estoque');
+    expect(api.get).toHaveBeenCalledWith('/estoque/historico');
+  });
+
+  it('esconde antigo e variação operacional', async () => {
+    context.Auth.isAdmin.mockReturnValue(false);
+    await context.stockImport.enviarPdf({ name: 'estoque.pdf' });
+    expect(elements.get('painel-previa-estoque').innerHTML).toContain('Novo Estoque (PDF)');
+    expect(elements.get('painel-previa-estoque').innerHTML).not.toMatch(/Estoque Anterior|Variação|NaN/);
+  });
+
+  it('bloqueia confirmação dupla e trata rejeição', async () => {
+    await context.stockImport.enviarPdf({ name: 'estoque.pdf' });
+    let reject;
+    api.post.mockImplementationOnce(() => new Promise((_, r) => { reject = r; }));
+    const pending = context.stockImport.confirmarAtualizacao();
+    await context.stockImport.confirmarAtualizacao();
+    expect(api.post).toHaveBeenCalledTimes(1);
+    reject(new Error('offline'));
+    await pending;
+    expect(elements.get('stock-upload-status').textContent).toContain('Não foi possível');
+    await context.stockImport.confirmarAtualizacao();
+    expect(elements.get('stock-upload-status').textContent).toContain('Estoque atualizado');
+  });
+
+  it('limpa identidade e ignora upload antigo', async () => {
+    let resolve;
+    api.upload.mockImplementationOnce(() => new Promise(r => { resolve = r; }));
+    const pending = context.stockImport.enviarPdf({ name: 'antigo.pdf' });
+    context.stockImport.limparSessao();
+    resolve({ success: true, data: { produtos_para_atualizar: [] } });
+    await pending;
+    expect(context.stockImport.dadosPrevia).toBeNull();
+    await context.stockImport.confirmarAtualizacao();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('cancelamento apaga a prévia sem confirmar', async () => {
+    await context.stockImport.enviarPdf({ name: 'estoque.pdf' });
+    context.stockImport.cancelarPrevia();
+    await context.stockImport.confirmarAtualizacao();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(context.stockImport.dadosPrevia).toBeNull();
+    expect(elements.get('stock-upload-status').textContent).toContain('Nenhum estoque foi alterado');
+  });
+  it('preserva as colunas administrativas e mostra ator e resultado no histórico', async () => {
+    await context.stockImport.enviarPdf({ name: 'estoque.pdf' });
+    expect(elements.get('painel-previa-estoque').innerHTML).toContain('Estoque Anterior');
+    api.get.mockResolvedValueOnce({success:true,data:{historico:[{nome_arquivo:'relatorio.pdf',usuario_nome:'Equipe',status:'concluido',produtos_atualizados:1,criado_em:'2026-09-28'}]}});
+    await context.stockImport.carregarHistorico();
+    const rendered=elements.get('lista-historico-estoque').innerHTML;
+    expect(rendered).toContain('Equipe');
+    expect(rendered).toContain('relatorio.pdf');
+    expect(rendered).toContain('1</strong> produtos atualizados');
   });
 });

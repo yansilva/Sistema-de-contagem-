@@ -62,14 +62,14 @@ describe('Área do funcionário de contagem', () => {
       },
       window: { scrollTo: jest.fn() },
       confirm: jest.fn(() => true),
-      localStorage: { getItem: jest.fn(), setItem: jest.fn() },
-      sessionStorage: { getItem: jest.fn(), setItem: jest.fn() },
+      localStorage: { getItem: jest.fn(), setItem: jest.fn(), removeItem: jest.fn() },
+      sessionStorage: { getItem: jest.fn(), setItem: jest.fn(), removeItem: jest.fn() },
       URLSearchParams,
       API: api,
       Produtos: { carregar: jest.fn() },
       Historico: { carregar: jest.fn() },
       Usuarios: { carregar: jest.fn() },
-      StockImport: { carregarHistorico: jest.fn() },
+      StockImport: { carregarHistorico: jest.fn(), limparSessao:jest.fn(), abrir:jest.fn() },
       Atividades: { carregar: jest.fn() }
     });
     context.Semana = { carregar: jest.fn(), invalidar: jest.fn() };
@@ -97,10 +97,37 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('btn-nova-empresa').style.display).toBe('none');
     for (const element of elements.values()) if (element.admin) expect(element.hidden).toBe(true);
     const home = html.split('id="home-funcionario"')[1].split('id="home-administrador"')[0];
-    expect(home.match(/<button /g)).toHaveLength(5);
-    expect(home).not.toMatch(/screen-backoffice|Importar|Sincroniza|Exporta/);
+    expect(home.match(/<button /g)).toHaveLength(6);
+    expect(home).not.toMatch(/screen-backoffice|Sincroniza|Exporta/);
   });
 
+  it('abre importação e limpa prévia por identidade', () => {
+    context.showScreen('screen-importar-estoque');
+    expect(elements.get('screen-importar-estoque').classes.has('active')).toBe(true);
+    auth.atualizarInterface();
+    expect(context.StockImport.limparSessao).toHaveBeenCalled();
+    context.StockImport.limparSessao.mockClear();
+    auth.atualizarInterface();
+    expect(context.StockImport.limparSessao).not.toHaveBeenCalled();
+    auth.usuario = { id: 99, papel: 'funcionario' };
+    auth.atualizarInterface();
+    expect(context.StockImport.limparSessao).toHaveBeenCalled();
+  });
+
+  it('logout limpa os dados de importação e a identidade', async () => {
+    auth.atualizarInterface();
+    context.StockImport.limparSessao.mockClear();
+    await auth.deslogar();
+    expect(context.StockImport.limparSessao).toHaveBeenCalled();
+    expect(auth.usuario).toBeNull();
+  });
+  it('abre pelos eventos reais dos atalhos e menu existente', () => {
+    for (const action of ['estoque-abrir', 'action-21', 'action-41']) {
+      const tag = html.match(new RegExp('<button[^>]+data-click="' + action + '"[^>]*>'))[0];
+      dispatch('click', tag);
+    }
+    expect(context.StockImport.abrir).toHaveBeenCalledTimes(3);
+  });
   it('bloqueia navegação direta para back-office, cadastro de empresas e abas de gestão', () => {
     for (const target of ['screen-backoffice', 'screen-registro']) {
       context.showScreen(target);

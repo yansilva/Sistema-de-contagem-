@@ -133,3 +133,8 @@
   .semana-lista strong { flex:auto; }
   .semana-card .btn { width:100%; }
 }
+
+@media (max-width: 600px) {
+  #screen-importar-estoque .page-header { flex-wrap: wrap; }
+  #screen-importar-estoque .stock-preview-header > div { width: 100%; }
+}

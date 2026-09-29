@@ -8,7 +8,7 @@
  */
 function showScreen(screenId) {
   const publicScreens = ['screen-login', 'screen-troca-senha-obrigatoria'];
-  const employeeScreens = ['screen-home', 'screen-modalidade-contagem', 'screen-contagem', 'screen-resultado', 'screen-catalogo', 'screen-produtores', 'screen-historico-contagens', 'screen-semana-contagem'];
+  const employeeScreens = ['screen-home', 'screen-modalidade-contagem', 'screen-contagem', 'screen-resultado', 'screen-catalogo', 'screen-produtores', 'screen-historico-contagens', 'screen-semana-contagem', 'screen-importar-estoque'];
   if (!Auth.usuario && screenId !== 'screen-login') {
     screenId = 'screen-login';
   } else if (Auth.usuario?.mustChangePassword && screenId !== 'screen-login') {
@@ -18,6 +18,9 @@ function showScreen(screenId) {
   }
   if ((screenId === 'screen-registro' || screenId === 'screen-empresas') && Auth.usuario?.papel !== 'super_admin') {
     screenId = Auth.usuario ? 'screen-home' : 'screen-login';
+  }
+  if (screenId !== 'screen-importar-estoque' && document.getElementById('screen-importar-estoque')?.classList.contains('active')) {
+    if (typeof StockImport !== 'undefined' && StockImport.cancelarPrevia) StockImport.cancelarPrevia(true);
   }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const target = document.getElementById(screenId);
@@ -199,6 +202,7 @@ async function carregarDashboard() {
  */
 function switchTab(tabId) {
   if (!Auth.isAdmin() || Auth.usuario?.mustChangePassword) return;
+  if (tabId === 'estoque') { StockImport.abrir(); return; }
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
 
@@ -231,8 +235,7 @@ function switchTab(tabId) {
     Historico.carregar();
   } else if (tabId === 'usuarios' && typeof Usuarios !== 'undefined') {
     Usuarios.carregar();
-  } else if (tabId === 'estoque' && typeof StockImport !== 'undefined') {
-    StockImport.carregarHistorico();
+
   } else if (tabId === 'atividades' && typeof Atividades !== 'undefined') {
     Atividades.carregar();
   }

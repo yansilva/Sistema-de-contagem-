@@ -1,5 +1,7 @@
 /** Ações permitidas da interface. Sem avaliação de código vindo do HTML. */
 const UIActions = {
+  'estoque-voltar': () => { showScreen('screen-home'); },
+  'estoque-abrir': () => { StockImport.abrir(); },
   'semana-abrir': () => { showScreen('screen-semana-contagem'); },
   'semana-recarregar': () => { Semana.carregar(); },
   'semana-produtor': element => { Semana.abrirProdutor(element.dataset.produtor); },
@@ -37,7 +39,7 @@ const UIActions = {
   'action-18': (element, event) => { showScreen('screen-backoffice'); switchTab('historico'); },
   'action-19': (element, event) => { showScreen('screen-backoffice'); },
   'action-20': (element, event) => { Contagens.abrirModalidade('geral'); },
-  'action-21': (element, event) => { showScreen('screen-backoffice'); switchTab('estoque'); },
+  'action-21': (element, event) => { StockImport.abrir(); },
   'action-22': (element, event) => { showScreen('screen-backoffice'); switchTab('produtos'); },
   'action-23': (element, event) => { showScreen('screen-backoffice'); switchTab('historico'); },
   'action-24': (element, event) => { showScreen('screen-home'); },
@@ -57,7 +59,7 @@ const UIActions = {
   'action-38': (element, event) => { abrirHistoricoContagens(); },
   'action-39': (element, event) => { showScreen('screen-home'); },
   'action-40': (element, event) => { switchTab('produtos'); },
-  'action-41': (element, event) => { switchTab('estoque'); },
+  'action-41': (element, event) => { StockImport.abrir(); },
   'action-42': (element, event) => { switchTab('usuarios'); },
   'action-43': (element, event) => { switchTab('historico'); },
   'action-44': (element, event) => { switchTab('atividades'); },

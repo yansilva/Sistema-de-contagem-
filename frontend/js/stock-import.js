@@ -2,10 +2,25 @@
  * Módulo de Importação de Estoque Atual via Relatório PDF do Tiny/Olist
  * Fluxo em 2 etapas:
  * 1. Upload e Prévia (sem alterar o banco)
- * 2. Confirmação explícita pelo administrador
+ * 2. Confirmação explícita pelo usuário
  */
 const StockImport = {
   dadosPrevia: null,
+  _versao: 0,
+  _confirmando: false,
+
+  abrir() {
+    showScreen('screen-importar-estoque');
+    this.carregarHistorico();
+  },
+
+  limparSessao() {
+    this.cancelarPrevia(true);
+    const status = document.getElementById('stock-upload-status');
+    if (status) { status.textContent = ''; status.style.display = 'none'; }
+    const historico = document.getElementById('lista-historico-estoque');
+    if (historico) historico.innerHTML = '';
+  },
 
   mostrarStatus(mensagem, tipo = 'info') {
     const status = document.getElementById('stock-upload-status');
@@ -20,7 +35,9 @@ const StockImport = {
    * Dispara o envio do arquivo PDF selecionado
    */
   async enviarPdf(file) {
-    if (!file) return;
+    if (!file || this._confirmando) return;
+    this.cancelarPrevia(true);
+    const versao = this._versao;
 
     if (!file.name.toLowerCase().endsWith('.pdf')) {
       this.mostrarStatus('Selecione um arquivo no formato PDF.', 'error');
@@ -52,6 +69,7 @@ const StockImport = {
       res = null;
     }
 
+    if (versao !== this._versao) return;
     if (!res || !res.success) {
       if (containerPrevia) containerPrevia.style.display = 'none';
       const mensagem = res?.message || 'Falha ao processar arquivo PDF.';
@@ -88,8 +106,9 @@ const StockImport = {
       itens_ignorados = []
     } = this.dadosPrevia;
 
+    const admin = Auth.isAdmin();
     const rowsAtualizacao = produtos_para_atualizar.map((p) => {
-      const diff = p.estoque_novo - p.estoque_anterior;
+      const diff = admin ? p.estoque_novo - p.estoque_anterior : 0;
       const diffBadge = diff > 0
         ? `<span class="badge badge-sucesso">+${diff}</span>`
         : (diff < 0 ? `<span class="badge badge-danger">${diff}</span>` : '<span class="badge badge-neutro">0</span>');
@@ -99,9 +118,9 @@ const StockImport = {
           <td><code>${escapeHtml(p.codigo)}</code></td>
           <td>${escapeHtml(p.nome)}</td>
           <td>${escapeHtml(p.fornecedor)}</td>
-          <td style="text-align:center">${p.estoque_anterior}</td>
+          ${admin ? `<td style="text-align:center">${p.estoque_anterior}</td>` : ''}
           <td style="text-align:center; font-weight:700">${p.estoque_novo}</td>
-          <td style="text-align:center">${diffBadge}</td>
+          ${admin ? `<td style="text-align:center">${diffBadge}</td>` : ''}
         </tr>
       `;
     }).join('');
@@ -168,13 +187,13 @@ const StockImport = {
                 <th>SKU</th>
                 <th>Nome</th>
                 <th>Produtor</th>
-                <th style="text-align:center">Estoque Anterior</th>
+                ${admin ? '<th style="text-align:center">Estoque Anterior</th>' : ''}
                 <th style="text-align:center">Novo Estoque (PDF)</th>
-                <th style="text-align:center">Variação</th>
+                ${admin ? '<th style="text-align:center">Variação</th>' : ''}
               </tr>
             </thead>
             <tbody>
-              ${rowsAtualizacao || '<tr><td colspan="6" style="text-align:center; padding:20px">Nenhum produto cadastrado correspondeu aos SKUs do PDF.</td></tr>'}
+              ${rowsAtualizacao || `<tr><td colspan="${admin ? 6 : 4}" style="text-align:center; padding:20px">Nenhum produto cadastrado correspondeu aos SKUs do PDF.</td></tr>`}
             </tbody>
           </table>
         </div>
@@ -218,6 +237,8 @@ const StockImport = {
   },
 
   cancelarPrevia(silencioso = false) {
+    if (this._confirmando && !silencioso) return;
+    this._versao += 1;
     this.dadosPrevia = null;
     const container = document.getElementById('painel-previa-estoque');
     if (container) {
@@ -231,7 +252,9 @@ const StockImport = {
    * Confirma a atualização do estoque no banco
    */
   async confirmarAtualizacao() {
-    if (!this.dadosPrevia || !this.dadosPrevia.produtos_para_atualizar?.length) return;
+    if (this._confirmando || !this.dadosPrevia || !this.dadosPrevia.produtos_para_atualizar?.length) return;
+    this._confirmando = true;
+    const versao = this._versao;
 
     const btn = document.getElementById('btn-confirmar-estoque');
     if (btn) {
@@ -251,7 +274,11 @@ const StockImport = {
       }))
     };
 
-    const res = await API.post('/estoque/confirmar-atualizacao', payload);
+    let res;
+    try { res = await API.post('/estoque/confirmar-atualizacao', payload); }
+    catch { res = null; }
+    finally { this._confirmando = false; }
+    if (versao !== this._versao) return;
 
     if (!res || !res.success) {
       if (btn) {
@@ -259,7 +286,7 @@ const StockImport = {
         btn.innerHTML = '<i class="ti ti-check"></i> Confirmar Atualização';
       }
       const mensagem = res?.message || 'Erro ao confirmar atualização de estoque.';
-      this.mostrarStatus(mensagem, 'error');
+      this.mostrarStatus(`Não foi possível atualizar o estoque: ${mensagem}`, 'error');
       showToast(mensagem, 'error');
       return;
     }
@@ -271,7 +298,7 @@ const StockImport = {
     this.carregarHistorico();
 
     // Recarrega lista de produtos se estiver visível
-    if (typeof Produtos !== 'undefined' && Produtos.carregar) {
+    if (Auth.isAdmin() && typeof Produtos !== 'undefined' && Produtos.carregar) {
       Produtos.carregar();
     }
   },
@@ -285,7 +312,10 @@ const StockImport = {
 
     container.innerHTML = '<div class="loading"><span class="spinner"></span> Carregando histórico...</div>';
 
-    const res = await API.get('/estoque/historico');
+    const versao = this._versao;
+    let res;
+    try { res = await API.get('/estoque/historico'); } catch { res = null; }
+    if (versao !== this._versao) return;
     if (!res || !res.success) {
       container.innerHTML = '<p class="text-muted">Não foi possível carregar o histórico de importações.</p>';
       return;
@@ -314,10 +344,10 @@ const StockImport = {
             <div>
               <strong style="font-size:1rem"><i class="ti ti-file-check" style="color:var(--cor-sucesso)"></i> ${escapeHtml(h.nome_arquivo)}</strong>
               <div style="font-size:0.8rem; color:var(--cor-texto-mutado)">
-                Importado em ${dataFormatada} por <strong>${escapeHtml(h.usuario_nome || 'Administrador')}</strong>
+                Importado em ${dataFormatada} por <strong>${escapeHtml(h.usuario_nome || 'Usuário')}</strong>
               </div>
             </div>
-            <span class="badge badge-sucesso"><i class="ti ti-check"></i> ${h.status}</span>
+            <span class="badge badge-sucesso"><i class="ti ti-check"></i> ${escapeHtml(h.status)}</span>
           </div>
 
           <div style="display:flex; gap:16px; margin-top:12px; font-size:0.875rem; color:var(--cor-texto)">

@@ -225,6 +225,7 @@
 
         <!-- Atalhos Rápidos Operacionais -->
         <div class="consulta-home-grid func-shortcuts-grid">
+          <button class="kpi-card consulta-home-card" data-click="estoque-abrir"><span class="kpi-title"><i class="ti ti-file-type-pdf"></i> Importar estoque</span><span class="consulta-home-description">Enviar PDF Tiny/Olist e revisar atualização</span></button>
           <button class="kpi-card consulta-home-card" data-click="semana-abrir"><span class="kpi-title"><i class="ti ti-calendar"></i> Semana de contagem</span><span class="consulta-home-description">Ver produtores contados e pendências da semana</span></button>
           <button class="kpi-card kpi-emerald consulta-home-card" data-click="action-12">
             <span class="kpi-top"><span class="kpi-title">Catálogo</span><i class="ti ti-packages"></i></span>
@@ -717,6 +718,44 @@
     </div>
   </section>
 
+
+      <section id="screen-importar-estoque" class="screen">
+        <div class="page-header"><h2>Importar estoque</h2><button class="btn btn-outline" data-click="estoque-voltar">Voltar ao início</button></div>
+        <div class="card" style="margin-bottom:20px">
+          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
+            <i class="ti ti-file-type-pdf" style="font-size:2rem; color:var(--cor-primaria)"></i>
+            <div>
+              <h3 style="font-size:1.1rem; font-weight:700; margin:0">Importar Relatório de Estoque</h3>
+              <p style="font-size:0.85rem; color:var(--cor-texto-secundario); margin:4px 0 0">
+                Envie o relatório de estoque em PDF exportado do Tiny ou ERP da Olist. O sistema irá cruzar os SKUs com os produtos cadastrados e apresentar uma prévia antes de atualizar.
+              </p>
+            </div>
+          </div>
+
+          <div id="stock-upload-area" class="upload-area" data-dragover="action-124" data-dragleave="action-125" data-drop="action-126">
+            <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
+            <p style="font-weight:600; margin-bottom:4px">Arraste o PDF aqui ou clique para selecionar</p>
+            <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ou ERP da Olist</p>
+            <label class="btn btn-primary btn-sm" style="margin-top:12px; cursor:pointer">
+              <i class="ti ti-upload"></i> Selecionar Arquivo PDF
+              <input type="file" accept=".pdf" style="display:none" data-change="action-51">
+            </label>
+          </div>
+
+          <div id="stock-upload-status" role="status" aria-live="polite" style="display:none; margin-top:12px"></div>
+        </div>
+
+        <div id="painel-previa-estoque" style="display:none"></div>
+
+        <!-- Histórico de Importações -->
+        <div class="card" style="margin-top:20px">
+          <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px">
+            <i class="ti ti-history" style="color:var(--cor-texto-secundario)"></i> Histórico de Importações
+          </h3>
+          <div id="lista-historico-estoque"></div>
+        </div>
+      </section>
+
   <!-- ==================== TELA: BACK-OFFICE (ADMINISTRADOR/GESTOR) ==================== -->
   <section id="screen-backoffice" class="screen" data-admin-only hidden>
     <div class="bo-layout">
@@ -869,43 +908,6 @@
           <button class="btn btn-outline btn-sm" id="btn-pag-proxima" data-click="action-50">
             Próxima <i class="ti ti-chevron-right"></i>
           </button>
-        </div>
-      </div>
-
-      <!-- ABA 2: IMPORTAR ESTOQUE (PDF) -->
-      <div class="tab-content" id="tab-estoque">
-        <div class="card" style="margin-bottom:20px">
-          <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
-            <i class="ti ti-file-type-pdf" style="font-size:2rem; color:var(--cor-primaria)"></i>
-            <div>
-              <h3 style="font-size:1.1rem; font-weight:700; margin:0">Importar Relatório de Estoque</h3>
-              <p style="font-size:0.85rem; color:var(--cor-texto-secundario); margin:4px 0 0">
-                Envie o relatório de estoque em PDF exportado do Tiny ou ERP da Olist. O sistema irá cruzar os SKUs com os produtos cadastrados e apresentar uma prévia antes de atualizar.
-              </p>
-            </div>
-          </div>
-
-          <div id="stock-upload-area" class="upload-area" data-dragover="action-124" data-dragleave="action-125" data-drop="action-126">
-            <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
-            <p style="font-weight:600; margin-bottom:4px">Arraste o PDF aqui ou clique para selecionar</p>
-            <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf — Relatório de estoque do Tiny ou ERP da Olist</p>
-            <label class="btn btn-primary btn-sm" style="margin-top:12px; cursor:pointer">
-              <i class="ti ti-upload"></i> Selecionar Arquivo PDF
-              <input type="file" accept=".pdf" style="display:none" data-change="action-51">
-            </label>
-          </div>
-
-          <div id="stock-upload-status" role="status" aria-live="polite" style="display:none; margin-top:12px"></div>
-        </div>
-
-        <div id="painel-previa-estoque" style="display:none"></div>
-
-        <!-- Histórico de Importações -->
-        <div class="card" style="margin-top:20px">
-          <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px">
-            <i class="ti ti-history" style="color:var(--cor-texto-secundario)"></i> Histórico de Importações
-          </h3>
-          <div id="lista-historico-estoque"></div>
         </div>
       </div>
 

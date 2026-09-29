@@ -1585,3 +1585,6 @@
 .semana-lista li { display:flex; flex-wrap:wrap; gap:12px; padding:14px; border-bottom:1px solid var(--cor-borda); overflow-wrap:anywhere; }
 .semana-lista strong { flex:1 1 220px; min-width:0; }
 #semana-pendencias { margin-top:24px; overflow-wrap:anywhere; }
+
+#screen-importar-estoque .data-table { min-width: 560px; }
+#screen-importar-estoque .page-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }

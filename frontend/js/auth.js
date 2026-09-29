@@ -258,6 +258,7 @@ const Auth = {
    * Encerra a sessão do usuário
    */
   async deslogar() {
+    if (typeof StockImport !== 'undefined' && StockImport.limparSessao) StockImport.limparSessao();
     const refreshToken = sessionStorage.getItem('refreshToken');
     if (refreshToken) {
       await API.post('/auth/logout', { refreshToken });
@@ -286,6 +287,11 @@ const Auth = {
    * Atualiza elementos da topbar com dados do usuário logado
    */
   atualizarInterface() {
+    const identidade = JSON.stringify([this.usuario?.id, this.usuario?.nome, this.usuario?.papel, this.usuario?.empresa_id, this.empresa?.id, this.empresa?.nome]);
+    if (this._identidadeImportacao !== identidade) {
+      if (typeof StockImport !== 'undefined' && StockImport.limparSessao) StockImport.limparSessao();
+      this._identidadeImportacao = identidade;
+    }
     const admin = this.isAdmin();
     for (const id of ['mobile-nav-toggle', 'topbar-menu']) {
       const element = document.getElementById(id);
