@@ -13,7 +13,7 @@ describe('Cobertura semanal operacional', () => {
       { fornecedor: 'Novo', total_produtos: 1, produtos_contados: 0, status: 'pendente', produtos_pendentes: [] }]
   });
   beforeEach(() => {
-    elements = new Map(['semana-conteudo', 'semana-periodo', 'semana-grade', 'semana-filtros', 'semana-resultado', 'semana-busca', 'semana-detalhe-0', 'semana-detalhe-1', 'semana-detalhe-2'].map(id => [id, { innerHTML: '', textContent: '' }]));
+    elements = new Map(['semana-conteudo', 'semana-periodo', 'semana-status-leitor', 'semana-grade', 'semana-filtros', 'semana-resultado', 'semana-busca', 'semana-detalhe-0', 'semana-detalhe-1', 'semana-detalhe-2'].map(id => [id, { innerHTML: '', textContent: '' }]));
     elements.get('semana-grade').querySelectorAll = () => ['<Produtor>', 'Completo', 'Novo'].map((produtor, indice) => ({ dataset: { produtor, indice: String(indice) }, setAttribute: jest.fn() }));
     context = vm.createContext({ document: { getElementById: id => elements.get(id), addEventListener: jest.fn() }, API: { get: jest.fn() }, showScreen: jest.fn() });
     vm.runInContext(fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8'), context);
@@ -42,11 +42,24 @@ describe('Cobertura semanal operacional', () => {
     context.API.get.mockResolvedValueOnce({ success: true, data: { ...dados(), produtores: [] } }).mockRejectedValueOnce(new Error('offline'));
     await semana.carregar();
     expect(elements.get('semana-conteudo').innerHTML).toContain('Nenhum produtor');
+    expect(elements.get('semana-status-leitor').textContent).toContain('Nenhum produtor');
     await semana.carregar();
     const html = elements.get('semana-conteudo').innerHTML;
     expect(html).toContain('Tentar novamente');
+    expect(elements.get('semana-status-leitor').textContent).toContain('Não foi possível carregar');
     expect(html).not.toContain('Todos os produtores contados');
     expect(semana.dados).toBeNull();
+  });
+  it('anuncia carregamento e resultado sem depender do painel recriado', async () => {
+    let concluir;
+    context.API.get.mockImplementation(() => new Promise(resolve => { concluir = resolve; }));
+    const carregamento = semana.carregar();
+    expect(elements.get('semana-status-leitor').textContent).toContain('Carregando semana');
+    concluir({ success: true, data: dados() });
+    await carregamento;
+    expect(elements.get('semana-status-leitor').textContent).toContain('3 de 3 produtores exibidos');
+    semana.filtrar('pendente');
+    expect(elements.get('semana-status-leitor').textContent).toContain('1 de 3 produtores exibidos');
   });
   it('ignora respostas antigas e invalida solicitações em andamento', async () => {
     expect(semana).toBeDefined();

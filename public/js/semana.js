@@ -58,28 +58,31 @@ const Semana = {
   renderizar() {
     const container = document.getElementById('semana-conteudo');
     const periodo = document.getElementById('semana-periodo');
+    const aviso = document.getElementById('semana-status-leitor');
     if (!container) return;
     if (periodo) periodo.textContent = '';
     if (this.estado === 'carregando') {
+      if (aviso) aviso.textContent = 'Carregando semana atual...';
       container.innerHTML = '<p><span class="spinner" aria-hidden="true"></span> Carregando semana atual...</p>';
       return;
     }
     if (this.estado === 'erro') {
+      if (aviso) aviso.textContent = 'Não foi possível carregar a semana.';
       container.innerHTML = '<p>Não foi possível carregar a semana.</p><button class="btn btn-outline" data-click="semana-recarregar">Tentar novamente</button>';
       return;
     }
-    if (!this.dados) { container.innerHTML = '<p>Atualize para consultar a semana atual.</p>'; return; }
+    if (!this.dados) { if (aviso) aviso.textContent = 'Atualize para consultar a semana atual.'; container.innerHTML = '<p>Atualize para consultar a semana atual.</p>'; return; }
     const { semana, resumo, produtores } = this.dados;
     const formatar = data => new Date(data).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
     if (periodo) periodo.textContent = `${formatar(semana.inicio)} a ${formatar(new Date(new Date(semana.fim_exclusivo).getTime() - 1))} • São Paulo`;
-    if (!produtores.length) { container.innerHTML = '<p class="consulta-vazio">Nenhum produtor com produtos ativos nesta semana.</p>'; return; }
+    if (!produtores.length) { if (aviso) aviso.textContent = 'Nenhum produtor com produtos ativos nesta semana.'; container.innerHTML = '<p class="consulta-vazio">Nenhum produtor com produtos ativos nesta semana.</p>'; return; }
     const total = produtores.length;
     const contados = Math.max(0, Math.min(total, Number(resumo.contados) || 0));
     const percentual = Math.round(contados / total * 100);
     const totais = [['todos', 'Todos', total, 'ti-layout-grid'], ['contado', 'Contados', resumo.contados, 'ti-circle-check'], ['parcial', 'Parciais', resumo.parciais, 'ti-progress'], ['pendente', 'Pendentes', resumo.pendentes, 'ti-clock']];
     container.innerHTML = `<div class="semana-visao-geral"><div class="semana-visao-texto"><span class="semana-eyebrow">VISÃO DA SEMANA</span><h3>${contados} de ${total} produtores contados</h3><p>Veja o andamento da equipe e encontre o que ainda falta contar.</p></div><div class="semana-medidor" role="progressbar" aria-label="Produtores contados na semana" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${contados}" style="--semana-progresso:${percentual}%"><strong>${percentual}%</strong><span>concluído</span></div></div>
       <div class="semana-controles"><div id="semana-filtros" class="semana-filtros" role="group" aria-label="Filtrar produtores por situação">${totais.map(([status, rotulo, quantidade, icone]) => `<button type="button" class="semana-filtro semana-filtro--${status}" data-click="semana-filtro" data-status="${status}" aria-pressed="${this.filtro === status}"><i class="ti ${icone}" aria-hidden="true"></i><span>${rotulo}</span><strong>${Number(quantidade) || 0}</strong></button>`).join('')}</div><label class="semana-busca"><i class="ti ti-search" aria-hidden="true"></i><input id="semana-busca" type="search" placeholder="Buscar produtor" aria-label="Buscar produtor" data-input="semana-busca" value="${escapeHtml(this.busca)}" autocomplete="off"></label></div>
-      <p id="semana-resultado" class="semana-resultado" role="status" aria-live="polite"></p><div id="semana-grade" class="semana-grid"></div>`;
+      <p id="semana-resultado" class="semana-resultado"></p><div id="semana-grade" class="semana-grid"></div>`;
     this.renderizarCards();
   },
 
@@ -91,6 +94,8 @@ const Semana = {
     const visiveis = this.dados.produtores.map((produtor, indice) => ({ produtor, indice })).filter(({ produtor }) => (this.filtro === 'todos' || produtor.status === this.filtro) && normalizar(produtor.fornecedor).includes(busca));
     const resultado = document.getElementById('semana-resultado');
     if (resultado) resultado.textContent = `${visiveis.length} de ${this.dados.produtores.length} produtores exibidos`;
+    const aviso = document.getElementById('semana-status-leitor');
+    if (aviso) aviso.textContent = `${visiveis.length} de ${this.dados.produtores.length} produtores exibidos`;
     if (!visiveis.some(({ produtor }) => produtor.fornecedor === this.produtorAberto)) this.produtorAberto = null;
     if (!visiveis.length) { grade.innerHTML = '<div class="semana-vazio"><i class="ti ti-search-off" aria-hidden="true"></i><p>Nenhum produtor encontrado para este filtro.</p></div>'; return; }
     const estados = { contado: ['Contado', 'ti-circle-check'], parcial: ['Parcial', 'ti-progress'], pendente: ['Pendente', 'ti-clock'] };
