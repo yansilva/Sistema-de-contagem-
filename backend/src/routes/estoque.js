@@ -7,7 +7,8 @@ const {
   listarHistorico
 } = require('../controllers/estoqueController');
 const auth = require('../middlewares/auth');
-const gestor = require('../middlewares/gestor');
+const tenant = require('../middlewares/tenant');
+const { requireRole } = require('../middlewares/authorize');
 const validate = require('../middlewares/validate');
 const { confirmarAtualizacaoEstoqueSchema } = require('../validators/schemas');
 const { ValidationError } = require('../errors/AppError');
@@ -27,9 +28,10 @@ const upload = multer({
   }
 });
 
-// Acesso restrito a administradores
+// Importação operacional limitada à empresa autenticada.
 router.use(auth);
-router.use(gestor);
+router.use(tenant);
+router.use(requireRole('funcionario', 'administrador', 'gestor', 'admin'));
 
 // POST /api/estoque/upload-pdf — Upload e retorno da prévia de atualização
 router.post('/upload-pdf', upload.single('arquivo'), uploadPdf);

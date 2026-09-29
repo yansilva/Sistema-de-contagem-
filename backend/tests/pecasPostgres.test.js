@@ -95,6 +95,23 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
   async function produto(codigo,pecas=false,fornecedor='Queijaria',empresa=empresaId) {
     return (await mockPool.query('INSERT INTO produtos(empresa_id,codigo,nome,fornecedor,estoque_atual,contagem_em_pecas) VALUES($1,$2,$2,$3,17,$4) RETURNING *',[empresa,codigo,fornecedor,pecas])).rows[0];
   }
+  it('funcionário confirma estoque próprio sem mudar snapshots ou classificação',async()=>{
+    const p=await produto('PDF_PROPRIO');const id=await iniciar('geral');
+    await mockPool.query('UPDATE produtos SET contagem_em_pecas=true WHERE id=$1',[p.id]);
+    const inativo=await produto('PDF_INATIVO');await mockPool.query('UPDATE produtos SET ativo=false WHERE id=$1',[inativo.id]);
+    const empresa2=(await mockPool.query("INSERT INTO empresas(nome,email_contato) VALUES('PDF externa','pdfexterna@teste.invalid') RETURNING id")).rows[0].id;empresasDaFixture.push(empresa2);
+    const externo=await produto(p.codigo,false,'Queijaria',empresa2);
+    const r=await api('post','/api/estoque/confirmar-atualizacao',{nome_arquivo:'tiny.pdf',empresa_id:empresa2,usuario_id:null,papel:'administrador',atualizacoes:[{codigo:p.codigo,estoque_atual:8,estoque_anterior:0,contagem_em_pecas:false},{codigo:inativo.codigo,estoque_atual:9},{codigo:'PDF_DESCONHECIDO',estoque_atual:99}]});
+    expect(r.status).toBe(200);expect(r.body.data.produtos_atualizados).toBe(1);
+    expect((await mockPool.query('SELECT estoque_atual,contagem_em_pecas FROM produtos WHERE id=$1',[p.id])).rows[0]).toEqual({estoque_atual:8,contagem_em_pecas:true});
+    for(const produtoId of [inativo.id,externo.id]) expect((await mockPool.query('SELECT estoque_atual FROM produtos WHERE id=$1',[produtoId])).rows[0].estoque_atual).toBe(17);
+    expect((await mockPool.query("SELECT id FROM produtos WHERE codigo='PDF_DESCONHECIDO'")).rows).toHaveLength(0);
+    expect((await itens(id)).find(i=>i.produto_id===p.id).estoque_referencia).toBe(17);
+    const historico=(await mockPool.query("SELECT * FROM historico_importacao_estoque WHERE nome_arquivo='tiny.pdf'")).rows[0];
+    const ator=(await mockPool.query("SELECT id FROM usuarios WHERE empresa_id=$1 AND papel='funcionario'",[empresaId])).rows[0].id;
+    expect(historico).toMatchObject({empresa_id:empresaId,usuario_id:ator,produtos_atualizados:1});
+    expect((await mockPool.query("SELECT ator_id,empresa_id FROM audit_logs WHERE acao='estoque_atualizado' AND empresa_id=$1",[empresaId])).rows[0]).toMatchObject({ator_id:ator,empresa_id:empresaId});
+  });
   function api(method,path,body,token=funcionarioToken) {
     const req=request(app)[method](path).set('Authorization','Bearer '+token);
     return body===undefined?req:req.send(body);

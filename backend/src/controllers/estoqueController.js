@@ -1,7 +1,8 @@
 const { query, getClient } = require('../config/db');
-const { ValidationError, NotFoundError } = require('../errors/AppError');
+const { AppError, ValidationError } = require('../errors/AppError');
 const { processarPdfEstoque } = require('../services/pdfStockImportService');
 const auditService = require('../services/auditService');
+const { serializePreviaEstoque } = require('../serializers/estoqueSerializer');
 
 /**
  * POST /api/estoque/upload-pdf
@@ -50,7 +51,7 @@ async function uploadPdf(req, res, next) {
     res.json({
       success: true,
       message: 'Relatório PDF processado com sucesso. Prévia pronta para conferência.',
-      data: previa
+      data: serializePreviaEstoque(previa, req.usuario)
     });
   } catch (err) {
     next(err);
@@ -96,6 +97,10 @@ async function confirmarAtualizacao(req, res, next) {
       if (resUpdate.rows.length > 0) {
         produtosAtualizados++;
       }
+    }
+
+    if (produtosAtualizados === 0) {
+      throw new AppError('Nenhum SKU ativo da empresa foi atualizado.', 400, 'SEM_ATUALIZACOES');
     }
 
     // Registrar no histórico de importações

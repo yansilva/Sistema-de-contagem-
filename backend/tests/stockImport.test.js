@@ -45,9 +45,30 @@ describe('Importação e Atualização de Estoque via PDF do Tiny ERP', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    db.query.mockReset();
+    db.getClient.mockReset();
   });
 
   describe('Unidade: pdfStockImportService', () => {
+    it('serializer usa whitelist sem mutar prévia e conserva dados administrativos',()=>{
+      const {serializePreviaEstoque}=require('../src/serializers/estoqueSerializer');
+      const item={codigo:'SKU',nome:'Produto',fornecedor:'Produtor',estoque_novo:8,estoque_anterior:17,diferenca_atualizacao:-9,produto_id:'interno',futuro_secreto:123};
+      const previa={nome_arquivo:'tiny.pdf',itens_ignorados:[{motivo:'SKU ausente'}],produtos_para_atualizar:[item]};
+      const funcionario=serializePreviaEstoque(previa,{papel:'funcionario'});
+      expect(funcionario.produtos_para_atualizar).toEqual([{codigo:'SKU',nome:'Produto',fornecedor:'Produtor',estoque_novo:8}]);
+      expect(previa.produtos_para_atualizar[0]).toEqual(item);
+      expect(serializePreviaEstoque(previa,{papel:'administrador'}).produtos_para_atualizar[0].estoque_anterior).toBe(17);
+      expect(funcionario.itens_ignorados).toEqual(previa.itens_ignorados);
+    });
+    it.each([
+      ['Tiny com saldo 3,50 permanece pendência', '001 Produto UN 3,50', 'Estoque fracionário', 3.5],
+      ['Tiny com SKU duplicado recusa inteiro', '001 Produto UN 8\n001 Produto UN 9', 'SKU repetido no PDF', 8]
+    ])('%s', async (_, text, motivo, quantidade) => {
+      require('pdf-parse').PDFParse.mockImplementationOnce(() => ({getText:async()=>({text}),destroy:async()=>{}}));
+      const preview=await processarPdfEstoque(Buffer.from('pdf'),'tiny.pdf',[{codigo:'001',estoque_atual:17}]);
+      expect(preview.produtos_para_atualizar).toEqual([]);
+      expect(preview.itens_ignorados[0]).toMatchObject({motivo,quantidade});
+    });
     it('lê o PDF com a API atual e fecha o parser', async () => {
       const { PDFParse } = require('pdf-parse');
       const preview = await processarPdfEstoque(Buffer.from('pdf'), 'tiny.pdf', []);
@@ -106,6 +127,9 @@ Boursin sem código \t200,00 -2,00 KG
       expect(parseQuantidade('1.250')).toBe(1250);
       expect(parseQuantidade('-3')).toBe(-3);
       expect(parseQuantidade(20)).toBe(20);
+      expect(parseQuantidade(3.5)).toBe(3.5);
+      expect(extrairLinhaTiny('ZERO Produto UN 0').quantidade).toBe(0);
+      expect(extrairLinhaTiny('NEG Produto UN -3').quantidade).toBe(-3);
     });
 
     it('extrairLinhaTiny — identifica SKU, descrição e saldo, ignorando cabeçalhos', () => {
@@ -126,6 +150,60 @@ Boursin sem código \t200,00 -2,00 KG
   });
 
   describe('Integração: Endpoints de Estoque', () => {
+    const actor = (papel='funcionario') => ({id:adminId,empresa_id:empresaId,papel,ativo:true,plano:'ativo',must_change_password:false});
+    it.each([['inativo',{ativo:false},401],['empresa inativa',{status:'inativa'},403],['superadmin',{papel:'superadmin'},403],['super_admin',{papel:'super_admin'},403]])('recusa %s antes de acessar estoque',async(_,changes,status)=>{
+      db.query.mockResolvedValueOnce({rows:[{...actor(),...changes}]});
+      const r=await request(app).get('/api/estoque/historico').set('Authorization',`Bearer ${adminToken}`);
+      expect(r.status).toBe(status);expect(db.query).toHaveBeenCalledTimes(1);expect(db.getClient).not.toHaveBeenCalled();
+    });
+    it('sem token não acessa importação',async()=>{
+      expect((await request(app).post('/api/estoque/upload-pdf')).status).toBe(401);expect(db.query).not.toHaveBeenCalled();
+    });
+    it('funcionário consulta histórico da identidade, ignorando empresa da query',async()=>{
+      db.query.mockResolvedValueOnce({rows:[actor()]}).mockResolvedValueOnce({rows:[]});
+      const r=await request(app).get('/api/estoque/historico?empresa_id=outra').set('Authorization',`Bearer ${adminToken}`);
+      expect(r.status).toBe(200);expect(db.query.mock.calls[1][1]).toEqual([empresaId]);
+    });
+    it('confirmação fracionária é recusada antes de qualquer gravação',async()=>{
+      db.query.mockResolvedValueOnce({rows:[actor()]});
+      const r=await request(app).post('/api/estoque/confirmar-atualizacao').set('Authorization',`Bearer ${adminToken}`).send({nome_arquivo:'tiny.pdf',atualizacoes:[{codigo:'001',estoque_atual:3.5}]});
+      expect(r.status).toBe(400);expect(db.getClient).not.toHaveBeenCalled();
+    });
+    it('erro na segunda atualização faz rollback sem anunciar sucesso',async()=>{
+      db.query.mockResolvedValueOnce({rows:[actor()]});
+      const client={query:jest.fn().mockResolvedValueOnce({rows:[]}).mockResolvedValueOnce({rows:[{id:'p1'}]}).mockRejectedValueOnce(new Error('write failed')).mockResolvedValue({rows:[]}),release:jest.fn()};
+      db.getClient.mockResolvedValueOnce(client);const consoleSpy=jest.spyOn(console,'error').mockImplementation(()=>{});
+      try {
+        const r=await request(app).post('/api/estoque/confirmar-atualizacao').set('Authorization',`Bearer ${adminToken}`).send({nome_arquivo:'tiny.pdf',atualizacoes:[{codigo:'001',estoque_atual:8},{codigo:'002',estoque_atual:9}]});
+        expect(r.status).toBe(500);expect(r.body.success).toBe(false);expect(client.query).toHaveBeenCalledWith('ROLLBACK');expect(client.query).not.toHaveBeenCalledWith('COMMIT');expect(client.release).toHaveBeenCalled();
+      } finally {consoleSpy.mockRestore();}
+    });
+    it('PDF maior que 10 MB e formato inválido não gravam saldo',async()=>{
+      for(const [nome,buffer] of [['grande.pdf',Buffer.alloc(10*1024*1024+1)],['arquivo.txt',Buffer.from('invalid')]]) {
+        db.query.mockResolvedValueOnce({rows:[actor()]});const consoleSpy=jest.spyOn(console,'error').mockImplementation(()=>{});
+        try {const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',buffer,nome);expect(r.status).toBeGreaterThanOrEqual(400);expect(db.getClient).not.toHaveBeenCalled();} finally {consoleSpy.mockRestore();}
+      }
+    });
+    it('parser rejeita PDF malformado sem atualizar saldo',async()=>{
+      db.query.mockResolvedValueOnce({rows:[actor()]}).mockResolvedValueOnce({rows:[]});
+      require('pdf-parse').PDFParse.mockImplementationOnce(()=>({getText:async()=>{throw Error('invalid PDF');},destroy:async()=>{}}));
+      const consoleSpy=jest.spyOn(console,'error').mockImplementation(()=>{});
+      try {const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',Buffer.from('bad'),'bad.pdf');expect(r.status).toBe(500);expect(r.body.success).toBe(false);expect(db.getClient).not.toHaveBeenCalled();} finally {consoleSpy.mockRestore();}
+    });
+    it('funcionário envia PDF sem campos administrativos; admin conserva saldo anterior', async()=>{
+      db.query.mockResolvedValueOnce({rows:[actor()]}).mockResolvedValueOnce({rows:[{codigo:'001',nome:'Produto',fornecedor:'Produtor',estoque_atual:17}]});
+      const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',Buffer.from('pdf'),'tiny.pdf');
+      expect(r.status).toBe(200);
+      expect(r.body.data.produtos_para_atualizar[0]).toEqual({codigo:'001',nome:'Produto',fornecedor:'Produtor',estoque_novo:15});
+      expect(db.getClient).not.toHaveBeenCalled();
+    });
+    it('zero SKUs ativos atualizados faz rollback sem histórico de sucesso',async()=>{
+      db.query.mockResolvedValueOnce({rows:[actor('administrador')]});
+      const client={query:jest.fn().mockResolvedValue({rows:[]}),release:jest.fn()};db.getClient.mockResolvedValueOnce(client);
+      const r=await request(app).post('/api/estoque/confirmar-atualizacao').set('Authorization',`Bearer ${adminToken}`).send({nome_arquivo:'tiny.pdf',atualizacoes:[{codigo:'INEXISTENTE',estoque_atual:8}]});
+      expect(r.status).toBe(400);expect(r.body.code).toBe('SEM_ATUALIZACOES');expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+      expect(client.query.mock.calls.some(([sql])=>sql.includes('INSERT INTO historico'))).toBe(false);
+    });
     it('POST /api/estoque/upload-pdf — Retorna prévia sem alterar o banco de dados', async () => {
       db.query
         // 1. auth middleware
@@ -163,6 +241,7 @@ Boursin sem código \t200,00 -2,00 KG
       expect(res.body.data.produtos_correspondentes).toBe(2); // 001 e 002 no banco
       expect(res.body.data.skus_nao_encontrados_total).toBe(1); // 999 é pendência
       expect(res.body.data.skus_nao_encontrados[0].codigo).toBe('999');
+      expect(res.body.data.produtos_para_atualizar[0].estoque_anterior).toBe(10);
     });
 
     it('POST /api/estoque/confirmar-atualizacao — Atualiza estoque_atual no banco e grava histórico', async () => {

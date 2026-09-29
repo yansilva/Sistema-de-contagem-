@@ -31,10 +31,10 @@ function normalizarSku(sku) {
 }
 
 /**
- * Converte strings numéricas (ex: "15", "12,00", "1.250", "-3") em inteiro
+ * Converte números brasileiros preservando frações para validação posterior.
  */
 function parseQuantidade(valorStr) {
-  if (typeof valorStr === 'number') return Math.round(valorStr);
+  if (typeof valorStr === 'number') return valorStr;
   if (!valorStr) return 0;
   // Remove pontos de milhar e substitui vírgula decimal por ponto
   const limpo = String(valorStr)
@@ -42,7 +42,7 @@ function parseQuantidade(valorStr) {
     .replace(/\./g, '')
     .replace(',', '.');
   const num = parseFloat(limpo);
-  return isNaN(num) ? 0 : Math.round(num);
+  return isNaN(num) ? 0 : num;
 }
 
 /**
@@ -180,12 +180,10 @@ async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) 
   const itens = olist ? olist.itens : linhas.map(extrairLinhaTiny);
   if (olist) linhasIgnoradas = olist.ignoradas;
   const frequenciaSku = new Map();
-  if (olist) {
-    for (const item of itens) {
-      if (!item.codigo) continue;
-      const sku = normalizarSku(item.codigo);
-      frequenciaSku.set(sku, (frequenciaSku.get(sku) || 0) + 1);
-    }
+  for (const item of itens) {
+    if (!item || !item.codigo) continue;
+    const sku = normalizarSku(item.codigo);
+    frequenciaSku.set(sku, (frequenciaSku.get(sku) || 0) + 1);
   }
 
   for (const parsed of itens) {
