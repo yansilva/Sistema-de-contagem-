@@ -341,11 +341,11 @@ describe('Área do funcionário de contagem', () => {
       fornecedor: "D'Água",
       itens: [{ produto_id: 'produto-id', quantidade_contada: 0, quantidade_vencida: 0 }]
     });
+    expect(elements.get('bloco-produtos-contagem').open).toBe(false);
+    expect(context.showToast).toHaveBeenCalledWith('Progresso salvo para D\'Água!', 'success');
     expect(elements.get('progresso-contagem-texto').textContent).toBe('1 de 1 produtos contados');
     expect(elements.get('btn-finalizar-contagem').disabled).toBe(false);
-    expect(elements.get('bloco-produtos-contagem').showModal).toHaveBeenCalledTimes(1);
-    context.contagens.fecharFornecedor();
-    expect(elements.get('bloco-produtos-contagem').open).toBe(false);
+    expect(elements.get('bloco-produtos-contagem').close).toHaveBeenCalledTimes(1);
   });
 
   it('não anuncia contagem pronta quando os produtos não carregam', async () => {
