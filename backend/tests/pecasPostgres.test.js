@@ -17,6 +17,7 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
     const schema = fs.readFileSync(path.join(__dirname,'../sql/schema.sql'),'utf8')
       .replace(/  contagem_em_pecas BOOLEAN[^\n]*\n/, '')
       .replace(/  tipo VARCHAR\(20\) NOT NULL DEFAULT 'geral'[^\n]*\n/, '')
+      .replace(/  (quantidade_vencida|estoque_antes_baixa_vencidos|quantidade_vencida_baixada) INTEGER[^\n]*\n/g, '')
       .replace('estoque_referencia INTEGER DEFAULT 0,','estoque_referencia INTEGER DEFAULT 0 NOT NULL,');
     await mockPool.query(schema);
     const colunasAntigas = (await mockPool.query(`
@@ -70,6 +71,49 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
     expect(itemDePecas.estoque_referencia).toBeNull();
     await expect(mockPool.query("INSERT INTO contagens(empresa_id,tipo) VALUES($1,'invalido')",[empresaId])).rejects.toMatchObject({code:'23514'});
     await mockPool.query(fs.readFileSync(path.join(__dirname,'../sql/migrations/007_pecas_de_queijo.sql'),'utf8'));
+  });
+  it('migration de vencidos preserva itens legados e permite rollback isolado', async () => {
+    const migration = fs.readFileSync(path.join(__dirname, '../sql/migrations/008_produtos_vencidos.sql'), 'utf8');
+    const rollback = fs.readFileSync(path.join(__dirname, '../sql/rollbacks/008_produtos_vencidos.sql'), 'utf8');
+    const client = await mockPool.connect();
+    try {
+      await client.query('BEGIN');
+      const original = (await client.query('SELECT * FROM contagem_itens WHERE id=$1', [itemId])).rows[0];
+      const legado = { ...original };
+      for (const column of ['quantidade_vencida', 'estoque_antes_baixa_vencidos', 'quantidade_vencida_baixada']) delete legado[column];
+      await client.query(rollback);
+      const columnsBefore = (await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='contagem_itens' ORDER BY ordinal_position")).rows;
+      expect((await client.query('SELECT * FROM contagem_itens WHERE id=$1', [itemId])).rows[0]).toEqual(legado);
+      await client.query(migration);
+      await client.query(migration);
+      expect((await client.query('SELECT * FROM contagem_itens WHERE id=$1', [itemId])).rows[0]).toEqual({
+        ...legado, quantidade_vencida: 0, estoque_antes_baixa_vencidos: null, quantidade_vencida_baixada: null
+      });
+      const columns = (await client.query(`SELECT column_name, is_nullable, data_type, column_default FROM information_schema.columns
+        WHERE table_schema='public' AND table_name='contagem_itens' AND column_name IN
+        ('quantidade_vencida','estoque_antes_baixa_vencidos','quantidade_vencida_baixada') ORDER BY column_name`)).rows;
+      expect(columns).toEqual([
+        { column_name: 'estoque_antes_baixa_vencidos', is_nullable: 'YES', data_type: 'integer', column_default: null },
+        { column_name: 'quantidade_vencida', is_nullable: 'NO', data_type: 'integer', column_default: '0' },
+        { column_name: 'quantidade_vencida_baixada', is_nullable: 'YES', data_type: 'integer', column_default: null }
+      ]);
+      const novo = (await client.query(`INSERT INTO contagem_itens(contagem_fornecedor_id,codigo,nome)
+        VALUES($1,'VENCIDOS','Vencidos') RETURNING *`, [legado.contagem_fornecedor_id])).rows[0];
+      expect(novo).toMatchObject({ quantidade_vencida: 0, estoque_antes_baixa_vencidos: null, quantidade_vencida_baixada: null });
+      for (const [value, code] of [[-1, '23514'], [null, '23502']]) {
+        await client.query('SAVEPOINT invalid_quantity');
+        await expect(client.query('UPDATE contagem_itens SET quantidade_vencida=$1 WHERE id=$2', [value, itemId])).rejects.toMatchObject({ code });
+        await client.query('ROLLBACK TO SAVEPOINT invalid_quantity');
+      }
+      await client.query('UPDATE contagem_itens SET quantidade_vencida=3,estoque_antes_baixa_vencidos=17,quantidade_vencida_baixada=3 WHERE id=$1', [itemId]);
+      expect((await client.query('SELECT quantidade_vencida,estoque_antes_baixa_vencidos,quantidade_vencida_baixada FROM contagem_itens WHERE id=$1', [itemId])).rows[0]).toEqual({ quantidade_vencida: 3, estoque_antes_baixa_vencidos: 17, quantidade_vencida_baixada: 3 });
+      await client.query(rollback);
+      expect((await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='contagem_itens' ORDER BY ordinal_position")).rows).toEqual(columnsBefore);
+      expect((await client.query('SELECT * FROM contagem_itens WHERE id=$1', [itemId])).rows[0]).toEqual(legado);
+    } finally {
+      await client.query('ROLLBACK');
+      client.release();
+    }
   });
   it('administrador marca e desmarca; funcionário não edita classificação',async()=>{
     const criado=await request(app).post('/api/produtos').set('Authorization','Bearer '+adminToken).send({codigo:'NOVO',nome:'Novo',fornecedor:'Queijaria',contagem_em_pecas:true});
