@@ -22,7 +22,12 @@ async function gerarExcelContagem(itens, _data) {
     { header: 'Produto', key: 'nome', width: 38 },
     { header: 'Estoque de Referência', key: 'estoque_referencia', width: 22 },
     { header: 'Contagem Física', key: 'quantidade_contada', width: 18 },
-    { header: 'Diferença', key: 'diferenca', width: 14 }
+    { header: 'Diferença', key: 'diferenca', width: 14 },
+    { header: 'Unidades vencidas', key: 'quantidade_vencida', width: 20 },
+    { header: 'Baixa efetiva', key: 'quantidade_vencida_baixada', width: 18 },
+    { header: 'Estoque antes da baixa', key: 'estoque_antes_baixa_vencidos', width: 24 },
+    { header: 'Estoque após a baixa', key: 'estoque_apos_baixa_vencidos', width: 24 },
+    { header: 'Observação', key: 'observacao', width: 36 }
   ];
 
   // Estilo do cabeçalho
@@ -44,7 +49,12 @@ async function gerarExcelContagem(itens, _data) {
       nome: item.nome,
       estoque_referencia: Number(item.estoque_referencia),
       quantidade_contada: Number(item.quantidade_contada),
-      diferenca: Number(item.diferenca)
+      diferenca: Number(item.diferenca),
+      quantidade_vencida: Number(item.quantidade_vencida || 0),
+      quantidade_vencida_baixada: item.quantidade_vencida_baixada == null ? null : Number(item.quantidade_vencida_baixada),
+      estoque_antes_baixa_vencidos: item.estoque_antes_baixa_vencidos == null ? null : Number(item.estoque_antes_baixa_vencidos),
+      estoque_apos_baixa_vencidos: item.estoque_antes_baixa_vencidos == null ? null : Math.max(0, Number(item.estoque_antes_baixa_vencidos) - Number(item.quantidade_vencida_baixada || 0)),
+      observacao: Number(item.quantidade_vencida || 0) > Number(item.quantidade_vencida_baixada || 0) ? `Baixa limitada: ${Number(item.quantidade_vencida || 0) - Number(item.quantidade_vencida_baixada || 0)} unidade(s) não descontada(s)` : ''
     });
 
     // Linha zebrada
@@ -85,7 +95,7 @@ async function gerarExcelContagem(itens, _data) {
   // Auto-filter
   sheet.autoFilter = {
     from: 'A1',
-    to: `F${itens.length + 1}`
+    to: `K${itens.length + 1}`
   };
 
   // Congelar cabeçalho

@@ -130,10 +130,11 @@ const Consulta = {
           <span class="badge badge-neutro">${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span></div>
         <p>${c.tipo === 'pecas_queijo' ? 'Peças de queijo' : 'Contagem geral'} · Iniciada por: ${escapeHtml(c.iniciado_por_nome || 'Usuário')}</p>
         <p>Produtores: ${(c.fornecedores || []).length}</p>
+        ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && Number(c.total_vencidos || 0) > 0 ? `<p>Unidades vencidas: <strong>${Number(c.total_vencidos)}</strong></p>` : ''}
         <div class="table-toolbar">
           <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-72">Ver contagem</button>
           ${c.status === 'em_andamento' ? `<button class="btn btn-primary btn-sm" data-id="${escapeHtml(c.id)}" data-click="contagem-continuar">Continuar sessão</button>` : ''}
-          ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && c.tem_diferenca ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Excel</button>` : ''}
+          ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && (c.tem_diferenca || Number(c.total_vencidos || 0) > 0) ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Excel</button>` : ''}
         </div>
       </article>`).join('');
   },
@@ -154,7 +155,7 @@ const Consulta = {
     detalhe.innerHTML = `<div class="contagem-dialog-header"><div><span class="contagem-dialog-eyebrow">Histórico de contagens</span><h3>Quantidades registradas · ${escapeHtml(formatarData(c.iniciado_em))}</h3></div>
       <button type="button" class="btn btn-ghost btn-sm" data-click="action-122" aria-label="Fechar detalhes"><i class="ti ti-x"></i></button></div>
       <p>${pecas ? 'Peças de queijo' : 'Contagem geral'}</p>
-      ${!pecas && c.status === 'finalizada' && c.tem_diferenca ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Excel de diferenças</button>` : ''}
+      ${!pecas && c.status === 'finalizada' && (c.tem_diferenca || (c.fornecedores || []).some(f => (f.produtos || []).some(p => Number(p.quantidade_vencida || 0) > 0))) ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Excel</button>` : ''}
       <div class="consulta-detalhe-corpo">` +
       ((c.fornecedores || []).map(f => `<h3>${escapeHtml(f.fornecedor)}</h3><div class="consulta-lista">` +
         (f.produtos || []).map(p => {
@@ -165,6 +166,7 @@ const Consulta = {
           return `<article class="consulta-item"><strong>${escapeHtml(p.nome)}</strong>
             <p>SKU: ${escapeHtml(p.codigo)}</p><p>${pecas ? 'Quantidade de peças' : 'Quantidade contada'}: <strong>${p.quantidade_contada == null ? 'Não contado' : escapeHtml(p.quantidade_contada)}</strong></p>
             ${!pecas && c.status === 'finalizada' && p.estoque_referencia !== undefined ? `<p>Estoque de referência: <strong>${escapeHtml(p.estoque_referencia)}</strong></p>` : ''}${situacao}
+            ${!pecas && c.status === 'finalizada' && Number(p.quantidade_vencida || 0) > 0 ? `<p>Vencidas: <strong>${Number(p.quantidade_vencida)}</strong> · Baixa efetiva: <strong>${Number(p.quantidade_vencida_baixada || 0)}</strong> · Estoque antes da baixa: <strong>${p.estoque_antes_baixa_vencidos ?? '—'}</strong> · Saldo após a baixa: <strong>${p.estoque_antes_baixa_vencidos == null ? '—' : Number(p.estoque_antes_baixa_vencidos) - Number(p.quantidade_vencida_baixada || 0)}</strong></p>${Number(p.quantidade_vencida) > Number(p.quantidade_vencida_baixada || 0) ? `<p>Não descontadas: <strong>${Number(p.quantidade_vencida) - Number(p.quantidade_vencida_baixada || 0)}</strong></p>` : ''}` : ''}
           </article>`;
         }).join('') + '</div>').join('') || '<p class="consulta-vazio">Nenhum produto registrado nesta contagem.</p>') + '</div>';
   },

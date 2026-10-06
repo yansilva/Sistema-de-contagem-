@@ -67,9 +67,9 @@ describe('Invariantes de Contagem Cega (Blind Count Security)', () => {
       expect(item.estoque_referencia).toBe(42);
     });
 
-    it('Administrador tem acesso a estoque_referencia', () => {
+    it('Administrador só tem acesso a estoque_referencia após finalizar', () => {
       const itemAberto = serializeItem(rawItem, usuarioAdmin, false);
-      expect(itemAberto.estoque_referencia).toBe(42);
+      expect(itemAberto).not.toHaveProperty('estoque_referencia');
 
       const itemFinalizado = serializeItem(rawItem, usuarioAdmin, true);
       expect(itemFinalizado.estoque_referencia).toBe(42);

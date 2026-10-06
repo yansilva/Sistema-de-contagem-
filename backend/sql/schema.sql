@@ -151,6 +151,9 @@ CREATE TABLE IF NOT EXISTS contagem_itens (
   nome VARCHAR(255) NOT NULL,
   estoque_referencia INTEGER DEFAULT 0, -- Snapshot imutável no momento da contagem
   quantidade_contada INTEGER NULL, -- NULL = não contado; 0 = contado zero unidades
+  quantidade_vencida INTEGER NOT NULL DEFAULT 0 CONSTRAINT chk_contagem_itens_quantidade_vencida CHECK (quantidade_vencida >= 0),
+  estoque_antes_baixa_vencidos INTEGER NULL,
+  quantidade_vencida_baixada INTEGER NULL,
   diferenca INTEGER NULL, -- quantidade_contada - estoque_referencia
   situacao VARCHAR(30) NULL, -- 'sem_diferenca', 'sobra', 'falta'
   contado_por UUID REFERENCES usuarios(id) ON DELETE SET NULL,

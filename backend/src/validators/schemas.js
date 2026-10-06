@@ -185,8 +185,9 @@ const salvarProgressoContagemSchema = {
         z.object({
           produto_id: z.string().uuid('ID do produto inválido'),
           // Quantidade física: NULL = ainda não contado; 0 = contado zero unidades
-          quantidade_contada: z.number().int().min(0, 'Quantidade não pode ser negativa').nullable()
-        }).strict()
+          quantidade_contada: z.number().int().min(0, 'Quantidade não pode ser negativa').nullable(),
+          quantidade_vencida: z.number().int().min(0, 'Quantidade vencida não pode ser negativa').optional()
+        }).strict().refine(item => item.quantidade_vencida == null || item.quantidade_vencida === 0 || (item.quantidade_contada !== null && item.quantidade_vencida <= item.quantidade_contada), { message: 'Quantidade vencida deve estar dentro da contagem física', path: ['quantidade_vencida'] })
       )
       .min(1, 'Pelo menos um item deve ser informado.')
   }).strict()

@@ -57,9 +57,10 @@ const Historico = {
       const pecas = c.tipo === 'pecas_queijo';
       const finalizada = c.status === 'finalizada';
       const temDif = !pecas && finalizada && c.tem_diferenca;
+      const totalVencidos = !pecas && finalizada ? Number(c.total_vencidos || 0) : 0;
       const statusIcon = !finalizada ? 'ti-clock' : temDif ? 'ti-alert-triangle' : 'ti-circle-check';
       const statusColor = !finalizada ? 'var(--cor-aviso)' : temDif ? 'var(--cor-perigo)' : 'var(--cor-sucesso)';
-      const statusTexto = pecas ? `Peças de queijo · ${finalizada ? 'Finalizada' : 'Em andamento'}` : !finalizada ? 'Geral · Em andamento' : temDif ? 'Divergências Encontradas' : 'Conciliado 100%';
+      const statusTexto = pecas ? `Peças de queijo · ${finalizada ? 'Finalizada' : 'Em andamento'}` : !finalizada ? 'Geral · Em andamento' : temDif ? 'Divergências Encontradas' : totalVencidos ? 'Contagem conferida com produtos vencidos' : 'Conciliado 100%';
       const badgeClass = !finalizada ? 'badge-warning' : temDif ? 'badge-danger' : 'badge-success';
 
       const fornecedores = Array.isArray(c.fornecedores) ? c.fornecedores : [];
@@ -73,6 +74,7 @@ const Historico = {
               <div class="resumo">
                 Iniciado por: <strong>${escapeHtml(c.iniciado_por_nome || 'Usuário')}</strong> • 
                 <span class="badge ${badgeClass}">${statusTexto}</span>
+                ${totalVencidos ? `<span class="badge badge-warning">${totalVencidos} unidades vencidas</span>` : ''}
               </div>
               <div class="hist-chips">
                 ${fornecedores.map(f => `
@@ -83,7 +85,7 @@ const Historico = {
               </div>
             </div>
             <div class="hist-actions">
-              ${temDif ? `
+              ${temDif || totalVencidos ? `
                 <button class="btn btn-outline btn-sm" title="Baixar relatório Excel"
                         data-click="action-77" data-arg-0="${escapeHtml(c.id)}">
                   <i class="ti ti-file-spreadsheet"></i> Excel
@@ -151,6 +153,7 @@ const Historico = {
                 <div style="display:flex; gap:12px; align-items:center; font-size:.8125rem">
                   ${!pecas && c.status === 'finalizada' ? `<span>Estoque: <strong>${p.estoque_referencia ?? '—'}</strong></span>` : ''}
                   <span>${pecas ? 'Quantidade de peças' : 'Físico'}: <strong>${p.quantidade_contada ?? '—'}</strong></span>
+                  ${!pecas && c.status === 'finalizada' && Number(p.quantidade_vencida || 0) > 0 ? `<span>Vencidas: <strong>${Number(p.quantidade_vencida)}</strong></span><span>Baixa efetiva: <strong>${Number(p.quantidade_vencida_baixada || 0)}</strong></span><span>Estoque antes da baixa: <strong>${p.estoque_antes_baixa_vencidos ?? '—'}</strong></span><span>Saldo após a baixa: <strong>${p.estoque_antes_baixa_vencidos == null ? '—' : Number(p.estoque_antes_baixa_vencidos) - Number(p.quantidade_vencida_baixada || 0)}</strong></span>${Number(p.quantidade_vencida) > Number(p.quantidade_vencida_baixada || 0) ? `<span>Não descontadas: <strong>${Number(p.quantidade_vencida) - Number(p.quantidade_vencida_baixada || 0)}</strong></span>` : ''}` : ''}
                   ${!pecas && c.status === 'finalizada' ? `<span class="badge ${p.diferenca === 0 ? 'badge-neutral' : (p.diferenca > 0 ? 'badge-success' : 'badge-danger')}">
                     ${p.diferenca > 0 ? '+' : ''}${p.diferenca}
                   </span>` : ''}

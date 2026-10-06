@@ -315,7 +315,9 @@ const Contagens = {
       codigo: p.codigo,
       nome: p.nome,
       // Distinção: valor original pode ser null ou número
-      quantidade_contada: p.quantidade_contada !== undefined ? p.quantidade_contada : null
+      quantidade_contada: p.quantidade_contada !== undefined ? p.quantidade_contada : null,
+      quantidade_vencida: Number(p.quantidade_vencida || 0),
+      vencidosAbertos: Number(p.quantidade_vencida || 0) > 0
     }));
 
     this.renderizarItensContagem();
@@ -325,7 +327,7 @@ const Contagens = {
 
   fecharFornecedor() {
     const bloco = document.getElementById('bloco-produtos-contagem');
-    if (bloco?.open) bloco.close();
+    if (bloco?.open && typeof bloco.close === 'function') bloco.close();
   },
 
   /**
@@ -337,13 +339,22 @@ const Contagens = {
     if (!container) return;
 
     container.innerHTML = this.itensFornecedor.map((p, index) => {
-      const valorInput = p.quantidade_contada !== null && p.quantidade_contada !== undefined
-        ? p.quantidade_contada
-        : '';
+      const valorInput = p.fisicoTexto ?? (p.quantidade_contada ?? '');
+      const fisicoInvalido = this.entradasInvalidas.has(index);
 
-      const statusItem = p.quantidade_contada !== null && p.quantidade_contada !== undefined
+      const statusItem = fisicoInvalido ? '<span class="badge badge-danger">Corrigir quantidade</span>' : p.quantidade_contada !== null && p.quantidade_contada !== undefined
         ? `<span class="badge badge-sucesso"><i class="ti ti-check"></i> ${p.quantidade_contada} ${this.tipoAtual === 'pecas_queijo' ? 'peças' : 'un'}</span>`
         : '<span class="badge badge-neutro">Pendente</span>';
+      const vencidos = this.tipoAtual === 'geral' ? `
+        <div class="contagem-vencidos">
+          <button type="button" class="btn btn-ghost btn-sm" data-click="contagem-vencidos-abrir" data-index="${index}" aria-expanded="${Boolean(p.vencidosAbertos)}" aria-controls="contagem-vencidos-campo-${index}">${p.vencidosAbertos ? 'Ocultar vencidos' : 'Informar vencidos'}</button>
+          ${p.quantidade_vencida > 0 ? `<span class="badge badge-warning">${p.quantidade_vencida} vencidas</span>` : ''}
+          <div id="contagem-vencidos-campo-${index}" ${p.vencidosAbertos ? '' : 'hidden'}>
+            <label for="qtd-vencida-${index}">Quantidade vencida</label>
+            <input id="qtd-vencida-${index}" class="input-qtd-vencida" type="number" inputmode="numeric" min="0" step="1" max="${p.quantidade_contada ?? 0}" value="${escapeHtml(p.vencidosTexto ?? p.quantidade_vencida)}" ${this._salvando ? 'disabled' : ''} aria-describedby="erro-vencidos-${index}" aria-invalid="${this.entradasInvalidas.has(`vencidos-${index}`)}" data-input="contagem-vencidos-alterar" data-index="${index}">
+            <small id="erro-vencidos-${index}" class="contagem-vencidos-erro" role="alert">${this.entradasInvalidas.has(`vencidos-${index}`) ? 'Vencidos devem ser inteiros entre zero e a quantidade física contada.' : ''}</small>
+          </div>
+        </div>` : '';
 
       return `
         <div class="produto-item contagem-item" id="item-contagem-${index}" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--cor-borda)">
@@ -356,13 +367,16 @@ const Contagens = {
             <div>${statusItem}</div>
             <div style="width:130px">
               <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">${this.tipoAtual === 'pecas_queijo' ? 'Quantidade de peças:' : 'Qtd Física:'}</label>
-              <input id="qtd-fisica-${index}" type="number" inputmode="numeric" min="0" step="1"
+              <input id="qtd-fisica-${index}" type="text" inputmode="numeric" pattern="[0-9]*"
                      ${this._salvando ? 'disabled' : ''}
                      placeholder="Não contado"
-                     value="${valorInput}"
+                     value="${escapeHtml(valorInput)}"
                      class="input-qtd-fisica"
+                     aria-invalid="${fisicoInvalido}" aria-describedby="erro-fisico-${index}"
                      data-input="action-74" data-arg-0="${escapeHtml(String(index))}">
+              <small id="erro-fisico-${index}" class="contagem-vencidos-erro" role="alert">${fisicoInvalido ? 'Informe uma quantidade inteira maior ou igual a zero.' : ''}</small>
             </div>
+            ${vencidos}
           </div>
         </div>
       `;
@@ -386,14 +400,57 @@ const Contagens = {
     // Um input explícito também confirma recontagem com a mesma quantidade.
     this.itensTocados.add(item.produto_id);
     const limpo = valorStr.trim();
+    item.fisicoTexto = limpo;
     const num = Number(limpo);
-    const valido = limpo === '' || (Number.isSafeInteger(num) && num >= 0);
+    const valido = limpo === '' || (/^\d+$/.test(limpo) && Number.isSafeInteger(num));
     const input = document.getElementById(`qtd-fisica-${index}`);
     input?.setCustomValidity?.(valido ? '' : 'Informe uma quantidade inteira maior ou igual a zero.');
     input?.setAttribute?.('aria-invalid', String(!valido));
+    const erroFisico = document.getElementById(`erro-fisico-${index}`);
+    if (erroFisico) erroFisico.textContent = valido ? '' : 'Informe uma quantidade inteira maior ou igual a zero.';
     if (!valido) { this.entradasInvalidas.add(index); return; }
     this.entradasInvalidas.delete(index);
     item.quantidade_contada = limpo === '' ? null : num;
+    const vencidosInput = document.getElementById(`qtd-vencida-${index}`);
+    if (vencidosInput) vencidosInput.max = String(item.quantidade_contada ?? 0);
+    this.validarVencidos(index);
+  },
+
+  abrirVencidos(index) {
+    if (this.tipoAtual !== 'geral' || !this.itensFornecedor[index]) return;
+    this.itensFornecedor[index].vencidosAbertos = !this.itensFornecedor[index].vencidosAbertos;
+    this.renderizarItensContagem();
+    if (this.itensFornecedor[index].vencidosAbertos) document.getElementById(`qtd-vencida-${index}`)?.focus();
+  },
+
+  atualizarVencidos(index, valorStr) {
+    if (this.tipoAtual !== 'geral' || this._salvando) return;
+    const item = this.itensFornecedor[index];
+    if (!item) return;
+    this.edicaoPendente = true;
+    this.itensTocados.add(item.produto_id);
+    const limpo = valorStr.trim();
+    const valor = Number(limpo);
+    item.vencidosTexto = limpo;
+    item.quantidade_vencida = limpo === '' ? 0 : valor;
+    this.validarVencidos(index, limpo);
+  },
+
+  validarVencidos(index, texto) {
+    const item = this.itensFornecedor[index];
+    if (!item || this.tipoAtual !== 'geral') return true;
+    const valor = item.quantidade_vencida;
+    const digitado = texto === undefined ? item.vencidosTexto : texto;
+    const valido = (digitado === undefined || digitado === '' || /^(0|[1-9]\d*)$/.test(digitado)) && Number.isSafeInteger(valor) && valor >= 0 && (valor === 0 || (item.quantidade_contada !== null && valor <= item.quantidade_contada));
+    const mensagem = valido ? '' : 'Vencidos devem ser inteiros entre zero e a quantidade física contada.';
+    const input = document.getElementById(`qtd-vencida-${index}`);
+    input?.setCustomValidity?.(mensagem);
+    input?.setAttribute?.('aria-invalid', String(!valido));
+    const erro = document.getElementById(`erro-vencidos-${index}`);
+    if (erro) erro.textContent = mensagem;
+    if (valido) this.entradasInvalidas.delete(`vencidos-${index}`);
+    else this.entradasInvalidas.add(`vencidos-${index}`);
+    return valido;
   },
 
   /**
@@ -402,6 +459,7 @@ const Contagens = {
   async salvarProgressoAtual() {
     if (this._salvando) return false;
     if (!this.fornecedorAtual) return false;
+    this.itensFornecedor.forEach((_, index) => this.validarVencidos(index));
     if (this.entradasInvalidas.size) {
       showToast('Informe quantidades inteiras maiores ou iguais a zero.', 'error');
       return false;
@@ -420,7 +478,8 @@ const Contagens = {
       fornecedor: this.fornecedorAtual,
       itens: this.itensFornecedor.filter(p => this.itensTocados.has(p.produto_id)).map((p) => ({
         produto_id: p.produto_id,
-        quantidade_contada: p.quantidade_contada
+        quantidade_contada: p.quantidade_contada,
+        ...(this.tipoAtual === 'geral' ? { quantidade_vencida: p.quantidade_vencida } : {})
       }))
     };
 
@@ -440,10 +499,11 @@ const Contagens = {
       const fornecedor = this.dadosSessao?.fornecedores?.find(f => f.fornecedor === this.fornecedorAtual);
       for (const produto of fornecedor?.produtos || []) {
         const salvo = payload.itens.find(p => p.produto_id === produto.produto_id);
-        if (salvo) produto.quantidade_contada = salvo.quantidade_contada;
+        if (salvo) { produto.quantidade_contada = salvo.quantidade_contada; if (this.tipoAtual === 'geral') produto.quantidade_vencida = salvo.quantidade_vencida; }
       }
       try { await this.carregarDadosContagem(); }
       catch (err) { showToast('Progresso salvo, mas não foi possível atualizar a tela.', 'error'); }
+      this.fecharFornecedor();
       return true;
     } finally {
       this._salvando = false;
@@ -456,7 +516,7 @@ const Contagens = {
   },
 
   bloquearEdicaoDuranteSalvamento(bloquear) {
-    for (const selector of ['.input-qtd-fisica', '.contagem-edicao-acao']) {
+    for (const selector of ['.input-qtd-fisica', '.input-qtd-vencida', '.contagem-vencidos button', '.contagem-edicao-acao']) {
       document.querySelectorAll(selector).forEach(element => { element.disabled = bloquear; });
     }
   },
@@ -530,17 +590,21 @@ const Contagens = {
 
     const pecas = c.tipo === 'pecas_queijo';
     const temDif = !pecas && c.tem_diferenca;
+    const produtos = (c.fornecedores || []).flatMap(f => f.produtos || []);
+    const totalVencidos = pecas ? 0 : produtos.reduce((n, p) => n + Number(p.quantidade_vencida || 0), 0);
+    const totalBaixado = pecas ? 0 : produtos.reduce((n, p) => n + Number(p.quantidade_vencida_baixada || 0), 0);
+    const temVencidos = totalVencidos > 0;
 
     if (cardEl) {
       cardEl.className = `resultado-card ${temDif ? 'erro' : 'sucesso'}`;
       cardEl.innerHTML = pecas ? '<i class="ti ti-package"></i><h2>Peças de queijo</h2><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
         <i class="ti ${temDif ? 'ti-alert-triangle' : 'ti-circle-check'}"></i>
-        <h2>${temDif ? 'Divergências Identificadas' : 'Itens contados sem divergência'}</h2>
+        <h2>${temDif ? 'Divergências Identificadas' : temVencidos ? 'Contagem conferida com produtos vencidos' : 'Itens contados sem divergência'}</h2>
         <p>${temDif
           ? 'Foram identificadas sobras ou faltas físicas em relação ao estoque registrado.'
-          : 'A contagem física conferiu exatamente com o estoque registrado no sistema.'}
+          : temVencidos ? 'A contagem física conferiu, com unidades vencidas registradas.' : 'A contagem física conferiu exatamente com o estoque registrado no sistema.'}
         </p>
-        ${temDif ? `
+        ${temDif || temVencidos ? `
           <button class="btn btn-primary" data-click="action-75" data-arg-0="${escapeHtml(c.id)}">
             <i class="ti ti-file-spreadsheet"></i> Exportar Relatório Excel (.xlsx)
           </button>
@@ -585,6 +649,8 @@ const Contagens = {
           <div class="metrica-valor" style="color:var(--cor-sucesso)">${totalIguais}</div>
           <div class="metrica-label">Sem Diferença</div>
         </div>
+        <div class="metrica"><div class="metrica-valor">${totalVencidos}</div><div class="metrica-label">Unidades vencidas</div></div>
+        ${totalVencidos > totalBaixado ? `<div class="metrica"><div class="metrica-valor">${totalBaixado}</div><div class="metrica-label">Baixa efetiva</div></div><div class="metrica"><div class="metrica-valor">${totalVencidos - totalBaixado}</div><div class="metrica-label">Não descontadas</div></div>` : ''}
       `;
     }
 
@@ -604,6 +670,11 @@ const Contagens = {
           const colunaReferencia = !pecas && c.status === 'finalizada' && p.estoque_referencia !== undefined
             ? `<span>Estoque Ref: <strong>${escapeHtml(p.estoque_referencia)}</strong></span>`
             : '';
+          const vencidas = Number(p.quantidade_vencida || 0);
+          const baixadas = Number(p.quantidade_vencida_baixada || 0);
+          const saldoApos = p.estoque_antes_baixa_vencidos == null ? null : Number(p.estoque_antes_baixa_vencidos) - baixadas;
+          const colunaVencidos = !pecas && c.status === 'finalizada' && vencidas > 0
+            ? `<span>Vencidas: <strong>${vencidas}</strong></span><span>Baixa efetiva: <strong>${baixadas}</strong></span><span>Saldo após a baixa: <strong>${saldoApos ?? '—'}</strong></span>${vencidas > baixadas ? `<span class="badge badge-warning">Baixa limitada: ${vencidas - baixadas} não descontadas</span>` : ''}` : '';
 
           return `
             <div class="resultado-produto" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--cor-borda)">
@@ -615,6 +686,7 @@ const Contagens = {
               <div class="valores" style="display:flex; align-items:center; gap:16px; font-size:0.875rem">
                 ${colunaReferencia}
                 <span>${pecas ? 'Quantidade de peças' : 'Físico Contado'}: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
+                ${colunaVencidos}
                 <div>${badgeSituacao}</div>
               </div>
             </div>

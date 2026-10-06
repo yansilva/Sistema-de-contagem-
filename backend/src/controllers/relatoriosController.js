@@ -31,19 +31,20 @@ async function excelContagem(req, res, next) {
     // Buscar fornecedores e itens com diferença
     const itens = await query(
       `SELECT cf.fornecedor, ci.codigo, ci.nome, ci.estoque_referencia,
-              ci.quantidade_contada, ci.diferenca
+              ci.quantidade_contada, ci.diferenca, ci.quantidade_vencida,
+              ci.estoque_antes_baixa_vencidos, ci.quantidade_vencida_baixada
        FROM contagem_itens ci
        JOIN contagem_fornecedores cf ON cf.id = ci.contagem_fornecedor_id
        WHERE cf.contagem_id = $1
          AND ci.quantidade_contada IS NOT NULL
-         AND ci.diferenca <> 0
+         AND (ci.diferenca <> 0 OR ci.quantidade_vencida > 0)
        ORDER BY cf.fornecedor, ci.codigo`,
       [id]
     );
 
     if (itens.rows.length === 0) {
       throw new ValidationError(
-        'Esta contagem não possui divergências de estoque para exportação.',
+        'Esta contagem não possui divergências nem produtos vencidos para exportação.',
         'SEM_DIFERENCAS'
       );
     }
