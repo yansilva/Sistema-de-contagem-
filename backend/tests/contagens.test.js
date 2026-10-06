@@ -154,7 +154,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(res.body.data.itens_salvos).toBe(1);
   });
 
-  it('inclui produto novo com quantidade vazia sem erro de tipo do PostgreSQL', async () => {
+  it('recusa produto fora do snapshot mesmo com quantidade vazia', async () => {
     const produtoId = '55555555-5555-4555-8555-555555555555';
     const mockClient = {
       query: jest.fn(async sql => {
@@ -187,8 +187,8 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
       .set('Authorization', `Bearer ${funcionarioToken}`)
       .send({ fornecedor: 'Fazenda A', itens: [{ produto_id: produtoId, quantidade_contada: null }] });
 
-    expect(res.statusCode).toBe(200);
-    expect(res.body.data.itens_salvos).toBe(1);
+    expect(res.statusCode).toBe(400);
+    expect(res.body.code).toBe('ITEM_INCOMPATIVEL');
   });
 
   it('GET /api/contagens/:id — Funcionário NUNCA recebe estoque_referencia nem diferenca durante contagem em andamento', async () => {

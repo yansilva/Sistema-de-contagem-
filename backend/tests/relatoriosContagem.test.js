@@ -39,8 +39,9 @@ describe('Excel de diferenças da contagem', () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(res.body);
     const sheet = workbook.worksheets[0];
-    expect(sheet.getRow(1).values).toEqual([undefined, 'Fornecedor', 'Código', 'Produto', 'Estoque de Referência', 'Contagem Física', 'Diferença']);
-    expect(sheet.getRow(2).values).toEqual([undefined, 'Produtor', 'SKU', 'Produto', 15, 12, -3]);
+    expect(sheet.getRow(1).values).toEqual([undefined, 'Fornecedor', 'Código', 'Produto', 'Estoque de Referência', 'Contagem Física', 'Diferença', 'Unidades vencidas', 'Baixa efetiva', 'Estoque antes da baixa', 'Estoque após a baixa', 'Observação']);
+    expect(sheet.getRow(2).getCell(7).value).toBe(0);
+    expect(sheet.getRow(2).getCell(8).value).toBeNull();
     expect(db.query.mock.calls[1][0]).toMatch(/status/);
     expect(db.query.mock.calls[2][0]).toMatch(/quantidade_contada IS NOT NULL/);
   });
@@ -51,6 +52,23 @@ describe('Excel de diferenças da contagem', () => {
       .set('Authorization', `Bearer ${gerarAccessToken(usuario)}`);
     expect(res.status).toBe(400);
     expect(db.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('exporta contagem conferida quando há somente vencidos', async () => {
+    db.query.mockResolvedValueOnce({ rows: [{ id: 'c', tipo: 'geral', status: 'finalizada' }] });
+    db.query.mockResolvedValueOnce({ rows: [{ ...item, diferenca: 0, quantidade_vencida: 4, quantidade_vencida_baixada: 1, estoque_antes_baixa_vencidos: 1 }] });
+    const res = await request(app).get(`/api/relatorios/contagens/${usuario.id}/excel`)
+      .set('Authorization', `Bearer ${gerarAccessToken(usuario)}`)
+      .buffer(true).parse((response, callback) => {
+        const chunks = [];
+        response.on('data', chunk => chunks.push(chunk));
+        response.on('end', () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    expect(db.query.mock.calls[2][0]).toMatch(/ci.diferenca <> 0 OR ci.quantidade_vencida > 0/);
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(res.body);
+    expect(workbook.worksheets[0].getRow(2).getCell(11).value).toMatch(/3/);
   });
 
   it('impede Excel de outra empresa', async () => {

@@ -1,6 +1,6 @@
 ---
 title: Produtos vencidos na contagem geral e baixa de estoque
-status: Aguardando revisão do usuário
+status: Implementado no worktree; sem deploy
 date: 2026-10-05
 ---
 

@@ -336,4 +336,61 @@ integration('Classificação de peças — PostgreSQL isolado', () => {
     }
     const r=await api('get','/api/contagens?tipo=pecas_queijo&status=em_andamento&page=2&limit=1');expect(r.status).toBe(200);expect(r.body.data.contagens).toHaveLength(1);expect(r.body.data.contagens[0]).toMatchObject({tipo:'pecas_queijo',status:'em_andamento'});
   });
+
+  it('baixa vencidos do saldo corrente uma vez e registra limite e auditoria', async () => {
+    const p = await produto('VENCIDOS_CORRENTE', false, 'Vencidos corrente');
+    const id = await iniciar('geral');
+    const salvar = await api('put', `/api/contagens/${id}/salvar-progresso`, { fornecedor: 'Vencidos corrente', itens: [{ produto_id: p.id, quantidade_contada: 17, quantidade_vencida: 4 }] });
+    expect(salvar.status).toBe(200);
+    const aberto = await api('get', `/api/contagens/${id}`);
+    const itemAberto = aberto.body.data.contagem.fornecedores.flatMap(f => f.produtos).find(i => i.produto_id === p.id);
+    expect(itemAberto.quantidade_vencida).toBe(4);
+    expect(itemAberto).not.toHaveProperty('estoque_antes_baixa_vencidos');
+    await mockPool.query("UPDATE produtos SET estoque_atual=1, atualizado_em='2020-01-01' WHERE id=$1", [p.id]);
+    const fim = await api('put', `/api/contagens/${id}/finalizar`);
+    expect(fim.status).toBe(200);
+    expect((await mockPool.query('SELECT estoque_atual FROM produtos WHERE id=$1', [p.id])).rows[0].estoque_atual).toBe(0);
+    expect((await mockPool.query('SELECT atualizado_em FROM produtos WHERE id=$1', [p.id])).rows[0].atualizado_em.getFullYear()).toBeGreaterThan(2020);
+    expect((await itens(id)).find(i => i.produto_id === p.id)).toMatchObject({ quantidade_vencida: 4, estoque_antes_baixa_vencidos: 1, quantidade_vencida_baixada: 1, diferenca: 0 });
+    const finalItem = (await api('get', `/api/contagens/${id}`)).body.data.contagem.fornecedores.flatMap(f => f.produtos).find(i => i.produto_id === p.id);
+    expect(finalItem).toMatchObject({ quantidade_vencida_nao_descontada: 3, estoque_apos_baixa_vencidos: 0 });
+    expect((await api('put', `/api/contagens/${id}/finalizar`)).status).toBe(404);
+    expect((await mockPool.query('SELECT estoque_atual FROM produtos WHERE id=$1', [p.id])).rows[0].estoque_atual).toBe(0);
+    const audit = (await mockPool.query("SELECT dados_novos FROM audit_logs WHERE entidade_id=$1 AND acao='contagem_finalizada'", [id])).rows[0].dados_novos;
+    expect(audit).toMatchObject({ total_vencidos: 4, total_baixado: 1, total_nao_descontado: 3 });
+  });
+
+  it('falha em item posterior reverte baixa anterior e finalização', async () => {
+    const a = await produto('VENCIDOS_ROLLBACK_A', false, 'Vencidos rollback');
+    const b = await produto('VENCIDOS_ROLLBACK_B', false, 'Vencidos rollback');
+    const id = await iniciar('geral');
+    expect((await api('put', `/api/contagens/${id}/salvar-progresso`, { fornecedor: 'Vencidos rollback', itens: [a, b].map(p => ({ produto_id: p.id, quantidade_contada: 17, quantidade_vencida: 2 })) })).status).toBe(200);
+    await mockPool.query('DELETE FROM produtos WHERE id=$1', [b.id]);
+    expect((await api('put', `/api/contagens/${id}/finalizar`)).status).toBe(409);
+    expect((await mockPool.query('SELECT estoque_atual FROM produtos WHERE id=$1', [a.id])).rows[0].estoque_atual).toBe(17);
+    expect((await mockPool.query('SELECT status FROM contagens WHERE id=$1', [id])).rows[0].status).toBe('em_andamento');
+    expect((await itens(id)).filter(i => i.produto_id === a.id).every(i => i.diferenca == null && i.quantidade_vencida_baixada == null)).toBe(true);
+  });
+
+  it('finalizações concorrentes não duplicam a baixa', async () => {
+    const p = await produto('VENCIDOS_CONCORRENTE', false, 'Vencidos concorrente');
+    const id = await iniciar('geral');
+    expect((await api('put', `/api/contagens/${id}/salvar-progresso`, { fornecedor: 'Vencidos concorrente', itens: [{ produto_id: p.id, quantidade_contada: 17, quantidade_vencida: 2 }] })).status).toBe(200);
+    const [a, b] = await Promise.all([api('put', `/api/contagens/${id}/finalizar`), api('put', `/api/contagens/${id}/finalizar`)]);
+    expect([a.status, b.status].sort()).toEqual([200, 404]);
+    expect((await mockPool.query('SELECT estoque_atual FROM produtos WHERE id=$1', [p.id])).rows[0].estoque_atual).toBe(15);
+  });
+
+  it('não baixa produto de outra empresa mesmo se o snapshot for adulterado', async () => {
+    const empresaExterna = (await mockPool.query("INSERT INTO empresas(nome,email_contato) VALUES('Vencidos externa','vencidosexterna@teste.invalid') RETURNING id")).rows[0].id;
+    empresasDaFixture.push(empresaExterna);
+    const externo = await produto('VENCIDOS_EXTERNO', false, 'Vencidos tenant', empresaExterna);
+    const proprio = await produto('VENCIDOS_PROPRIO', false, 'Vencidos tenant');
+    const id = await iniciar('geral');
+    expect((await api('put', `/api/contagens/${id}/salvar-progresso`, { fornecedor: 'Vencidos tenant', itens: [{ produto_id: proprio.id, quantidade_contada: 17, quantidade_vencida: 2 }] })).status).toBe(200);
+    await mockPool.query('UPDATE contagem_itens SET produto_id=$1 WHERE produto_id=$2 AND contagem_fornecedor_id IN (SELECT id FROM contagem_fornecedores WHERE contagem_id=$3)', [externo.id, proprio.id, id]);
+    expect((await api('put', `/api/contagens/${id}/finalizar`)).status).toBe(409);
+    expect((await mockPool.query('SELECT estoque_atual FROM produtos WHERE id=$1', [externo.id])).rows[0].estoque_atual).toBe(17);
+    expect((await mockPool.query('SELECT status FROM contagens WHERE id=$1', [id])).rows[0].status).toBe('em_andamento');
+  });
 });

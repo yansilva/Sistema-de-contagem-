@@ -1649,3 +1649,9 @@
 #screen-importar-estoque .page-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
 
 #stock-pdf-file { max-width: 100%; margin-top: 8px; }
+.contagem-vencidos { display: grid; gap: 4px; min-width: 150px; }
+.contagem-vencidos label { display: block; font-size: .75rem; color: var(--cor-texto-mudo); }
+.contagem-vencidos input { width: 100%; min-height: 38px; }
+.contagem-vencidos-erro { color: var(--cor-perigo); font-size: .75rem; }
+.contagem-vencidos button:focus-visible, .contagem-vencidos input:focus-visible { outline: 2px solid var(--cor-primaria); outline-offset: 2px; }
+@media (max-width: 640px) { .contagem-item { flex-wrap: wrap; gap: 10px; } .contagem-item-controls { flex-wrap: wrap; width: 100%; } }

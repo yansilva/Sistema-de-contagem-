@@ -269,7 +269,10 @@ describe('Área do funcionário de contagem', () => {
                   codigo: 'SKU',
                   quantidade_contada: 0,
                   diferenca: -3,
-                  estoque_referencia: 876543
+                  estoque_referencia: 876543,
+                  quantidade_vencida: 2,
+                  quantidade_vencida_baixada: 1,
+                  estoque_antes_baixa_vencidos: 4
                 },
                 { nome: 'Igual', codigo: 'SKU2', quantidade_contada: 2, diferenca: 0 }
               ]
@@ -286,6 +289,13 @@ describe('Área do funcionário de contagem', () => {
     expect(rendered).toContain('Falta de 3');
     expect(rendered).toContain('Excel');
     expect(rendered).toContain('Estoque de referência: <strong>876543</strong>');
+    expect(rendered).toContain('Estoque antes da baixa: <strong>4</strong>');
+    vm.runInContext(fs.readFileSync(path.join(frontend, 'js', 'historico.js'), 'utf8') + '\nglobalThis.Historico = Historico;', context);
+    elements.set('hist-card-contagem-id', { classList: { contains: () => false, add: jest.fn() } });
+    elements.set('hist-body-contagem-id', { innerHTML: '' });
+    api.get.mockResolvedValueOnce({ success: true, data: { contagem: { id: 'contagem-id', status: 'finalizada', tipo: 'geral', fornecedores: [{ fornecedor: 'Produtor', produtos: [{ nome: 'Produto', codigo: 'SKU', quantidade_contada: 2, quantidade_vencida: 2, quantidade_vencida_baixada: 1, estoque_antes_baixa_vencidos: 4, diferenca: 0 }] }] } } });
+    await context.Historico.toggleDetalhes('contagem-id');
+    expect(elements.get('hist-body-contagem-id').innerHTML).toContain('Estoque antes da baixa: <strong>4</strong>');
     await consulta.baixarExcel('contagem-id');
     expect(api.download).toHaveBeenCalledWith('/relatorios/contagens/contagem-id/excel', expect.stringMatching(/\.xlsx$/));
     consulta.fecharDetalhe();
@@ -329,7 +339,7 @@ describe('Área do funcionário de contagem', () => {
     await context.contagens.salvarProgressoAtual();
     expect(api.put).toHaveBeenCalledWith('/contagens/contagem-teste/salvar-progresso', {
       fornecedor: "D'Água",
-      itens: [{ produto_id: 'produto-id', quantidade_contada: 0 }]
+      itens: [{ produto_id: 'produto-id', quantidade_contada: 0, quantidade_vencida: 0 }]
     });
     expect(elements.get('progresso-contagem-texto').textContent).toBe('1 de 1 produtos contados');
     expect(elements.get('btn-finalizar-contagem').disabled).toBe(false);
@@ -349,6 +359,84 @@ describe('Área do funcionário de contagem', () => {
     expect(context.showToast).not.toHaveBeenCalledWith(
       'Contagem iniciada. Selecione um produtor para contar.', 'info'
     );
+  });
+
+  it('informa vencidos inline, valida o físico e mantém o popup quando o salvamento falha', async () => {
+    const produto = { id: 'item', produto_id: 'produto', codigo: 'SKU', nome: 'Produto', quantidade_contada: 5, quantidade_vencida: 2 };
+    context.contagens.tipoAtual = 'geral';
+    context.contagens.contagemId = 'sessao';
+    context.contagens.dadosSessao = { fornecedores: [{ fornecedor: 'Produtor', produtos: [produto] }] };
+    context.contagens.selecionarFornecedor('Produtor');
+    expect(elements.get('lista-produtos-produtor').innerHTML).toContain('Quantidade vencida');
+    expect(elements.get('lista-produtos-produtor').innerHTML).toContain('value="2"');
+    context.contagens.atualizarQuantidadeItem(0, '1');
+    expect(await context.contagens.salvarProgressoAtual()).toBe(false);
+    expect(api.put).not.toHaveBeenCalled();
+    context.contagens.atualizarQuantidadeItem(0, '5');
+    context.contagens.atualizarVencidos(0, '1.5');
+    expect(await context.contagens.salvarProgressoAtual()).toBe(false);
+    expect(api.put).not.toHaveBeenCalled();
+    context.contagens.atualizarVencidos(0, '2');
+    api.put.mockResolvedValue({ success: false, message: 'Falha' });
+    expect(await context.contagens.salvarProgressoAtual()).toBe(false);
+    expect(elements.get('bloco-produtos-contagem').open).toBe(true);
+    expect(api.put).toHaveBeenCalledWith('/contagens/sessao/salvar-progresso', { fornecedor: 'Produtor', itens: [{ produto_id: 'produto', quantidade_contada: 5, quantidade_vencida: 2 }] });
+  });
+
+  it('preserva o físico inválido e seu erro ao revelar vencidos', async () => {
+    const produto = { id: 'item', produto_id: 'produto', codigo: 'SKU', nome: 'Produto', quantidade_contada: 5, quantidade_vencida: 0 };
+    context.contagens.tipoAtual = 'geral';
+    context.contagens.dadosSessao = { fornecedores: [{ fornecedor: 'Produtor', produtos: [produto] }] };
+    context.contagens.selecionarFornecedor('Produtor');
+    context.contagens.atualizarQuantidadeItem(0, 'texto');
+    context.contagens.abrirVencidos(0);
+    const linha = elements.get('lista-produtos-produtor').innerHTML;
+    expect(linha).toContain('value="texto"');
+    expect(linha).toContain('aria-invalid="true"');
+    expect(linha).toContain('Informe uma quantidade inteira maior ou igual a zero.');
+    expect(await context.contagens.salvarProgressoAtual()).toBe(false);
+    expect(api.put).not.toHaveBeenCalled();
+  });
+
+  it('validação de vencidos não altera a mensagem de erro físico', () => {
+    const produto = { id: 'item', produto_id: 'produto', codigo: 'SKU', nome: 'Produto', quantidade_contada: 5, quantidade_vencida: 0 };
+    context.contagens.tipoAtual = 'geral';
+    context.contagens.dadosSessao = { fornecedores: [{ fornecedor: 'Produtor', produtos: [produto] }] };
+    context.contagens.selecionarFornecedor('Produtor');
+    const erroFisico = { textContent: 'Informe uma quantidade inteira maior ou igual a zero.' };
+    elements.set('erro-fisico-0', erroFisico);
+    context.contagens.atualizarQuantidadeItem(0, 'texto');
+    context.contagens.atualizarVencidos(0, '0');
+    expect(erroFisico.textContent).toBe('Informe uma quantidade inteira maior ou igual a zero.');
+    context.contagens.atualizarQuantidadeItem(0, '5');
+    expect(erroFisico.textContent).toBe('');
+    context.contagens.atualizarVencidos(0, '6');
+    expect(erroFisico.textContent).toBe('');
+  });
+
+  it('exibe vencidos e Excel no resultado sem divergência', async () => {
+    const c = { id: 'sessao', tipo: 'geral', status: 'finalizada', tem_diferenca: false, fornecedores: [{ fornecedor: 'Produtor', produtos: [{ nome: 'Produto', codigo: 'SKU', quantidade_contada: 5, quantidade_vencida: 2, quantidade_vencida_baixada: 1, estoque_antes_baixa_vencidos: 1, diferenca: 0 }] }] };
+    api.get.mockResolvedValue({ success: true, data: { contagem: c } });
+    await context.contagens.exibirResultado(c.id);
+    expect(elements.get('resultado-status-card').innerHTML).toContain('Contagem conferida com produtos vencidos');
+    expect(elements.get('resultado-status-card').innerHTML).toContain('Exportar Relatório Excel');
+    expect(elements.get('resultado-metricas').innerHTML).toContain('Unidades vencidas');
+    expect(elements.get('resultado-divergencias').innerHTML).toContain('Baixa limitada: 1');
+  });
+
+  it('salvamento bem-sucedido aceita diálogo simplificado sem método close', async () => {
+    const dialog = elements.get('bloco-produtos-contagem');
+    dialog.open = true;
+    delete dialog.close;
+    context.contagens.tipoAtual = 'geral';
+    context.contagens.contagemId = 'sessao';
+    context.contagens.fornecedorAtual = 'Produtor';
+    context.contagens.itensFornecedor = [{ produto_id: 'produto', quantidade_contada: 1, quantidade_vencida: 0 }];
+    context.contagens.itensTocados.add('produto');
+    context.contagens.dadosSessao = { fornecedores: [{ fornecedor: 'Produtor', produtos: [{ produto_id: 'produto' }] }] };
+    context.contagens.carregarDadosContagem = jest.fn();
+    api.put.mockResolvedValue({ success: true });
+    expect(await context.contagens.salvarProgressoAtual()).toBe(true);
   });
 
   it('abre a semana para funcionário e administrador e sempre recarrega', () => {

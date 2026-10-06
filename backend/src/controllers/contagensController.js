@@ -157,6 +157,10 @@ async function salvarProgresso(req, res, next) {
 
     const tipo = contagemCheck.rows[0].tipo || 'geral';
 
+    if (tipo === 'pecas_queijo' && itens.some(item => item.quantidade_vencida !== undefined)) {
+      throw new AppError('Produtos vencidos não se aplicam à contagem de peças.', 400, 'ITEM_INCOMPATIVEL');
+    }
+
     // Localizar fornecedor na contagem
     let fornRes = await client.query(
       `SELECT id FROM contagem_fornecedores WHERE contagem_id = $1 AND fornecedor = $2`,
@@ -184,16 +188,18 @@ async function salvarProgresso(req, res, next) {
 
       const upd = await client.query(
         `UPDATE contagem_itens
-         SET quantidade_contada = $1, contado_em = CASE WHEN $1::integer IS NULL THEN NULL ELSE NOW() END
+         SET quantidade_contada = $1, quantidade_vencida = $4, contado_em = CASE WHEN $1::integer IS NULL THEN NULL ELSE NOW() END
          WHERE contagem_fornecedor_id = $2 AND produto_id = $3
          RETURNING id`,
-        [qtd, fornecedorId, item.produto_id]
+        [qtd, fornecedorId, item.produto_id, item.quantidade_vencida || 0]
       );
 
       if (upd.rows.length > 0) {
         itensSalvos++;
       } else {
-        // Se item não estava no snapshot original, busca no catálogo e insere
+        // Item fora do snapshot não pode ser registrado durante a contagem.
+        if (tipo === 'geral') throw new AppError('Produto não pertence ao snapshot da contagem.', 400, 'ITEM_INCOMPATIVEL');
+        // Compatibilidade da modalidade de peças com inclusão dinâmica.
         const prod = await client.query(
           `SELECT id, codigo, nome, estoque_atual FROM produtos
            WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
@@ -362,6 +368,43 @@ async function finalizar(req, res, next) {
       );
     }
 
+    let totalVencidos = 0;
+    let totalBaixado = 0;
+    if (tipo === 'geral') {
+      const vencidosRes = await client.query(
+        `SELECT ci.id, ci.produto_id, ci.quantidade_vencida
+         FROM contagem_itens ci
+         JOIN contagem_fornecedores cf ON cf.id = ci.contagem_fornecedor_id
+         WHERE cf.contagem_id = $1 AND ci.quantidade_contada IS NOT NULL AND ci.quantidade_vencida > 0
+         ORDER BY ci.produto_id`, [id]
+      );
+      for (const item of vencidosRes.rows) {
+        const quantidade = Number(item.quantidade_vencida);
+        const produtoRes = await client.query(
+          'SELECT estoque_atual FROM produtos WHERE id = $1 AND empresa_id = $2 FOR UPDATE',
+          [item.produto_id, req.empresaId]
+        );
+        if (produtoRes.rows.length !== 1 || produtoRes.rows[0].estoque_atual == null) {
+          throw new AppError('Produto sem estoque elegível para baixa.', 409, 'PRODUTO_BAIXA_INDISPONIVEL');
+        }
+        const anterior = Number(produtoRes.rows[0].estoque_atual);
+        const baixada = Math.min(quantidade, Math.max(anterior, 0));
+        const saldo = Math.max(anterior - quantidade, 0);
+        const atualizado = await client.query(
+          'UPDATE produtos SET estoque_atual = $1, atualizado_em = NOW() WHERE id = $2 AND empresa_id = $3 RETURNING id',
+          [saldo, item.produto_id, req.empresaId]
+        );
+        if (atualizado.rows.length !== 1) throw new AppError('Produto sem estoque elegível para baixa.', 409, 'PRODUTO_BAIXA_INDISPONIVEL');
+        const historico = await client.query(
+          'UPDATE contagem_itens SET estoque_antes_baixa_vencidos = $1, quantidade_vencida_baixada = $2 WHERE id = $3 RETURNING id',
+          [anterior, baixada, item.id]
+        );
+        if (historico.rows.length !== 1) throw new AppError('Falha ao registrar baixa de vencidos.', 409, 'BAIXA_INCOMPLETA');
+        totalVencidos += quantidade;
+        totalBaixado += baixada;
+      }
+    }
+
     const fornecedoresComDiferenca = new Set(
       itensRes.rows.filter(item => tipo === 'geral' && Number(item.diferenca) !== 0).map(item => item.contagem_fornecedor_id)
     );
@@ -392,8 +435,8 @@ async function finalizar(req, res, next) {
       acao: 'contagem_finalizada',
       entidade: 'contagem',
       entidadeId: id,
-      dadosNovos: { tipo, tem_diferenca: temDiferencaGlobal, total_itens: itensRes.rows.length, fornecedores_com_diferenca: fornecedoresComDiferenca.size },
-      whitelistCampos: ['tipo', 'tem_diferenca', 'total_itens', 'fornecedores_com_diferenca'],
+      dadosNovos: { tipo, tem_diferenca: temDiferencaGlobal, total_itens: itensRes.rows.length, fornecedores_com_diferenca: fornecedoresComDiferenca.size, total_vencidos: totalVencidos, total_baixado: totalBaixado, total_nao_descontado: totalVencidos - totalBaixado },
+      whitelistCampos: ['tipo', 'tem_diferenca', 'total_itens', 'fornecedores_com_diferenca', 'total_vencidos', 'total_baixado', 'total_nao_descontado'],
       eventoChave: `contagem_finalizada_${id}`
     });
 
@@ -403,7 +446,7 @@ async function finalizar(req, res, next) {
       success: true,
       message: tipo === 'pecas_queijo' ? 'Contagem de peças finalizada com sucesso.' : 'Contagem finalizada com sucesso. Diferenças apuradas.',
       data: {
-        contagem: serializeContagemDetalhe({ ...finalResult.rows[0], tipo }, [], req.usuario)
+        contagem: serializeContagemDetalhe({ ...finalResult.rows[0], tipo, total_vencidos: totalVencidos }, [], req.usuario)
       }
     });
   } catch (err) {
@@ -429,6 +472,7 @@ async function listar(req, res, next) {
     const sql = `
       SELECT c.id, c.tipo, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status,
              u.nome AS iniciado_por_nome,
+             (SELECT COALESCE(SUM(ci.quantidade_vencida), 0) FROM contagem_itens ci JOIN contagem_fornecedores cfv ON cfv.id = ci.contagem_fornecedor_id WHERE cfv.contagem_id = c.id AND ci.quantidade_contada IS NOT NULL) AS total_vencidos,
              COALESCE(
                json_agg(
                  json_build_object(
@@ -508,6 +552,9 @@ async function detalhe(req, res, next) {
                    'nome', ci.nome,
                    'quantidade_contada', ci.quantidade_contada,
                    'contado_em', ci.contado_em,
+                   'quantidade_vencida', ci.quantidade_vencida,
+                   'estoque_antes_baixa_vencidos', ci.estoque_antes_baixa_vencidos,
+                   'quantidade_vencida_baixada', ci.quantidade_vencida_baixada,
                    'estoque_referencia', ci.estoque_referencia,
                    'diferenca', ci.diferenca,
                    'situacao', ci.situacao
