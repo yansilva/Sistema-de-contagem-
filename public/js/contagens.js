@@ -464,7 +464,11 @@ const Contagens = {
       showToast('Informe quantidades inteiras maiores ou iguais a zero.', 'error');
       return false;
     }
-    if (this.itensTocados.size === 0) return true;
+    if (this.itensTocados.size === 0) {
+      showToast('Nenhuma alteração pendente para este produtor.', 'info');
+      this.fecharFornecedor();
+      return true;
+    }
 
     this._salvando = true;
     this.bloquearEdicaoDuranteSalvamento(true);
