@@ -32,7 +32,12 @@ button:focus-visible,
 [data-click]:focus-visible,
 a:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+.table-scroll:focus-visible,
+.saas-table-scroll:focus-visible,
+.audit-table-wrapper:focus-visible,
+.empresas-table-wrapper:focus-visible,
+[tabindex="0"].scroll-region:focus-visible {
   outline: 2px solid var(--cor-primaria);
   outline-offset: 2px;
 }
@@ -215,12 +220,12 @@ input::placeholder {
   border: 1px solid transparent;
 }
 
-.badge-success { background: var(--cor-sucesso-bg); color: var(--cor-sucesso); border-color: var(--cor-sucesso-border); }
-.badge-danger { background: var(--cor-perigo-bg); color: var(--cor-perigo); border-color: var(--cor-perigo-border); }
+.badge-success { background: var(--cor-sucesso-bg); color: var(--cor-sucesso-texto); border-color: var(--cor-sucesso-border); }
+.badge-danger { background: var(--cor-perigo-bg); color: var(--cor-perigo-texto); border-color: var(--cor-perigo-border); }
 .badge-neutral { background: var(--cor-superficie2); color: var(--cor-texto-secundario); border-color: var(--cor-borda); }
 .badge-primary { background: var(--cor-primaria-bg); color: var(--cor-primaria); border-color: var(--cor-borda-forte); }
 .badge-info { background: var(--cor-primaria-bg); color: var(--cor-primaria); border-color: var(--cor-borda-forte); }
-.badge-warning { background: var(--cor-aviso-bg); color: var(--cor-aviso); border-color: var(--cor-aviso-border); }
+.badge-warning { background: var(--cor-aviso-bg); color: var(--cor-aviso-texto); border-color: var(--cor-aviso-border); }
 
 /* ===== CHECKBOX ===== */
 .custom-check {
@@ -283,9 +288,10 @@ input::placeholder {
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
-.toast.success { background: #059669; color: #fff; box-shadow: 0 8px 24px rgba(5, 150, 105, 0.35); }
+.toast.success { background: #047857; color: #fff; box-shadow: 0 8px 24px rgba(4, 120, 87, 0.35); }
 .toast.error { background: #e11d48; color: #fff; box-shadow: 0 8px 24px rgba(225, 29, 72, 0.35); }
 .toast.info { background: var(--gradiente-primario); color: #fff; box-shadow: 0 8px 24px rgba(36, 87, 214, 0.35); }
+.toast.warning { background: #b45309; color: #fff; box-shadow: 0 8px 24px rgba(180, 83, 9, 0.35); }
 
 /* ===== METRICS GRID ===== */
 .metricas-grid {
@@ -358,7 +364,7 @@ select {
 }
 
 /* ===== USER STATUS BADGES ===== */
-.status-ativo { color: var(--cor-sucesso); font-weight: 600; }
+.status-ativo { color: var(--cor-sucesso-texto); font-weight: 600; }
 .status-inativo { color: var(--cor-texto-mudo); }
 
 /* ===== TABLE-LIKE ROWS ===== */
@@ -444,7 +450,7 @@ select {
 
 .item-contagem-cega .item-status.contado {
   background: var(--cor-sucesso-bg);
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
   border: 1px solid var(--cor-sucesso-border);
 }
 
@@ -539,13 +545,13 @@ select {
 
 .badge-audit.sucesso {
   background: var(--cor-sucesso-bg);
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
   border: 1px solid var(--cor-sucesso-border);
 }
 
 .badge-audit.falha {
   background: var(--cor-perigo-bg);
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
   border: 1px solid var(--cor-perigo-border);
 }
 

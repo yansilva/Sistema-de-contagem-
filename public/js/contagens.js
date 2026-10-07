@@ -30,7 +30,7 @@ const Contagens = {
     document.getElementById('contagem-modalidade-titulo').textContent = this.tipoSelecao === 'pecas_queijo' ? 'Peças de queijo' : 'Contagem geral';
     document.getElementById('contagem-modalidade-orientacao').textContent = this.tipoSelecao === 'pecas_queijo'
       ? 'Registre quantidades inteiras de peças. O saldo do ERP em kg não é comparado nesta modalidade.'
-      : 'Conte os produtos gerais com estoque oculto. A comparação aparece após finalizar.';
+      : 'Registre as unidades encontradas sem ver o saldo do sistema. As diferenças aparecem após a finalização.';
     return this.carregarSessoesAbertas(1);
   },
 
@@ -45,11 +45,11 @@ const Contagens = {
       if (!res?.success) throw new Error('carregamento');
       const sessoes = res.data.contagens || [];
       const temProxima = res.data.pagination?.totalPages ? this.paginaSessoes < res.data.pagination.totalPages : sessoes.length === 20;
-      lista.innerHTML = sessoes.map(c => `<article class="consulta-item table-toolbar"><div><strong>${escapeHtml(formatarData(c.iniciado_em))}</strong><p>${escapeHtml(c.iniciado_por_nome || 'Usuário')} · Em andamento</p></div><button class="btn btn-outline" data-click="contagem-continuar" data-id="${escapeHtml(c.id)}">Continuar sessão</button></article>`).join('') || '<p class="consulta-vazio">Nenhuma sessão aberta nesta modalidade. Inicie uma nova contagem.</p>';
+      lista.innerHTML = sessoes.map(c => `<article class="consulta-item table-toolbar"><div><strong>${escapeHtml(formatarData(c.iniciado_em))}</strong><p>${escapeHtml(c.iniciado_por_nome || 'Usuário')} · Em andamento</p></div><button class="btn btn-outline" data-click="contagem-continuar" data-id="${escapeHtml(c.id)}">Retomar contagem</button></article>`).join('') || '<p class="consulta-vazio">Nenhuma sessão aberta nesta modalidade. Você pode iniciar uma nova contagem.</p>';
       lista.innerHTML += `<div class="pagination-controls"><button class="btn btn-outline btn-sm" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes - 1}" ${this.paginaSessoes <= 1 ? 'disabled' : ''}>Anterior</button><span>Página ${this.paginaSessoes}</span><button class="btn btn-outline btn-sm" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes + 1}" ${!temProxima ? 'disabled' : ''}>Próxima</button></div>`;
     } catch (err) {
       if (requisicao !== this.requisicaoSessoes) return;
-      lista.innerHTML = `<p class="consulta-vazio">Não foi possível carregar as sessões.</p><button class="btn btn-outline" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes}">Tentar novamente</button>`;
+      lista.innerHTML = `<p class="consulta-vazio">Não foi possível carregar as sessões abertas.</p><button class="btn btn-outline" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes}">Tentar novamente</button>`;
     }
   },
 
@@ -133,6 +133,11 @@ const Contagens = {
     if (blocoProd?.open) blocoProd.close();
     const progressoTexto = document.getElementById('progresso-contagem-texto');
     if (progressoTexto) progressoTexto.textContent = 'Carregando produtos...';
+    const progressoMedidor = document.getElementById('progresso-contagem-medidor');
+    if (progressoMedidor) {
+      progressoMedidor.removeAttribute('aria-valuenow');
+      progressoMedidor.setAttribute('aria-valuetext', 'Carregando produtos');
+    }
 
     // Feedback visual instantâneo: navega imediatamente e exibe loader
     showScreen('screen-contagem');
@@ -150,7 +155,7 @@ const Contagens = {
     try {
       const res = await API.post('/contagens', { tipo: this.tipoAtual });
       if (!res || !res.success || !res.data?.contagem) {
-        showToast(res?.message || 'Falha ao iniciar contagem no servidor.', 'error');
+        showToast(res?.message || 'Não foi possível iniciar a contagem. Tente novamente.', 'error');
         showScreen('screen-home');
         return;
       }
@@ -161,9 +166,9 @@ const Contagens = {
         return;
       }
 
-      showToast('Contagem iniciada. Selecione um produtor para contar.', 'info');
+      showToast('Contagem iniciada. Escolha um produtor para registrar as quantidades.', 'info');
     } catch (err) {
-      showToast('Erro ao iniciar contagem. Verifique a conexão.', 'error');
+      showToast('Não foi possível iniciar a contagem. Verifique sua conexão e tente novamente.', 'error');
       showScreen('screen-home');
     } finally {
       this._iniciando = false;
@@ -230,11 +235,18 @@ const Contagens = {
     });
 
     const progressoTexto = document.getElementById('progresso-contagem-texto');
+    const progressoMedidor = document.getElementById('progresso-contagem-medidor');
     const progressoBarra = document.getElementById('progresso-contagem-barra');
     const btnFinalizar = document.getElementById('btn-finalizar-contagem');
 
     if (progressoTexto) {
       progressoTexto.textContent = `${totalContados} de ${totalProdutos} produtos contados`;
+    }
+
+    if (progressoMedidor) {
+      progressoMedidor.setAttribute('aria-valuemax', String(Math.max(totalProdutos, 1)));
+      progressoMedidor.setAttribute('aria-valuenow', String(totalContados));
+      progressoMedidor.removeAttribute('aria-valuetext');
     }
 
     if (progressoBarra) {
@@ -261,18 +273,21 @@ const Contagens = {
       const total = f.produtos?.length || 0;
       const contados = f.produtos?.filter((p) => p.quantidade_contada !== null && p.quantidade_contada !== undefined).length || 0;
       const concluido = total > 0 && contados === total;
+      const estado = concluido ? 'is-complete' : (contados > 0 ? 'is-progress' : 'is-pending');
 
       const badge = concluido
-        ? '<span class="badge badge-sucesso"><i class="ti ti-check"></i> Concluído</span>'
-        : (contados > 0 ? `<span class="badge badge-warning">${contados}/${total} contados</span>` : '<span class="badge badge-neutro">Não iniciado</span>');
+        ? '<span class="badge badge-success"><i class="ti ti-check"></i> Concluído</span>'
+        : (contados > 0
+          ? `<span class="badge badge-warning"><i class="ti ti-clock"></i> ${contados}/${total} contados</span>`
+          : '<span class="badge badge-neutral"><i class="ti ti-circle"></i> Não iniciado</span>');
 
       return `
-        <button class="quick-card ${isAtivo ? 'selected' : ''}" style="cursor:pointer; padding:14px; border:2px solid ${isAtivo ? 'var(--cor-primaria)' : 'var(--cor-borda)'}" data-produtor="${escapeHtml(f.fornecedor)}" data-click="action-73">
-          <div style="display:flex; justify-content:space-between; align-items:center">
-            <h4 style="margin:0; font-size:1rem; color:var(--cor-texto)"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
+        <button type="button" class="quick-card contagem-produtor-card ${estado} ${isAtivo ? 'selected' : ''}" data-produtor="${escapeHtml(f.fornecedor)}" data-click="action-73">
+          <div class="contagem-produtor-card__header">
+            <h4 class="contagem-produtor-card__title"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
             ${badge}
           </div>
-          <p style="margin:6px 0 0 0; font-size:0.8rem; color:var(--cor-texto-mutado)">${contados} de ${total} produtos com contagem física registrada</p>
+          <p class="contagem-produtor-card__progress">${contados} de ${total} produtos com contagem física registrada</p>
         </button>
       `;
     }).join('');
@@ -343,8 +358,8 @@ const Contagens = {
       const fisicoInvalido = this.entradasInvalidas.has(index);
 
       const statusItem = fisicoInvalido ? '<span class="badge badge-danger">Corrigir quantidade</span>' : p.quantidade_contada !== null && p.quantidade_contada !== undefined
-        ? `<span class="badge badge-sucesso"><i class="ti ti-check"></i> ${p.quantidade_contada} ${this.tipoAtual === 'pecas_queijo' ? 'peças' : 'un'}</span>`
-        : '<span class="badge badge-neutro">Pendente</span>';
+        ? `<span class="badge badge-success"><i class="ti ti-check"></i> ${p.quantidade_contada} ${this.tipoAtual === 'pecas_queijo' ? 'peças' : 'un'}</span>`
+        : '<span class="badge badge-neutral">Pendente</span>';
       const vencidos = this.tipoAtual === 'geral' ? `
         <div class="contagem-vencidos">
           <button type="button" class="btn btn-ghost btn-sm" data-click="contagem-vencidos-abrir" data-index="${index}" aria-expanded="${Boolean(p.vencidosAbertos)}" aria-controls="contagem-vencidos-campo-${index}">${p.vencidosAbertos ? 'Ocultar vencidos' : 'Informar vencidos'}</button>
@@ -366,13 +381,13 @@ const Contagens = {
           <div class="contagem-item-controls" style="display:flex; align-items:center; gap:12px">
             <div>${statusItem}</div>
             <div style="width:130px">
-              <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">${this.tipoAtual === 'pecas_queijo' ? 'Quantidade de peças:' : 'Qtd Física:'}</label>
+              <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">${this.tipoAtual === 'pecas_queijo' ? 'Peças encontradas' : 'Quantidade física'}</label>
               <input id="qtd-fisica-${index}" type="text" inputmode="numeric" pattern="[0-9]*"
                      ${this._salvando ? 'disabled' : ''}
                      placeholder="Não contado"
                      value="${escapeHtml(valorInput)}"
                      class="input-qtd-fisica"
-                     aria-invalid="${fisicoInvalido}" aria-describedby="erro-fisico-${index}"
+                     aria-invalid="${fisicoInvalido}" aria-describedby="contagem-quantidade-ajuda erro-fisico-${index}"
                      data-input="action-74" data-arg-0="${escapeHtml(String(index))}">
               <small id="erro-fisico-${index}" class="contagem-vencidos-erro" role="alert">${fisicoInvalido ? 'Informe uma quantidade inteira maior ou igual a zero.' : ''}</small>
             </div>
@@ -464,7 +479,11 @@ const Contagens = {
       showToast('Informe quantidades inteiras maiores ou iguais a zero.', 'error');
       return false;
     }
-    if (this.itensTocados.size === 0) return true;
+    if (this.itensTocados.size === 0) {
+      showToast('Não há alterações para salvar. A janela foi fechada.', 'info');
+      this.fecharFornecedor();
+      return true;
+    }
 
     this._salvando = true;
     this.bloquearEdicaoDuranteSalvamento(true);
@@ -488,11 +507,11 @@ const Contagens = {
       try { res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload); }
       catch (err) { res = null; }
       if (!res || !res.success) {
-        showToast(res?.message || 'Erro ao salvar progresso.', 'error');
+        showToast(res?.message || 'Não foi possível salvar as quantidades. Tente novamente.', 'error');
         return false;
       }
 
-      showToast(`Progresso salvo para ${this.fornecedorAtual}!`, 'success');
+      showToast(`Contagem de ${this.fornecedorAtual} salva.`, 'success');
       this.edicaoPendente = false;
       this.itensTocados.clear();
       // O snapshot local também passa a refletir o que o servidor confirmou.
@@ -502,7 +521,7 @@ const Contagens = {
         if (salvo) { produto.quantidade_contada = salvo.quantidade_contada; if (this.tipoAtual === 'geral') produto.quantidade_vencida = salvo.quantidade_vencida; }
       }
       try { await this.carregarDadosContagem(); }
-      catch (err) { showToast('Progresso salvo, mas não foi possível atualizar a tela.', 'error'); }
+      catch (err) { showToast('As quantidades foram salvas, mas a tela não foi atualizada. Reabra a contagem para conferir.', 'error'); }
       this.fecharFornecedor();
       return true;
     } finally {
@@ -510,7 +529,7 @@ const Contagens = {
       this.bloquearEdicaoDuranteSalvamento(false);
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar Progresso Deste Produtor';
+        btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar contagem do produtor';
       }
     }
   },
@@ -538,9 +557,12 @@ const Contagens = {
       });
     });
 
-    let confirmMsg = 'Deseja realmente finalizar esta contagem?';
+    let confirmMsg = 'Finalizar esta contagem? Depois disso, as quantidades não poderão ser alteradas e a comparação com o saldo do sistema será exibida.';
     if (totalNaoContados > 0) {
-      confirmMsg = `Existem ${totalNaoContados} produto(s) ainda não contados. Eles ficarão fora desta apuração.\n\nDeseja finalizar apenas os produtos registrados?`;
+      const pendentes = totalNaoContados === 1
+        ? '1 produto ainda está sem quantidade'
+        : `${totalNaoContados} produtos ainda estão sem quantidade`;
+      confirmMsg = `${pendentes}. ${totalNaoContados === 1 ? 'Ele não entrará' : 'Eles não entrarão'} no resultado desta contagem.\n\nFinalizar somente com os produtos registrados?`;
     }
 
     if (!confirm(confirmMsg)) return;
@@ -548,23 +570,25 @@ const Contagens = {
     const btn = document.getElementById('btn-finalizar-contagem');
     if (btn) {
       btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Finalizando e apurando...';
+      btn.innerHTML = '<span class="spinner"></span> Finalizando e comparando...';
     }
 
     const res = await API.put(`/contagens/${this.contagemId}/finalizar`, {});
 
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-flag-check"></i> Finalizar Contagem';
+      btn.innerHTML = '<i class="ti ti-flag-check"></i> Finalizar e comparar';
     }
 
     if (!res || !res.success) {
-      showToast(res?.message || 'Erro ao finalizar contagem.', 'error');
+      showToast(res?.message || 'Não foi possível finalizar a contagem. Tente novamente.', 'error');
       return;
     }
 
     if (typeof Semana !== 'undefined') Semana.invalidar();
-    showToast(this.tipoAtual === 'pecas_queijo' ? 'Contagem de peças finalizada!' : 'Contagem finalizada! Diferenças calculadas.', 'success');
+    showToast(this.tipoAtual === 'pecas_queijo'
+      ? 'Contagem de peças finalizada. Confira as quantidades registradas.'
+      : 'Contagem finalizada. Confira as diferenças encontradas.', 'success');
     this.exibirResultado(this.contagemId);
   },
 
@@ -599,14 +623,14 @@ const Contagens = {
       cardEl.className = `resultado-card ${temDif ? 'erro' : 'sucesso'}`;
       cardEl.innerHTML = pecas ? '<i class="ti ti-package"></i><h2>Peças de queijo</h2><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
         <i class="ti ${temDif ? 'ti-alert-triangle' : 'ti-circle-check'}"></i>
-        <h2>${temDif ? 'Divergências Identificadas' : temVencidos ? 'Contagem conferida com produtos vencidos' : 'Itens contados sem divergência'}</h2>
+        <h2>${temDif ? 'Há diferenças para conferir' : temVencidos ? 'Contagem conferida com produtos vencidos' : 'Nenhuma diferença encontrada'}</h2>
         <p>${temDif
-          ? 'Foram identificadas sobras ou faltas físicas em relação ao estoque registrado.'
-          : temVencidos ? 'A contagem física conferiu, com unidades vencidas registradas.' : 'A contagem física conferiu exatamente com o estoque registrado no sistema.'}
+          ? 'Algumas quantidades físicas não correspondem ao saldo do sistema. Confira os produtos abaixo.'
+          : temVencidos ? 'As quantidades conferem e as unidades vencidas registradas serão detalhadas abaixo.' : 'Todas as quantidades registradas correspondem ao saldo do sistema.'}
         </p>
         ${temDif || temVencidos ? `
           <button class="btn btn-primary" data-click="action-75" data-arg-0="${escapeHtml(c.id)}">
-            <i class="ti ti-file-spreadsheet"></i> Exportar Relatório Excel (.xlsx)
+            <i class="ti ti-file-spreadsheet"></i> ${temDif ? 'Baixar relatório de diferenças' : 'Baixar relatório da contagem'} (.xlsx)
           </button>
         ` : ''}
       `;
@@ -635,19 +659,19 @@ const Contagens = {
         </div>
         <div class="metrica">
           <div class="metrica-valor">${totalItens}</div>
-          <div class="metrica-label">Itens Contados</div>
+          <div class="metrica-label">Produtos contados</div>
         </div>
         <div class="metrica">
           <div class="metrica-valor" style="color:var(--cor-perigo)">${totalFaltas}</div>
-          <div class="metrica-label">Itens em Falta</div>
+          <div class="metrica-label">Produtos em falta</div>
         </div>
         <div class="metrica">
           <div class="metrica-valor" style="color:var(--cor-aviso)">${totalSobras}</div>
-          <div class="metrica-label">Itens com Sobra</div>
+          <div class="metrica-label">Produtos com sobra</div>
         </div>
         <div class="metrica">
           <div class="metrica-valor" style="color:var(--cor-sucesso)">${totalIguais}</div>
-          <div class="metrica-label">Sem Diferença</div>
+          <div class="metrica-label">Sem diferença</div>
         </div>
         <div class="metrica"><div class="metrica-valor">${totalVencidos}</div><div class="metrica-label">Unidades vencidas</div></div>
         ${totalVencidos > totalBaixado ? `<div class="metrica"><div class="metrica-valor">${totalBaixado}</div><div class="metrica-label">Baixa efetiva</div></div><div class="metrica"><div class="metrica-valor">${totalVencidos - totalBaixado}</div><div class="metrica-label">Não descontadas</div></div>` : ''}
@@ -660,7 +684,7 @@ const Contagens = {
         const produtosHtml = (f.produtos || []).map((p) => {
           let badgeSituacao;
           if (pecas) { badgeSituacao = ''; } else if (p.diferenca === 0 || p.situacao === 'sem_diferenca') {
-            badgeSituacao = '<span class="badge badge-sucesso"><i class="ti ti-check"></i> Sem diferença</span>';
+            badgeSituacao = '<span class="badge badge-success"><i class="ti ti-check"></i> Sem diferença</span>';
           } else if (p.diferenca > 0 || p.situacao === 'sobra') {
             badgeSituacao = `<span class="badge badge-warning"><i class="ti ti-arrow-up"></i> Sobra de ${p.diferenca} un</span>`;
           } else {
@@ -668,7 +692,7 @@ const Contagens = {
           }
 
           const colunaReferencia = !pecas && c.status === 'finalizada' && p.estoque_referencia !== undefined
-            ? `<span>Estoque Ref: <strong>${escapeHtml(p.estoque_referencia)}</strong></span>`
+            ? `<span>Saldo de referência: <strong>${escapeHtml(p.estoque_referencia)}</strong></span>`
             : '';
           const vencidas = Number(p.quantidade_vencida || 0);
           const baixadas = Number(p.quantidade_vencida_baixada || 0);
@@ -685,7 +709,7 @@ const Contagens = {
 
               <div class="valores" style="display:flex; align-items:center; gap:16px; font-size:0.875rem">
                 ${colunaReferencia}
-                <span>${pecas ? 'Quantidade de peças' : 'Físico Contado'}: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
+                <span>${pecas ? 'Quantidade de peças' : 'Quantidade física'}: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
                 ${colunaVencidos}
                 <div>${badgeSituacao}</div>
               </div>

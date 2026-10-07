@@ -130,7 +130,7 @@
 .login-layout .auth-logo { margin-left: 0; }
 
 .auth-error {
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
   font-size: .85rem;
   font-weight: 500;
   text-align: center;
@@ -264,6 +264,16 @@
   overflow: hidden;
 }
 
+button.kpi-card {
+  width: 100%;
+  color: var(--cor-texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.kpi-card .kpi-value { display: block; }
+
 .kpi-card::before {
   content: '';
   position: absolute;
@@ -335,7 +345,7 @@
 }
 
 .kpi-value.status-text span {
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
 }
 
 .kpi-badge {
@@ -350,7 +360,7 @@
 
 .kpi-badge.positive {
   background: var(--cor-sucesso-bg);
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
 }
 
 .kpi-badge.neutral {
@@ -360,7 +370,7 @@
 
 .kpi-badge.warning {
   background: var(--cor-aviso-bg);
-  color: var(--cor-aviso);
+  color: var(--cor-aviso-texto);
 }
 
 /* RECONCILIATION PANEL */
@@ -467,6 +477,53 @@
 }
 
 #lista-produtores-cards .quick-card h4 { color: inherit; }
+
+#lista-produtores-cards .contagem-produtor-card {
+  --contagem-borda: var(--cor-borda);
+  padding: 14px;
+  border-color: var(--contagem-borda);
+  cursor: pointer;
+}
+
+#lista-produtores-cards .contagem-produtor-card.is-complete {
+  --contagem-borda: var(--cor-sucesso-border);
+  background: var(--cor-sucesso-bg);
+}
+
+#lista-produtores-cards .contagem-produtor-card.is-progress {
+  --contagem-borda: var(--cor-aviso-border);
+  background: var(--cor-aviso-bg);
+}
+
+#lista-produtores-cards .contagem-produtor-card.selected {
+  --contagem-borda: var(--cor-primaria);
+  background: var(--cor-primaria-bg);
+}
+
+#lista-produtores-cards .contagem-produtor-card:hover {
+  border-color: var(--contagem-borda);
+}
+
+.contagem-produtor-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.contagem-produtor-card__title {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+#lista-produtores-cards .contagem-produtor-card__progress {
+  margin: 6px 0 0;
+  color: var(--cor-texto-secundario);
+  font-size: .8rem;
+}
 
 .quick-card p {
   font-size: 0.875rem;
@@ -703,11 +760,11 @@
 }
 
 .resultado-card.sucesso i {
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
 }
 
 .resultado-card.erro i {
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
 }
 
 .resultado-card h2 {
@@ -718,11 +775,11 @@
 }
 
 .resultado-card.sucesso h2 {
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
 }
 
 .resultado-card.erro h2 {
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
 }
 
 .resultado-card p {
@@ -796,17 +853,30 @@
   transition: box-shadow var(--transicao);
 }
 
-.hist-card:hover {
-  box-shadow: var(--sombra-md);
-}
+.hist-card:hover { box-shadow: none; }
 
 .hist-card-header {
   padding: 16px;
   display: flex;
   align-items: center;
   gap: 12px;
-  cursor: pointer;
   user-select: none;
+}
+
+.hist-card-toggle {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  gap: 12px;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .hist-card-header i.status-icon {
@@ -818,11 +888,13 @@
 }
 
 .hist-card-info .data {
+  display: block;
   font-weight: 700;
   font-size: .95rem;
 }
 
 .hist-card-info .resumo {
+  display: block;
   font-size: .8125rem;
   color: var(--cor-texto-secundario);
 }
@@ -934,12 +1006,12 @@
 
 .msg-feedback.success {
   background: var(--cor-sucesso-bg);
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
 }
 
 .msg-feedback.error {
   background: var(--cor-perigo-bg);
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
 }
 
 /* ===== ÁREA DO FUNCIONÁRIO ===== */
@@ -1088,7 +1160,7 @@
 
 .badge-plano-ativo {
   background: var(--cor-sucesso-bg);
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
   border: 1px solid var(--cor-sucesso-border);
   font-weight: 600;
   padding: 3px 8px;
@@ -1098,7 +1170,7 @@
 
 .badge-plano-trial {
   background: var(--cor-aviso-bg);
-  color: var(--cor-aviso);
+  color: var(--cor-aviso-texto);
   border: 1px solid var(--cor-aviso-border);
   font-weight: 600;
   padding: 3px 8px;
@@ -1108,7 +1180,7 @@
 
 .badge-plano-suspenso {
   background: var(--cor-perigo-bg);
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
   border: 1px solid var(--cor-perigo-border);
   font-weight: 600;
   padding: 3px 8px;
@@ -1124,7 +1196,7 @@
 }
 
 .empresas-trial-info.expirado {
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
   font-weight: 600;
 }
 
@@ -1181,13 +1253,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-  .btn:active:not(:disabled), .btn-theme:active,
-  .kpi-card[data-click]:active, .quick-card[data-click]:active { transform: none; }
+  .semana-card:hover, .semana-card:active,
+  .semana-filtro:active, .semana-card-acao:active { transform: none; }
 }
 
 
@@ -1258,13 +1325,13 @@
 
 .divergencia-alert-content i {
   font-size: 1.6rem;
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
 }
 
 .divergencia-alert-title {
   font-weight: 700;
   font-size: 0.95rem;
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
   margin-bottom: 2px;
 }
 
@@ -1414,9 +1481,20 @@
   transform: scale(0.98);
 }
 
-.func-quick-search-box {
+.func-quick-search-group {
   max-width: 540px;
   margin: 20px 0 0;
+}
+
+.func-quick-search-group > label {
+  display: block;
+  margin-bottom: 6px;
+  color: #fff;
+  font-size: .85rem;
+  font-weight: 700;
+}
+
+.func-quick-search-box {
   position: relative;
 }
 
@@ -1520,7 +1598,7 @@
   align-items: center;
   gap: 6px;
   font-weight: 700;
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
 }
 
 .saas-status-dot {
@@ -1556,6 +1634,7 @@
 
 .contagem-dialog-header h3 { margin: 4px 0 0; overflow-wrap: anywhere; }
 .contagem-dialog-eyebrow { color: var(--cor-primaria); font-size: .78rem; font-weight: 700; }
+.contagem-dialog-instruction { margin: 14px 0 8px; color: var(--cor-texto-secundario); font-size: .875rem; }
 .contagem-dialog-lista { max-height: min(480px, calc(100dvh - 220px)); overflow-y: auto; }
 .contagem-dialog #btn-salvar-progresso-produtor { margin-top: 18px; }
 
@@ -1614,8 +1693,7 @@
 .semana-card--parcial { --semana-acento:var(--cor-aviso); }
 .semana-card--pendente { --semana-acento:var(--cor-texto-mudo); }
 .semana-card:hover { transform:translateY(-2px); box-shadow:var(--sombra-md); }
-.semana-card-corpo { cursor:pointer; padding-top:1px; }
-.semana-card-corpo:hover { background:var(--cor-primaria-bg); }
+.semana-card-corpo { padding-top:1px; }
 .semana-card-top,.semana-card h3,.semana-card-progresso,.semana-card-barra { margin-left:18px; margin-right:18px; }
 .semana-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:16px; }
 .semana-card-ordinal { color:var(--cor-texto-mudo); font-size:.72rem; font-weight:800; letter-spacing:.12em; }

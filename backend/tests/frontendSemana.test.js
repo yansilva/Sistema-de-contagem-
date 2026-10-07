@@ -109,14 +109,16 @@ describe('Cobertura semanal operacional', () => {
     expect(elements.get('semana-detalhe-0').innerHTML).toBe('');
   });
 
-  it('abre as pendências ao tocar o corpo do cartão do produtor', async () => {
+  it('abre as pendências somente pelo botão acessível do cartão', async () => {
     context.API.get.mockResolvedValue({ success: true, data: dados() });
     await semana.carregar();
-    const corpo = elements.get('semana-grade').innerHTML.match(/<div[^>]*data-click="semana-produtor-card"[^>]*>/)?.[0];
-    expect(corpo).toBeDefined();
-    dispatch('click', corpo);
+    const html = elements.get('semana-grade').innerHTML;
+    expect(html).not.toContain('data-click="semana-produtor-card"');
+    const botao = html.match(/<button[^>]*data-click="semana-produtor"[^>]*>/)?.[0];
+    expect(botao).toBeDefined();
+    dispatch('click', botao);
     expect(elements.get('semana-detalhe-0').innerHTML).toContain('SKU0');
-    dispatch('click', corpo);
+    dispatch('click', botao);
     expect(elements.get('semana-detalhe-0').innerHTML).toBe('');
   });
 

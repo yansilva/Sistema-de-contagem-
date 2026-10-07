@@ -67,23 +67,26 @@ const Historico = {
 
       return `
         <div class="hist-card" id="hist-card-${escapeHtml(c.id)}">
-          <div class="hist-card-header" data-click="action-76" data-arg-0="${escapeHtml(c.id)}">
+          <div class="hist-card-header">
             <i class="ti ${statusIcon} status-icon" style="color:${statusColor}"></i>
-            <div class="hist-card-info">
-              <div class="data">${dataFormatada}</div>
-              <div class="resumo">
+            <button type="button" class="hist-card-toggle" id="hist-toggle-${escapeHtml(c.id)}" data-click="action-76" data-arg-0="${escapeHtml(c.id)}" aria-expanded="false" aria-controls="hist-body-${escapeHtml(c.id)}">
+              <span class="hist-card-info">
+              <span class="data">${dataFormatada}</span>
+              <span class="resumo">
                 Iniciado por: <strong>${escapeHtml(c.iniciado_por_nome || 'Usuário')}</strong> • 
                 <span class="badge ${badgeClass}">${statusTexto}</span>
                 ${totalVencidos ? `<span class="badge badge-warning">${totalVencidos} unidades vencidas</span>` : ''}
-              </div>
-              <div class="hist-chips">
+              </span>
+              <span class="hist-chips">
                 ${fornecedores.map(f => `
                   <span class="hist-chip">
                     ${escapeHtml(f.fornecedor)} ${pecas || c.status !== 'finalizada' ? '' : f.tem_diferenca ? '⚠️' : '✓'}
                   </span>
                 `).join('')}
-              </div>
-            </div>
+              </span>
+              </span>
+              <i class="ti ti-chevron-down hist-chevron" aria-hidden="true"></i>
+            </button>
             <div class="hist-actions">
               ${temDif || totalVencidos ? `
                 <button class="btn btn-outline btn-sm" title="Baixar relatório Excel"
@@ -91,10 +94,9 @@ const Historico = {
                   <i class="ti ti-file-spreadsheet"></i> Excel
                 </button>
               ` : ''}
-              <i class="ti ti-chevron-down hist-chevron"></i>
             </div>
           </div>
-          <div class="hist-card-body" id="hist-body-${escapeHtml(c.id)}">
+          <div class="hist-card-body" id="hist-body-${escapeHtml(c.id)}" aria-labelledby="hist-toggle-${escapeHtml(c.id)}" hidden>
             <div style="padding:12px 0; color:var(--cor-texto-mudo); text-align:center">
               <span class="spinner"></span> Carregando detalhes dos itens...
             </div>
@@ -113,14 +115,20 @@ const Historico = {
     if (!card || !body) return;
 
     const expandido = card.classList.contains('expanded');
+    const toggle = card.querySelector?.('.hist-card-toggle');
 
     if (expandido) {
       card.classList.remove('expanded');
+      body.hidden = true;
+      toggle?.setAttribute('aria-expanded', 'false');
     } else {
       card.classList.add('expanded');
+      body.hidden = false;
+      toggle?.setAttribute('aria-expanded', 'true');
 
       // Buscar detalhes completos no backend
       const res = await API.get(`/contagens/${id}`);
+      if (body.hidden) return;
       if (!res || !res.success || !res.data?.contagem) {
         body.innerHTML = '<div style="padding:10px; color:var(--cor-perigo)">Erro ao carregar itens da contagem.</div>';
         return;

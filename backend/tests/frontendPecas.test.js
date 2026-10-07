@@ -31,7 +31,7 @@ describe('Modalidade de peças', () => {
           remove: (c) => classes.delete(c),
           contains: (c) => classes.has(c)
         },
-        scrollIntoView: jest.fn(), focus: jest.fn(), setAttribute: jest.fn(),
+        scrollIntoView: jest.fn(), focus: jest.fn(), setAttribute: jest.fn(), removeAttribute: jest.fn(),
         open: false,
         showModal: jest.fn(function () { this.open = true; }),
         close: jest.fn(function () { this.open = false; })
@@ -112,15 +112,24 @@ describe('Modalidade de peças', () => {
       return { success: true };
     });
     await context.contagens.continuarSessao(c.id);
+    expect(elements.get('screen-contagem').classes.has('active')).toBe(true);
     context.contagens.selecionarFornecedor('Produtor');
     context.contagens.atualizarQuantidadeItem(1, '0');
     await context.contagens.salvarProgressoAtual();
+    expect(elements.get('bloco-produtos-contagem').open).toBe(false);
+    expect(context.showToast).toHaveBeenCalledWith('Contagem de Produtor salva.', 'success');
     expect(api.put).toHaveBeenLastCalledWith('/contagens/pecas/salvar-progresso', {
       fornecedor: 'Produtor', itens: [{ produto_id: 'novo', quantidade_contada: 0 }]
     });
     api.put.mockClear();
+    context.contagens.selecionarFornecedor('Produtor');
+    const modal = elements.get('bloco-produtos-contagem');
+    const closesBeforeNoop = modal.close.mock.calls.length;
     await context.contagens.salvarProgressoAtual();
     expect(api.put).not.toHaveBeenCalled();
+    expect(modal.close).toHaveBeenCalledTimes(closesBeforeNoop + 1);
+    expect(modal.open).toBe(false);
+    expect(context.showToast).toHaveBeenCalledWith('Não há alterações para salvar. A janela foi fechada.', 'info');
     context.contagens.atualizarQuantidadeItem(0, '5');
     context.contagens.atualizarQuantidadeItem(2, '');
     await context.contagens.salvarProgressoAtual();
@@ -139,7 +148,9 @@ describe('Modalidade de peças', () => {
     context.contagens.selecionarFornecedor('Produtor');
     context.contagens.atualizarQuantidadeItem(0, '0');
     api.put.mockResolvedValueOnce({ success: false });
+    expect(elements.get('bloco-produtos-contagem').open).toBe(true);
     expect(await context.contagens.salvarProgressoAtual()).toBe(false);
+    expect(elements.get('bloco-produtos-contagem').open).toBe(true);
     context.contagens.protegerEdicao(() => {});
     await context.contagens.resolverEdicao('cancelar');
     api.put.mockResolvedValueOnce({ success: true });
@@ -153,6 +164,21 @@ describe('Modalidade de peças', () => {
     api.put.mockClear();
     await context.contagens.salvarProgressoAtual();
     expect(api.put).not.toHaveBeenCalled();
+  });
+  it('fecha o produtor após PUT confirmado mesmo se a recarga da sessão falhar', async () => {
+    const c = session();
+    api.get.mockResolvedValueOnce({ success: true, data: { contagem: c } })
+      .mockRejectedValueOnce(new Error('offline'));
+    api.put.mockResolvedValue({ success: true });
+    await context.contagens.continuarSessao(c.id);
+    context.contagens.selecionarFornecedor('Produtor');
+    context.contagens.atualizarQuantidadeItem(0, '0');
+
+    expect(await context.contagens.salvarProgressoAtual()).toBe(true);
+
+    expect(elements.get('bloco-produtos-contagem').open).toBe(false);
+    expect(context.showToast).toHaveBeenCalledWith('Contagem de Produtor salva.', 'success');
+    expect(context.showToast).toHaveBeenCalledWith('As quantidades foram salvas, mas a tela não foi atualizada. Reabra a contagem para conferir.', 'error');
   });
   it.each(['em_andamento', 'finalizada'])('admin distingue peças %s em cartão, detalhe e recentes', async status => {
     auth.usuario.papel = 'administrador';

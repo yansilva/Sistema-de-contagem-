@@ -112,8 +112,8 @@ const StockImport = {
     const rowsAtualizacao = produtos_para_atualizar.map((p) => {
       const diff = admin ? p.estoque_novo - p.estoque_anterior : 0;
       const diffBadge = diff > 0
-        ? `<span class="badge badge-sucesso">+${diff}</span>`
-        : (diff < 0 ? `<span class="badge badge-danger">${diff}</span>` : '<span class="badge badge-neutro">0</span>');
+        ? `<span class="badge badge-success">+${diff}</span>`
+        : (diff < 0 ? `<span class="badge badge-danger">${diff}</span>` : '<span class="badge badge-neutral">0</span>');
 
       return `
         <tr>
@@ -349,7 +349,7 @@ const StockImport = {
                 Importado em ${dataFormatada} por <strong>${escapeHtml(h.usuario_nome || 'Usuário')}</strong>
               </div>
             </div>
-            <span class="badge badge-sucesso"><i class="ti ti-check"></i> ${escapeHtml(h.status)}</span>
+            <span class="badge badge-success"><i class="ti ti-check"></i> ${escapeHtml(h.status)}</span>
           </div>
 
           <div style="display:flex; gap:16px; margin-top:12px; font-size:0.875rem; color:var(--cor-texto)">

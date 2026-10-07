@@ -185,6 +185,17 @@
   overflow: hidden;
 }
 
+button.saas-kpi-card {
+  width: 100%;
+  color: var(--cor-texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+button.saas-kpi-card .saas-kpi-val,
+button.saas-kpi-card .saas-kpi-sub { display: block; }
+
 .saas-mobile-nav { display: none; }
 .saas-kpi-card::before {
   content: '';
@@ -380,21 +391,21 @@
   border-radius: 50%;
 }
 
-.status-pill.active {
-  background: rgba(16, 185, 129, 0.12);
-  color: #059669;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+.status-pill.active, .status-pill.ativa {
+  background: var(--cor-sucesso-bg);
+  color: var(--cor-sucesso-texto);
+  border: 1px solid var(--cor-sucesso-border);
 }
 
-.status-pill.active .status-dot {
+.status-pill.active .status-dot, .status-pill.ativa .status-dot {
   background: #10b981;
   box-shadow: 0 0 6px #10b981;
 }
 
 .status-pill.trial {
-  background: rgba(245, 158, 11, 0.12);
-  color: #d97706;
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: var(--cor-aviso-bg);
+  color: var(--cor-aviso-texto);
+  border: 1px solid var(--cor-aviso-border);
 }
 
 .status-pill.trial .status-dot {
@@ -402,9 +413,9 @@
 }
 
 .status-pill.suspended {
-  background: rgba(239, 68, 68, 0.12);
-  color: #dc2626;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo-texto);
+  border: 1px solid var(--cor-perigo-border);
 }
 
 .status-pill.suspended .status-dot {
@@ -488,7 +499,7 @@
 }
 
 .saas-dropdown-item.danger {
-  color: var(--cor-perigo);
+  color: var(--cor-perigo-texto);
 }
 
 .saas-dropdown-item.danger:hover {
@@ -932,7 +943,7 @@
 .saas-company-link { display: block; border: 0; background: transparent; color: var(--cor-texto); font: inherit; font-weight: 700; padding: 0; cursor: pointer; text-align: left; }
 .saas-company-link:hover, .saas-company-link:focus-visible { color: var(--cor-primaria); text-decoration: underline; }
 .saas-table td small { display: block; margin-top: 3px; color: var(--cor-texto-mudo); }
-.status-pill.inativa, .status-pill.excluida { color: var(--cor-perigo); background: color-mix(in srgb, var(--cor-perigo) 12%, transparent); }
+.status-pill.inativa, .status-pill.excluida { color: var(--cor-perigo-texto); background: var(--cor-perigo-bg); border-color: var(--cor-perigo-border); }
 .saas-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; color: var(--cor-texto-secundario); font-size: .85rem; }
 .empresa-detail-header { display: grid; gap: 16px; margin-bottom: 20px; }
 .empresa-detail-title, .empresa-detail-actions, .empresa-detail-tabs, .audit-readonly-note { display: flex; align-items: center; gap: 10px; }
@@ -978,5 +989,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .saas-dropdown-menu, .impersonation-pulse { animation: none !important; }
+  .slide-over-drawer { transition: none; }
+  @keyframes saasMenuIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideDownBar { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes pulseDot { 0%, 50%, 100% { opacity: 1; } }
 }

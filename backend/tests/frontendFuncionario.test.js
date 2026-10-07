@@ -33,6 +33,7 @@ describe('Área do funcionário de contagem', () => {
         },
         scrollIntoView: jest.fn(),
         setAttribute: jest.fn(),
+        removeAttribute: jest.fn(),
         focus: jest.fn(),
         open: false,
         showModal: jest.fn(function () { this.open = true; }),
@@ -233,6 +234,19 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('consulta-catalogo-proxima').disabled).toBe(false);
   });
 
+  it('leva a busca rápida da home ao catálogo com o termo digitado', async () => {
+    const input = html.match(/<input[^>]*id="busca-rapida-func"[^>]*>/)[0]
+      .replace('>', ' value="Queijo azul">');
+
+    dispatch('input', input);
+    await Promise.resolve();
+
+    expect(elements.get('screen-catalogo').classes.has('active')).toBe(true);
+    expect(consulta.buscaCatalogo).toBe('Queijo azul');
+    expect(elements.get('consulta-catalogo-busca').value).toBe('Queijo azul');
+    expect(api.get).toHaveBeenCalledWith(expect.stringContaining('search=Queijo+azul'));
+  });
+
   it('filtra produtores e abre catálogo por produtor sem montar código a partir do nome', async () => {
     api.get.mockResolvedValueOnce({ success: true, data: { fornecedores: ["D'Água", 'Outro'] } });
     await consulta.carregarProdutores();
@@ -302,6 +316,32 @@ describe('Área do funcionário de contagem', () => {
     expect(dialog.close).toHaveBeenCalledTimes(1);
   });
 
+  it('distingue produtores concluídos, em andamento e pendentes sem depender só da cor', () => {
+    context.contagens.dadosSessao = {
+      fornecedores: [
+        {
+          fornecedor: 'Concluído',
+          produtos: [{ quantidade_contada: 2 }]
+        },
+        {
+          fornecedor: 'Em andamento',
+          produtos: [{ quantidade_contada: 1 }, { quantidade_contada: null }]
+        },
+        {
+          fornecedor: 'Pendente',
+          produtos: [{ quantidade_contada: null }]
+        }
+      ]
+    };
+
+    context.contagens.renderizarListaProdutores();
+    const rendered = elements.get('lista-produtores-cards').innerHTML;
+
+    expect(rendered).toMatch(/contagem-produtor-card is-complete[\s\S]*badge-success[\s\S]*ti-check[\s\S]*Concluído/);
+    expect(rendered).toMatch(/contagem-produtor-card is-progress[\s\S]*badge-warning[\s\S]*ti-clock[\s\S]*1\/2 contados/);
+    expect(rendered).toMatch(/contagem-produtor-card is-pending[\s\S]*badge-neutral[\s\S]*ti-circle[\s\S]*Não iniciado/);
+  });
+
   it('inicia a contagem pelo botão central, seleciona produtor e salva zero sem expor saldo', async () => {
     const c = {
       id: 'contagem-teste',
@@ -341,11 +381,11 @@ describe('Área do funcionário de contagem', () => {
       fornecedor: "D'Água",
       itens: [{ produto_id: 'produto-id', quantidade_contada: 0, quantidade_vencida: 0 }]
     });
+    expect(elements.get('bloco-produtos-contagem').open).toBe(false);
+    expect(context.showToast).toHaveBeenCalledWith('Contagem de D\'Água salva.', 'success');
     expect(elements.get('progresso-contagem-texto').textContent).toBe('1 de 1 produtos contados');
     expect(elements.get('btn-finalizar-contagem').disabled).toBe(false);
-    expect(elements.get('bloco-produtos-contagem').showModal).toHaveBeenCalledTimes(1);
-    context.contagens.fecharFornecedor();
-    expect(elements.get('bloco-produtos-contagem').open).toBe(false);
+    expect(elements.get('bloco-produtos-contagem').close).toHaveBeenCalledTimes(1);
   });
 
   it('não anuncia contagem pronta quando os produtos não carregam', async () => {
@@ -357,7 +397,7 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('screen-home').classes.has('active')).toBe(true);
     expect(context.showToast).toHaveBeenCalledWith('Falha ao buscar produtos', 'error');
     expect(context.showToast).not.toHaveBeenCalledWith(
-      'Contagem iniciada. Selecione um produtor para contar.', 'info'
+      'Contagem iniciada. Escolha um produtor para registrar as quantidades.', 'info'
     );
   });
 
@@ -419,7 +459,7 @@ describe('Área do funcionário de contagem', () => {
     api.get.mockResolvedValue({ success: true, data: { contagem: c } });
     await context.contagens.exibirResultado(c.id);
     expect(elements.get('resultado-status-card').innerHTML).toContain('Contagem conferida com produtos vencidos');
-    expect(elements.get('resultado-status-card').innerHTML).toContain('Exportar Relatório Excel');
+    expect(elements.get('resultado-status-card').innerHTML).toContain('Baixar relatório da contagem');
     expect(elements.get('resultado-metricas').innerHTML).toContain('Unidades vencidas');
     expect(elements.get('resultado-divergencias').innerHTML).toContain('Baixa limitada: 1');
   });
@@ -492,12 +532,12 @@ describe('Área do funcionário de contagem', () => {
     api.get.mockResolvedValue({ success: true, data: { contagem: c } });
 
     await context.contagens.finalizarSessao();
-    expect(context.confirm).toHaveBeenCalledWith(expect.stringContaining('ficarão fora desta apuração'));
+    expect(context.confirm).toHaveBeenCalledWith(expect.stringContaining('não entrará no resultado desta contagem'));
     await context.contagens.exibirResultado(c.id);
-    expect(elements.get('resultado-metricas').innerHTML).toContain('Itens Contados');
+    expect(elements.get('resultado-metricas').innerHTML).toContain('Produtos contados');
     expect(elements.get('resultado-metricas').innerHTML).toContain('>1</div>');
-    expect(elements.get('resultado-status-card').innerHTML).toContain('Exportar Relatório Excel');
+    expect(elements.get('resultado-status-card').innerHTML).toContain('Baixar relatório de diferenças');
     expect(elements.get('resultado-divergencias').innerHTML).not.toContain('Não contado');
-    expect(elements.get('resultado-divergencias').innerHTML).toContain('Estoque Ref: <strong>2</strong>');
+    expect(elements.get('resultado-divergencias').innerHTML).toContain('Saldo de referência: <strong>2</strong>');
   });
 });

@@ -21,7 +21,7 @@ function escapeHtml(str) {
 /**
  * Exibe notificação toast na interface
  * @param {string} msg - Mensagem a ser exibida
- * @param {'success'|'error'|'info'} [tipo='info'] - Tipo visual do toast
+ * @param {'success'|'error'|'warning'|'info'} [tipo='info'] - Tipo visual do toast
  */
 function showToast(msg, tipo = 'info') {
   // Remove toast anterior se ainda estiver na tela
@@ -30,10 +30,14 @@ function showToast(msg, tipo = 'info') {
 
   const toast = document.createElement('div');
   toast.className = `toast ${tipo}`;
+  toast.setAttribute('role', tipo === 'error' ? 'alert' : 'status');
+  toast.setAttribute('aria-live', tipo === 'error' ? 'assertive' : 'polite');
+  toast.setAttribute('aria-atomic', 'true');
 
   const iconMap = {
     success: 'ti-check',
     error: 'ti-alert-circle',
+    warning: 'ti-alert-triangle',
     info: 'ti-info-circle'
   };
   const icon = iconMap[tipo] || 'ti-info-circle';
