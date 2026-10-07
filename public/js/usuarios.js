@@ -63,7 +63,7 @@ const Usuarios = {
         : '<span class="badge badge-funcionario"><i class="ti ti-user"></i> Funcionário</span>';
 
       const statusBadge = u.ativo
-        ? '<span class="badge badge-sucesso"><i class="ti ti-check"></i> Ativo</span>'
+        ? '<span class="badge badge-success"><i class="ti ti-check"></i> Ativo</span>'
         : '<span class="badge badge-danger"><i class="ti ti-ban"></i> Inativo</span>';
 
       const trocaPendente = u.must_change_password

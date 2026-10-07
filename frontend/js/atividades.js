@@ -118,7 +118,7 @@ const Atividades = {
     }
 
     container.innerHTML = `
-      <div class="audit-table-wrapper">
+      <div class="audit-table-wrapper" tabindex="0" role="region" aria-label="Log de atividades">
         <table class="audit-table">
           <thead>
             <tr>

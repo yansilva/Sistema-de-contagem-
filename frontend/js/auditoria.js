@@ -95,7 +95,8 @@ const Auditoria = {
     const items = res.data.items || [];
     if (!items.length) return void (target.innerHTML = '<div class="empty-state"><p>Nenhum registro encontrado.</p></div>');
     const colunas = recurso === 'usuarios' ? ['nome','email','papel','ativo'] : recurso === 'produtos' ? ['codigo','nome','fornecedor','estoque_atual'] : recurso === 'contagens' ? ['iniciado_em','status','finalizado_em','tem_diferenca'] : ['criado_em','acao','resultado','motivo'];
-    target.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll"><table class="saas-table"><thead><tr>${colunas.map((c) => `<th>${c.replaceAll('_',' ')}</th>`).join('')}</tr></thead><tbody>${items.map((item) => `<tr>${colunas.map((c) => `<td>${this.valor(item[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+    const rotulos = { usuarios: 'usuários', produtos: 'produtos', contagens: 'contagens', logs: 'registros de auditoria' };
+    target.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de ${rotulos[recurso] || 'registros'} da empresa"><table class="saas-table"><thead><tr>${colunas.map((c) => `<th>${c.replaceAll('_',' ')}</th>`).join('')}</tr></thead><tbody>${items.map((item) => `<tr>${colunas.map((c) => `<td>${this.valor(item[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
   },
 
   valor(value) {

@@ -31,7 +31,7 @@ describe('Modalidade de peças', () => {
           remove: (c) => classes.delete(c),
           contains: (c) => classes.has(c)
         },
-        scrollIntoView: jest.fn(), focus: jest.fn(), setAttribute: jest.fn(),
+        scrollIntoView: jest.fn(), focus: jest.fn(), setAttribute: jest.fn(), removeAttribute: jest.fn(),
         open: false,
         showModal: jest.fn(function () { this.open = true; }),
         close: jest.fn(function () { this.open = false; })
@@ -117,7 +117,7 @@ describe('Modalidade de peças', () => {
     context.contagens.atualizarQuantidadeItem(1, '0');
     await context.contagens.salvarProgressoAtual();
     expect(elements.get('bloco-produtos-contagem').open).toBe(false);
-    expect(context.showToast).toHaveBeenCalledWith('Progresso salvo para Produtor!', 'success');
+    expect(context.showToast).toHaveBeenCalledWith('Contagem de Produtor salva.', 'success');
     expect(api.put).toHaveBeenLastCalledWith('/contagens/pecas/salvar-progresso', {
       fornecedor: 'Produtor', itens: [{ produto_id: 'novo', quantidade_contada: 0 }]
     });
@@ -129,7 +129,7 @@ describe('Modalidade de peças', () => {
     expect(api.put).not.toHaveBeenCalled();
     expect(modal.close).toHaveBeenCalledTimes(closesBeforeNoop + 1);
     expect(modal.open).toBe(false);
-    expect(context.showToast).toHaveBeenCalledWith('Nenhuma alteração pendente para este produtor.', 'info');
+    expect(context.showToast).toHaveBeenCalledWith('Não há alterações para salvar. A janela foi fechada.', 'info');
     context.contagens.atualizarQuantidadeItem(0, '5');
     context.contagens.atualizarQuantidadeItem(2, '');
     await context.contagens.salvarProgressoAtual();
@@ -177,8 +177,8 @@ describe('Modalidade de peças', () => {
     expect(await context.contagens.salvarProgressoAtual()).toBe(true);
 
     expect(elements.get('bloco-produtos-contagem').open).toBe(false);
-    expect(context.showToast).toHaveBeenCalledWith('Progresso salvo para Produtor!', 'success');
-    expect(context.showToast).toHaveBeenCalledWith('Progresso salvo, mas não foi possível atualizar a tela.', 'error');
+    expect(context.showToast).toHaveBeenCalledWith('Contagem de Produtor salva.', 'success');
+    expect(context.showToast).toHaveBeenCalledWith('As quantidades foram salvas, mas a tela não foi atualizada. Reabra a contagem para conferir.', 'error');
   });
   it.each(['em_andamento', 'finalizada'])('admin distingue peças %s em cartão, detalhe e recentes', async status => {
     auth.usuario.papel = 'administrador';

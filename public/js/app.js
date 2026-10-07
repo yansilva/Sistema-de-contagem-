@@ -26,7 +26,8 @@ function showScreen(screenId) {
   const target = document.getElementById(screenId);
   if (target) {
     target.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const reduzirMovimento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduzirMovimento ? 'auto' : 'smooth' });
   }
 
   // Ações contextuais por tela
@@ -409,7 +410,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 4. Fechar modais com Escape
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      Produtos.fecharModal();
+      if (typeof Produtos !== 'undefined') Produtos.fecharModal();
       if (typeof Usuarios !== 'undefined') {
         Usuarios.fecharModal();
         Usuarios.fecharModalReset();

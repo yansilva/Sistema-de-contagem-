@@ -9,6 +9,36 @@ const Produtos = {
   fornecedorFiltro: '',
   pecasFiltro: '',
   produtosCache: [],
+  _leitorExcelPromise: null,
+
+  carregarLeitorExcel() {
+    if (globalThis.XLSX) return Promise.resolve(globalThis.XLSX);
+    if (this._leitorExcelPromise) return this._leitorExcelPromise;
+
+    this._leitorExcelPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      script.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
+      script.crossOrigin = 'anonymous';
+      script.async = true;
+      script.onload = () => {
+        if (globalThis.XLSX) {
+          resolve(globalThis.XLSX);
+          return;
+        }
+        this._leitorExcelPromise = null;
+        reject(new Error('Não foi possível carregar o leitor de Excel.'));
+      };
+      script.onerror = () => {
+        script.remove?.();
+        this._leitorExcelPromise = null;
+        reject(new Error('Não foi possível carregar o leitor de Excel.'));
+      };
+      document.head.appendChild(script);
+    });
+
+    return this._leitorExcelPromise;
+  },
 
   /**
    * Carrega produtos do backend com paginação e filtros
@@ -192,13 +222,22 @@ const Produtos = {
     const file = fileInput.files[0];
     if (!file) return;
 
+    let leitorExcel;
+    try {
+      leitorExcel = await this.carregarLeitorExcel();
+    } catch {
+      fileInput.value = '';
+      showToast('Não foi possível carregar o leitor de Excel. Verifique sua conexão e tente novamente.', 'error');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+        const workbook = leitorExcel.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(firstSheet);
+        const rows = leitorExcel.utils.sheet_to_json(firstSheet);
 
         if (rows.length === 0) {
           showToast('A planilha selecionada está vazia.', 'error');

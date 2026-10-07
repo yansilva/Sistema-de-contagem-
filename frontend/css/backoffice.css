@@ -305,12 +305,12 @@
 
 .icon-fornecedores {
   background: var(--cor-aviso-bg);
-  color: var(--cor-aviso);
+  color: var(--cor-aviso-texto);
 }
 
 .icon-contagens {
   background: var(--cor-sucesso-bg);
-  color: var(--cor-sucesso);
+  color: var(--cor-sucesso-texto);
 }
 
 .icon-usuarios {
@@ -365,6 +365,11 @@
 @keyframes boFadeIn {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bo-sidebar { transition: none; }
+  @keyframes boFadeIn { from { opacity: 0; } to { opacity: 1; } }
 }
 
 /* Backdrop Mobile */

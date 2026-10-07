@@ -5,7 +5,6 @@ const UIActions = {
   'semana-abrir': () => { showScreen('screen-semana-contagem'); },
   'semana-recarregar': () => { Semana.carregar(); },
   'semana-produtor': element => { Semana.abrirProdutor(element.dataset.produtor); },
-  'semana-produtor-card': element => { Semana.abrirProdutor(element.dataset.produtor); },
   'semana-filtro': element => { Semana.filtrar(element.dataset.status); },
   'semana-busca': element => { Semana.buscar(element.value); },
   'contagem-modalidade': element => { Contagens.abrirModalidade(element.dataset.tipo); },
@@ -46,7 +45,10 @@ const UIActions = {
   'action-22': (element, event) => { showScreen('screen-backoffice'); switchTab('produtos'); },
   'action-23': (element, event) => { showScreen('screen-backoffice'); switchTab('historico'); },
   'action-24': (element, event) => { showScreen('screen-home'); },
-  'action-25': (element, event) => { Consulta.buscarCatalogo(element.value); },
+  'action-25': (element, event) => {
+    if (element.getAttribute('id') === 'busca-rapida-func') Consulta.abrirCatalogo('', element.value);
+    else Consulta.buscarCatalogo(element.value);
+  },
   'action-26': (element, event) => { Consulta.abrirCatalogo(); },
   'action-27': (element, event) => { Consulta.mudarPaginaCatalogo(-1); },
   'action-28': (element, event) => { Consulta.mudarPaginaCatalogo(1); },

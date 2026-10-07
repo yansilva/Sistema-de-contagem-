@@ -114,7 +114,7 @@ const EmpresaDetalhes = {
 
   renderizarUsuarios(content, usuarios) {
     if (!usuarios.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhum usuário cadastrado.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll"><table class="saas-table"><thead><tr><th>Usuário</th><th>Papel</th><th>Status</th><th>Recuperação</th></tr></thead><tbody>${usuarios.map((u) => {
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de usuários da empresa"><table class="saas-table"><thead><tr><th>Usuário</th><th>Papel</th><th>Status</th><th>Recuperação</th></tr></thead><tbody>${usuarios.map((u) => {
       const administrativo = ['administrador', 'gestor', 'admin'].includes(u.papel);
       const acao = administrativo && u.ativo
         ? `<button class="btn btn-outline btn-sm" data-click="action-116" data-user-id="${u.id}" data-user-name="${this.escape(u.nome)}" data-user-email="${this.escape(u.email)}">Definir senha temporária</button>`
@@ -125,12 +125,12 @@ const EmpresaDetalhes = {
 
   renderizarContagens(content, contagens) {
     if (!contagens.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhuma contagem registrada.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll"><table class="saas-table"><thead><tr><th>Início</th><th>Status</th><th>Finalização</th><th>Divergência</th></tr></thead><tbody>${contagens.map((c) => `<tr><td>${this.data(c.iniciado_em)}</td><td>${this.escape(c.status)}</td><td>${this.data(c.finalizado_em)}</td><td>${c.tem_diferenca ? 'Sim' : 'Não'}</td></tr>`).join('')}</tbody></table></div></div>`;
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de contagens da empresa"><table class="saas-table"><thead><tr><th>Início</th><th>Status</th><th>Finalização</th><th>Divergência</th></tr></thead><tbody>${contagens.map((c) => `<tr><td>${this.data(c.iniciado_em)}</td><td>${this.escape(c.status)}</td><td>${this.data(c.finalizado_em)}</td><td>${c.tem_diferenca ? 'Sim' : 'Não'}</td></tr>`).join('')}</tbody></table></div></div>`;
   },
 
   renderizarLogs(content, logs) {
     if (!logs.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhum evento encontrado.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll"><table class="saas-table"><thead><tr><th>Data</th><th>Ação</th><th>Ator</th><th>Resultado</th></tr></thead><tbody>${logs.map((log) => `<tr><td>${this.data(log.criado_em)}</td><td>${this.escape(log.acao)}</td><td>${this.escape(log.ator?.rotulo || 'Sistema')}</td><td>${this.escape(log.resultado)}</td></tr>`).join('')}</tbody></table></div></div>`;
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de registros de atividade da empresa"><table class="saas-table"><thead><tr><th>Data</th><th>Ação</th><th>Ator</th><th>Resultado</th></tr></thead><tbody>${logs.map((log) => `<tr><td>${this.data(log.criado_em)}</td><td>${this.escape(log.acao)}</td><td>${this.escape(log.ator?.rotulo || 'Sistema')}</td><td>${this.escape(log.resultado)}</td></tr>`).join('')}</tbody></table></div></div>`;
   },
 
   voltar() {

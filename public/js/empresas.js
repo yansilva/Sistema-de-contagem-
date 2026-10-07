@@ -139,7 +139,7 @@ const Empresas = {
     const paginador = !resumo && pagination && pagination.totalPages > 1
       ? `<div class="saas-pagination"><button class="btn btn-outline btn-sm" data-click="action-111" data-page="${pagination.page - 1}" ${pagination.page <= 1 ? 'disabled' : ''}>Anterior</button><span>Página ${pagination.page} de ${pagination.totalPages}</span><button class="btn btn-outline btn-sm" data-click="action-111" data-page="${pagination.page + 1}" ${pagination.page >= pagination.totalPages ? 'disabled' : ''}>Próxima</button></div>`
       : '';
-    container.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll"><table class="saas-table"><thead><tr><th>Empresa</th><th>Acesso</th><th>Administrador principal</th><th>Usuários</th><th>Última atividade</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table></div></div>${paginador}`;
+    container.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Lista de empresas"><table class="saas-table"><thead><tr><th>Empresa</th><th>Acesso</th><th>Administrador principal</th><th>Usuários</th><th>Última atividade</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table></div></div>${paginador}`;
   },
 
   abrirDrawer(id) {

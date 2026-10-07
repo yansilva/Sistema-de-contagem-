@@ -5,6 +5,11 @@ const Auth = {
   usuario: null,
   empresa: null,
 
+  async carregarModulosDoPerfil() {
+    if (typeof FrontendModules === 'undefined') return;
+    await FrontendModules.carregarParaPapel(this.usuario?.papel);
+  },
+
   /**
    * Restaura sessão ao carregar a página
    */
@@ -24,6 +29,13 @@ const Auth = {
         return true;
       }
 
+      try {
+        await this.carregarModulosDoPerfil();
+      } catch (err) {
+        console.error('[MODULE_LOAD_ERROR]', err);
+        showToast('Não foi possível preparar sua área. Verifique a conexão e tente novamente.', 'error');
+        return false;
+      }
       this.atualizarInterface();
       if (typeof Auditoria !== 'undefined') await Auditoria.restaurar();
       return true;
@@ -65,15 +77,17 @@ const Auth = {
       this.usuario = usuario;
       this.empresa = empresa;
 
-      this.atualizarInterface();
-
       // Redireciona para troca obrigatória de senha se necessário
       if (mustChangePassword) {
+        this.atualizarInterface();
         document.getElementById('troca-senha-atual').value = senha;
         showToast('Você precisa definir uma nova senha antes de continuar.', 'warning');
         showScreen('screen-troca-senha-obrigatoria');
         return;
       }
+
+      await this.carregarModulosDoPerfil();
+      this.atualizarInterface();
 
       showToast(`Bem-vindo, ${usuario.nome}!`, 'success');
       showScreen('screen-home');
