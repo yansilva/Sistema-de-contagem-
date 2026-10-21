@@ -52,8 +52,8 @@
   .auth-wrapper { padding: 20px 14px; }
   .auth-wrapper.login-layout { padding: 0; min-height: auto; }
   .auth-card { padding: 28px 22px; }
-  .auth-card h2 { font-size: 1.35rem; }
-  .dash-welcome h2 { font-size: 1.3rem; overflow-wrap: anywhere; }
+  .auth-card h2 { font-size: 1.5rem; }
+  .dash-welcome h2 { font-size: 1.5rem; overflow-wrap: anywhere; }
   .dash-date { align-items: flex-start; }
   .dash-header, .panel-header { gap: 16px; }
   .dash-actions, .dash-actions .btn { width: 100%; }
@@ -63,7 +63,7 @@
   .metricas-grid { grid-template-columns: minmax(0, 1fr); }
   .panel-title { min-width: 0; gap: 10px; }
   .panel-title > i { font-size: 1.5rem; padding: 8px; }
-  .panel-title h3 { font-size: 1rem; }
+  .panel-title h3 { font-size: 1.15rem; }
   .contagem-home-intro { margin: 12px auto 24px; }
   .contagem-home-intro h2 { font-size: 1.5rem; }
   .contagem-home-intro .btn { width: 100%; padding: 14px 16px; }
