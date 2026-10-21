@@ -589,11 +589,11 @@ select {
 }
 
 .diff-box.anterior {
-  border-left: 4px solid var(--cor-perigo);
+  border: 1px solid var(--cor-perigo-border);
 }
 
 .diff-box.novo {
-  border-left: 4px solid var(--cor-sucesso);
+  border: 1px solid var(--cor-sucesso-border);
 }
 
 .audit-meta-grid {

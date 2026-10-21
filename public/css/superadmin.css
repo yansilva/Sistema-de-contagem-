@@ -45,7 +45,7 @@
 .saas-brand-title .brand-mark { width: 28px; height: 28px; }
 
 .saas-env-tag {
-  font-size: 0.65rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 8px;
@@ -57,7 +57,7 @@
 }
 
 .saas-nav-section-label {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -197,13 +197,6 @@ button.saas-kpi-card .saas-kpi-val,
 button.saas-kpi-card .saas-kpi-sub { display: block; }
 
 .saas-mobile-nav { display: none; }
-.saas-kpi-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: #2457d6;
-}
 
 .saas-kpi-card:hover {
   transform: translateY(-2px);
@@ -398,8 +391,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 }
 
 .status-pill.active .status-dot, .status-pill.ativa .status-dot {
-  background: #10b981;
-  box-shadow: 0 0 6px #10b981;
+  background: var(--cor-sucesso);
 }
 
 .status-pill.trial {
@@ -694,7 +686,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   left: 0;
   right: 0;
   z-index: 1100;
-  background: linear-gradient(90deg, #1948b8, #2457d6, #3872ed);
+  background: linear-gradient(90deg, #1948b8, #2457d6);
   color: #fff;
   padding: 10px 24px;
   box-shadow: 0 4px 14px rgba(36, 87, 214, 0.35);
@@ -734,9 +726,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #34d399;
-  box-shadow: 0 0 8px #34d399;
-  animation: pulseDot 1.5s infinite;
+  background: var(--cor-sucesso);
 }
 
 @keyframes pulseDot {

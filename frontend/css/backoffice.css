@@ -118,7 +118,7 @@
 }
 
 .bo-nav-section-title {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -272,13 +272,6 @@
   transition: transform var(--transicao), box-shadow var(--transicao);
   position: relative;
   overflow: hidden;
-}
-.bo-kpi-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: #2457d6;
 }
 
 .bo-kpi-card:hover {
