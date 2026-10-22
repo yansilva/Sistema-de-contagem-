@@ -307,7 +307,7 @@ const Auth = {
       this._identidadeImportacao = identidade;
     }
     const admin = this.isAdmin();
-    for (const id of ['mobile-nav-toggle', 'topbar-menu']) {
+    for (const id of ['mobile-nav-toggle', 'topbar-menu', 'topbar-sair']) {
       const element = document.getElementById(id);
       if (element) element.hidden = !this.usuario;
     }

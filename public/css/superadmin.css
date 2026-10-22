@@ -574,6 +574,8 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   color: var(--cor-texto-mudo);
   cursor: pointer;
   padding: 4px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 6px;
   display: flex;
   align-items: center;

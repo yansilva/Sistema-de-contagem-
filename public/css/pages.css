@@ -59,7 +59,7 @@
 }
 .auth-story-brand img { width: 32px; height: 32px; }
 .auth-story-copy { max-width: 490px; }
-.auth-story-eyebrow, .auth-story-footnote {
+.auth-story-footnote {
   font-size: .7rem;
   font-weight: 800;
   letter-spacing: .16em;
@@ -69,7 +69,7 @@
   margin: 16px 0 20px;
   font-size: clamp(2.35rem, 4.2vw, 4.5rem);
   line-height: 1.06;
-  letter-spacing: -.065em;
+  letter-spacing: -.035em;
 }
 .auth-story-copy p { max-width: 360px; color: #b8c9de; line-height: 1.7; }
 

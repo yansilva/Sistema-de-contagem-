@@ -57,6 +57,9 @@
       </div>
 
       <button class="btn-theme" data-click="action-2" title="Alternar tema" aria-label="Alternar tema claro/escuro"><i class="ti ti-moon" aria-hidden="true"></i></button>
+      <button class="btn btn-ghost topbar-sair" id="topbar-sair" type="button" data-click="action-3" aria-label="Sair da conta" title="Sair da conta" hidden>
+        <i class="ti ti-logout" aria-hidden="true"></i>
+      </button>
       <button class="btn btn-outline mobile-nav-toggle" id="mobile-nav-toggle" type="button" aria-label="Abrir menu de navegação" aria-expanded="false" aria-controls="topbar-menu" hidden>
         <i class="ti ti-menu-2" aria-hidden="true"></i>
       </button>
@@ -87,8 +90,7 @@
           <span>Sistema de Estoque</span>
         </div>
         <div class="auth-story-copy">
-          <span class="auth-story-eyebrow">CONTROLE COM CLAREZA</span>
-          <h2>Precisão que<br>move o estoque.</h2>
+          <h2>Precisão que <br>move o estoque.</h2>
           <p>Da primeira contagem à decisão final, cada número no seu lugar.</p>
         </div>
         <span class="auth-story-footnote">CONTAGEM · CONCILIAÇÃO · CONTROLE</span>
@@ -109,7 +111,7 @@
                  data-keydown="action-4">
         </div>
 
-        <div class="auth-error" id="login-error"></div>
+        <div class="auth-error" id="login-error" role="alert"></div>
 
         <button class="btn btn-primary btn-block btn-lg" data-click="action-5" id="btn-login" style="margin-top:12px">
           <i class="ti ti-login"></i> Entrar
@@ -156,7 +158,7 @@
                  data-keydown="action-6">
         </div>
 
-        <div class="auth-error" id="reg-error"></div>
+        <div class="auth-error" id="reg-error" role="alert"></div>
 
         <button class="btn btn-primary btn-block btn-lg" data-click="action-7" id="btn-registro" style="margin-top:12px">
           <i class="ti ti-building-store"></i> Cadastrar empresa
@@ -193,7 +195,7 @@
                  data-keydown="action-9">
         </div>
 
-        <div class="auth-error" id="troca-senha-error"></div>
+        <div class="auth-error" id="troca-senha-error" role="alert"></div>
 
         <button class="btn btn-primary btn-block btn-lg" data-click="action-10" id="btn-troca-senha" style="margin-top:12px">
           <i class="ti ti-check"></i> Definir Nova Senha
@@ -1074,7 +1076,7 @@
           <option value="administrador">Administrador (acesso ao back-office)</option>
         </select>
       </div>
-      <div id="modal-usuario-error" class="auth-error"></div>
+      <div id="modal-usuario-error" class="auth-error" role="alert"></div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
         <button class="btn btn-outline" data-click="action-66">Cancelar</button>
         <button class="btn btn-primary" data-click="action-67">
