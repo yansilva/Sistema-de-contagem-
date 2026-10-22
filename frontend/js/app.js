@@ -373,8 +373,12 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('inventory_theme', next);
 
+  atualizarIconeTema(next);
+}
+
+function atualizarIconeTema(tema) {
   document.querySelectorAll('.btn-theme').forEach(b => {
-    b.textContent = next === 'dark' ? '☀️' : '🌙';
+    b.innerHTML = `<i class="ti ${tema === 'dark' ? 'ti-sun' : 'ti-moon'}" aria-hidden="true"></i>`;
   });
 }
 
@@ -387,9 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
   document.documentElement.setAttribute('data-theme', savedTheme);
-  document.querySelectorAll('.btn-theme').forEach(b => {
-    b.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-  });
+  atualizarIconeTema(savedTheme);
 
   // 2. Configurar busca de fornecedor com debounce
   const inputBusca = document.getElementById('busca-fornecedor');

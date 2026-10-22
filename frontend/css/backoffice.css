@@ -175,7 +175,7 @@
   background: #2457d6;
   color: #fff;
   border-color: #2457d6;
-  box-shadow: 0 0 12px rgba(36, 87, 214, 0.22);
+  box-shadow: var(--sombra);
 }
 
 /* Sidebar Footer */

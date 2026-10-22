@@ -59,7 +59,7 @@
   --sombra-sm: var(--sombra);
   --sombra-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
   --sombra-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
-  --sombra-glow: 0 0 18px rgba(36, 87, 214, 0.18);
+  --sombra-glow: 0 0 0 1px rgba(36, 87, 214, 0.14);
 
   --transicao: 0.16s cubic-bezier(0.16, 1, 0.3, 1);
   --transicao-bounce: 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -114,7 +114,7 @@
   --sombra: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.4);
   --sombra-md: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 6px 16px rgba(0, 0, 0, 0.5);
   --sombra-lg: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 12px 32px rgba(0, 0, 0, 0.6);
-  --sombra-glow: 0 0 20px rgba(36, 87, 214, 0.24);
+  --sombra-glow: 0 0 0 1px rgba(138, 171, 255, 0.28);
 
   color-scheme: dark;
 }

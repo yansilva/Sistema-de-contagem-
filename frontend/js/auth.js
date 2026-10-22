@@ -65,7 +65,7 @@ const Auth = {
       const res = await API.post('/auth/login', { email, senha });
 
       if (!res || !res.success) {
-        erroEl.textContent = res?.message || 'Email ou senha incorretos.';
+        erroEl.textContent = res?.message || 'E-mail ou senha incorretos.';
         return;
       }
 

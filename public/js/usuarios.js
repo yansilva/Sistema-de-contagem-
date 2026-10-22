@@ -106,7 +106,7 @@ const Usuarios = {
       <table class="data-table">
         <thead>
           <tr>
-            <th>Nome / Email</th>
+            <th>Nome / E-mail</th>
             <th>Papel</th>
             <th>Situação</th>
             <th style="text-align:right">Ações</th>
