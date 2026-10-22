@@ -120,12 +120,28 @@ const API = {
 
     try {
       const contentType = res.headers.get('content-type') || '';
+      // Repassa o HTTP status e o Retry-After (segundos) nos erros, sem alterar success/message.
+      const infoErro = {};
+      if (res.ok === false) {
+        infoErro.status = res.status;
+        const ra = parseInt(res.headers.get('retry-after'), 10);
+        if (Number.isFinite(ra) && ra > 0) infoErro.retryAfter = ra;
+      }
+
       if (contentType.includes('application/json')) {
-        return await res.json();
+        const corpo = await res.json();
+        if (res.ok === false && corpo && typeof corpo === 'object' && !Array.isArray(corpo)) {
+          // O rate limit do servidor responde { erro, mensagem } em vez de { success, message }.
+          if (corpo.message === undefined && corpo.mensagem) corpo.message = corpo.mensagem;
+          if (corpo.success === undefined) corpo.success = false;
+          return Object.assign(corpo, infoErro);
+        }
+        return corpo;
       }
 
       if (res.status === 404) {
         return {
+          ...infoErro,
           success: false,
           message: 'Endpoint de API não encontrado (HTTP 404).'
         };
@@ -133,6 +149,7 @@ const API = {
 
       if (res.status >= 500) {
         return {
+          ...infoErro,
           success: false,
           message: 'Erro interno no servidor (HTTP ' + res.status + '). Verifique se DATABASE_URL e JWT_SECRET estão configurados na Vercel e faça um Redeploy.'
         };
@@ -140,6 +157,7 @@ const API = {
 
       const text = await res.text();
       return {
+        ...infoErro,
         success: false,
         message: text || ('Erro na requisição (HTTP ' + res.status + ').')
       };

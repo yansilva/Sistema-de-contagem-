@@ -28,6 +28,7 @@
   #topbar-user-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-nav-toggle { display: inline-flex; flex-shrink: 0; }
   .topbar-sair { display: inline-flex; flex-shrink: 0; min-width: 44px; justify-content: center; }
+  .topbar-menu .topbar-menu-sair { display: none; }
   .topbar-menu {
     display: none; position: absolute; top: calc(100% + 6px); right: 12px;
     width: min(300px, calc(100vw - 24px)); max-height: calc(100dvh - 82px);
@@ -63,7 +64,13 @@
   .kpi-grid, .quick-cards-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .kpi-card, .quick-card { padding: 18px; }
   .kpi-value { font-size: 1.65rem; }
-  .metricas-grid { grid-template-columns: minmax(0, 1fr); }
+  .metricas-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+  .metricas-grid .metrica { padding: 10px 8px; }
+  .metricas-grid .metrica-valor { font-size: 1.25rem; }
+  .metricas-grid .metrica-label { font-size: .75rem; line-height: 1.25; }
+  /* Sobra e falta primeiro: o que importa na conferência */
+  .metricas-grid .metrica:nth-child(3), .metricas-grid .metrica:nth-child(4) { order: -1; }
+  /* KPIs do Super Admin: regras movidas para superadmin.css (carrega depois e vencia a cascata) */
   .panel-title { min-width: 0; gap: 10px; }
   .panel-title > i { font-size: 1.5rem; padding: 8px; }
   .panel-title h3 { font-size: 1.15rem; }
@@ -145,4 +152,107 @@
 @media (max-width: 600px) {
   #screen-importar-estoque .page-header { flex-wrap: wrap; }
   #screen-importar-estoque .stock-preview-header > div { width: 100%; }
+}
+
+/* Texto visualmente oculto, mas focável (input de arquivo dentro de label.btn) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+label.btn { position: relative; }
+label.btn:focus-within { outline: 2px solid var(--cor-primaria); outline-offset: 2px; }
+
+/* Lixeira discreta: cor de perigo só no hover e no foco */
+.btn-trash { color: var(--cor-texto-mudo); }
+.btn-trash:hover, .btn-trash:focus-visible {
+  color: var(--cor-perigo-texto, var(--cor-perigo));
+  background: var(--cor-perigo-bg);
+}
+
+/* Pista de rolagem horizontal e coluna de ações sempre visível (celular) */
+@media (max-width: 760px) {
+  .table-scroll, .saas-table-scroll, .audit-table-wrapper {
+    background:
+      linear-gradient(to right, var(--cor-superficie) 30%, transparent) left center / 28px 100% no-repeat local,
+      linear-gradient(to left, var(--cor-superficie) 30%, transparent) right center / 28px 100% no-repeat local,
+      linear-gradient(to right, color-mix(in srgb, var(--cor-texto) 22%, transparent), transparent) left center / 12px 100% no-repeat scroll,
+      linear-gradient(to left, color-mix(in srgb, var(--cor-texto) 22%, transparent), transparent) right center / 12px 100% no-repeat scroll;
+  }
+  .tabela-acoes-fixas th:last-child,
+  .tabela-acoes-fixas td:last-child {
+    position: sticky;
+    right: 0;
+    background: var(--cor-superficie);
+    box-shadow: -8px 0 8px -8px color-mix(in srgb, var(--cor-texto) 28%, transparent);
+  }
+  .tabela-acoes-fixas th:last-child { background: var(--cor-superficie2); z-index: 1; }
+  .tabela-acoes-fixas td:last-child { z-index: 1; }
+  .saas-table.tabela-acoes-fixas { min-width: 760px; }
+  .saas-table.tabela-acoes-fixas td.saas-actions-cell { width: 132px; min-width: 132px; padding: 10px 8px; background: var(--cor-superficie); }
+  .saas-table.tabela-acoes-fixas tr:hover td.saas-actions-cell { background: var(--cor-superficie); }
+  .saas-table.tabela-acoes-fixas th:nth-child(2), .saas-table.tabela-acoes-fixas td:nth-child(2),
+  .saas-table.tabela-acoes-fixas th:nth-child(3), .saas-table.tabela-acoes-fixas td:nth-child(3) { padding-right: 28px; white-space: nowrap; }
+  .saas-table.tabela-acoes-fixas td.saas-actions-cell .btn { font-size: 0.8125rem; padding-left: 8px; padding-right: 8px; }
+  .saas-table.tabela-acoes-fixas td.saas-actions-cell .btn { display: flex; width: 100%; margin: 0 0 6px; }
+  .saas-table.tabela-acoes-fixas td.saas-actions-cell .btn:last-child { margin-bottom: 0; }
+  #empresas-lista-compat { min-width: 0; max-width: 100%; }
+  /* Tabelas de Empresas: sem coluna sticky (cobria status e administrador em repouso); ações por rolagem horizontal */
+  .saas-table.tabela-acoes-fixas th:last-child,
+  .saas-table.tabela-acoes-fixas td:last-child {
+    position: static;
+    box-shadow: none;
+    z-index: auto;
+  }
+}
+
+/* Atividades e Auditoria global: cartões empilhados no celular (roles ARIA mantêm a semântica de tabela) */
+@media (max-width: 760px) {
+  .audit-table-wrapper { overflow-x: visible; background: none; border: 0; box-shadow: none; }
+  .audit-table.audit-cards { min-width: 0; display: block; }
+  .audit-cards thead {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+  }
+  .audit-cards tbody { display: block; }
+  .audit-cards tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 12px;
+    align-items: center;
+    padding: 14px;
+    margin-bottom: 10px;
+    background: var(--cor-superficie);
+    border: 1px solid var(--cor-borda);
+    border-radius: var(--raio);
+  }
+  .audit-cards tr:hover { background: var(--cor-superficie); }
+  .audit-cards td { display: block; padding: 0; border: 0; min-width: 0; text-align: left; }
+  .audit-cards tr:last-child td { border-bottom: 0; }
+  .audit-cards td.au-data { grid-column: 1; grid-row: 1; }
+  .audit-cards td.au-res { grid-column: 2; grid-row: 1; justify-self: end; }
+  .audit-cards td.au-ator { grid-column: 1 / -1; grid-row: 2; }
+  .audit-cards td.au-ator .ator-papel { display: inline; margin-left: 6px; }
+  .audit-cards td.au-acao { grid-column: 1 / -1; grid-row: 3; font-size: 1rem; font-weight: 700; }
+  .audit-cards td.au-acao .badge-audit { white-space: normal; font-size: .9rem; }
+  .audit-cards td.au-entidade { grid-column: 1 / -1; grid-row: 4; }
+  .audit-cards td.au-entidade::before {
+    content: attr(data-label) ": ";
+    color: var(--cor-texto-secundario);
+    font-size: .8rem;
+  }
+  .audit-cards td.au-det { grid-column: 1 / -1; grid-row: 5; text-align: left; }
+  .audit-cards td.au-det .btn { width: 100%; min-height: 44px; justify-content: center; }
+}
+
+/* Alvos de toque mínimos de 44px na barra lateral do back-office (celular) */
+@media (max-width: 760px) {
+  .bo-sidebar-close { min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
+  .bo-btn-voltar { min-height: 44px; }
 }

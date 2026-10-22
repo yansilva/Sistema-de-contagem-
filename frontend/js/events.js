@@ -1,6 +1,6 @@
 /** Ações permitidas da interface. Sem avaliação de código vindo do HTML. */
 const UIActions = {
-  'estoque-voltar': () => { showScreen('screen-home'); },
+  'estoque-voltar': () => { showScreen(StockImport.origem === 'backoffice' ? 'screen-backoffice' : 'screen-home'); },
   'estoque-abrir': () => { StockImport.abrir(); },
   'semana-abrir': () => { showScreen('screen-semana-contagem'); },
   'semana-recarregar': () => { Semana.carregar(); },
@@ -64,7 +64,7 @@ const UIActions = {
   'action-38': (element, event) => { abrirHistoricoContagens(); },
   'action-39': (element, event) => { showScreen('screen-home'); },
   'action-40': (element, event) => { switchTab('produtos'); },
-  'action-41': (element, event) => { StockImport.abrir(); },
+  'action-41': (element, event) => { fecharBoSidebar(); StockImport.abrir('backoffice'); },
   'action-42': (element, event) => { switchTab('usuarios'); },
   'action-43': (element, event) => { switchTab('historico'); },
   'action-44': (element, event) => { switchTab('atividades'); },
@@ -149,6 +149,15 @@ const UIActions = {
   'action-123': (element) => { Consulta.baixarExcel(element.dataset.id); },
   'action-124': (element, event) => { event.preventDefault(); element.classList.add('drag-over'); },
   'action-125': (element) => { element.classList.remove('drag-over'); },
+  'contagem-qtd-enter': (element, event) => {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    const campos = [...document.querySelectorAll('.input-qtd-fisica')].filter(el => !el.disabled);
+    const proximo = campos[campos.indexOf(element) + 1];
+    (proximo || document.getElementById('btn-salvar-progresso-produtor'))?.focus();
+  },
+  'action-127': () => { abrirAjuda(); },
+  'action-128': () => { fecharAjuda(); },
   'action-126': (element, event) => {
     event.preventDefault();
     element.classList.remove('drag-over');
@@ -158,7 +167,7 @@ const UIActions = {
 
 for (const type of ['click', 'input', 'change', 'keydown', 'dragover', 'dragleave', 'drop']) {
   document.addEventListener(type, event => {
-    const element = event.target.closest('[data-' + type + ']');
+    const element = event.target?.closest?.('[data-' + type + ']');
     if (!element || element.disabled) return;
     const action = UIActions[element.getAttribute('data-' + type)];
     if (typeof action === 'function') action(element, event);

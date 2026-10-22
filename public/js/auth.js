@@ -54,7 +54,8 @@ const Auth = {
 
     erroEl.textContent = '';
     if (!email || !senha) {
-      erroEl.textContent = 'Preencha email e senha.';
+      erroEl.textContent = 'Preencha e-mail e senha.';
+      document.getElementById(email ? 'login-senha' : 'login-email').focus();
       return;
     }
 
@@ -65,7 +66,18 @@ const Auth = {
       const res = await API.post('/auth/login', { email, senha });
 
       if (!res || !res.success) {
-        erroEl.textContent = res?.message || 'E-mail ou senha incorretos.';
+        if (res?.status === 429) {
+          const seg = Number(res.retryAfter);
+          const espera = seg > 0
+            ? (seg <= 90 ? 'Aguarde um minuto' : `Aguarde ${Math.ceil(seg / 60)} minutos`)
+            : 'Aguarde um minuto';
+          erroEl.textContent = `Muitas tentativas. ${espera} e tente de novo.`;
+          return;
+        }
+        erroEl.textContent = res?.message || 'E-mail ou senha incorretos. Confira os dados ou fale com o administrador da sua empresa.';
+        const campoSenha = document.getElementById('login-senha');
+        campoSenha.focus();
+        campoSenha.select();
         return;
       }
 
@@ -118,20 +130,32 @@ const Auth = {
 
     erroEl.textContent = '';
 
-    if (!empresa_nome || !nome || !email || !senha) {
-      erroEl.textContent = 'Preencha todos os campos obrigatórios.';
-      return;
-    }
-
-    if (senha !== confirmar) {
-      erroEl.textContent = 'As senhas digitadas não coincidem.';
-      return;
-    }
-
-    if (senha.length < 8) {
-      erroEl.textContent = 'A senha deve ter pelo menos 8 caracteres.';
-      return;
-    }
+    const campos = {
+      empresa_nome: document.getElementById('reg-empresa'),
+      nome: document.getElementById('reg-nome'),
+      email: document.getElementById('reg-email'),
+      senha: document.getElementById('reg-senha')
+    };
+    const campoConfirmar = document.getElementById('reg-confirmar');
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const valido = validarCampos([
+      [campos.empresa_nome,
+        !empresa_nome ? 'Informe o nome da empresa.' : 'O nome da empresa deve ter pelo menos 2 caracteres.',
+        empresa_nome.length < 2],
+      [campos.nome,
+        !nome ? 'Informe o nome do administrador.' : 'O nome deve ter pelo menos 2 caracteres.',
+        nome.length < 2],
+      [campos.email,
+        !email ? 'Informe o e-mail de acesso.' : 'Informe um e-mail válido, como nome@empresa.com.',
+        !emailValido],
+      [campos.senha,
+        !senha ? 'Informe a senha temporária.' : mensagemSenhaFraca(senha),
+        !senha || !SENHA_FORTE_REGEX.test(senha)],
+      [campoConfirmar,
+        !confirmar ? 'Repita a senha.' : 'As senhas não coincidem.',
+        !confirmar || senha !== confirmar]
+    ]);
+    if (!valido) return;
 
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Criando conta...';
@@ -145,7 +169,12 @@ const Auth = {
       });
 
       if (!res || !res.success) {
-        erroEl.textContent = res?.message || 'Erro ao criar conta.';
+        if (res?.code === 'EMAIL_EXISTENTE' || res?.code === 'EMPRESA_EXISTENTE') {
+          marcarErroCampo(campos.email, 'Este e-mail já está cadastrado. Use outro e-mail de acesso.');
+          campos.email.focus();
+        } else if (!aplicarErrosServidor(res, campos)) {
+          erroEl.textContent = res?.message || 'Erro ao criar conta.';
+        }
         return;
       }
 
@@ -174,26 +203,16 @@ const Auth = {
 
     feedback.textContent = '';
 
-    if (!senhaAtual || !novaSenha || !confirmar) {
-      feedback.textContent = 'Preencha todos os campos.';
-      return;
-    }
-
-    if (novaSenha !== confirmar) {
-      feedback.textContent = 'As senhas não coincidem.';
-      return;
-    }
-
-    if (novaSenha.length < 8) {
-      feedback.textContent = 'A nova senha deve ter pelo menos 8 caracteres.';
-      return;
-    }
-
-    // Validação: maiúscula, minúscula e número
-    if (!/[A-Z]/.test(novaSenha) || !/[a-z]/.test(novaSenha) || !/[0-9]/.test(novaSenha)) {
-      feedback.textContent = 'A senha deve conter maiúscula, minúscula e número.';
-      return;
-    }
+    const valido = validarCampos([
+      [document.getElementById('troca-senha-atual'), 'Informe a senha temporária atual.', !senhaAtual],
+      [document.getElementById('troca-nova-senha'),
+        !novaSenha ? 'Informe a nova senha.' : mensagemSenhaFraca(novaSenha),
+        !novaSenha || !SENHA_FORTE_REGEX.test(novaSenha)],
+      [document.getElementById('troca-confirmar-senha'),
+        !confirmar ? 'Repita a nova senha.' : 'As senhas não coincidem.',
+        !confirmar || novaSenha !== confirmar]
+    ]);
+    if (!valido) return;
 
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> Salvando...';
@@ -202,12 +221,18 @@ const Auth = {
       const res = await API.put('/auth/senha', { senhaAtual, novaSenha });
 
       if (!res || !res.success) {
-        feedback.textContent = res?.message || 'Erro ao alterar senha.';
+        if (!aplicarErrosServidor(res, {
+          senhaAtual: document.getElementById('troca-senha-atual'),
+          novaSenha: document.getElementById('troca-nova-senha')
+        })) {
+          feedback.textContent = res?.message || 'Erro ao alterar senha.';
+        }
         return;
       }
 
-      for (const id of ['troca-senha-atual', 'troca-nova-senha', 'troca-confirmar-senha']) {
-        document.getElementById(id).value = '';
+      for (const id of ['troca-senha-atual', 'troca-nova-senha', 'troca-confirmar-senha', 'login-senha']) {
+        const campo = document.getElementById(id);
+        if (campo) campo.value = '';
       }
       sessionStorage.removeItem('accessToken');
       sessionStorage.removeItem('refreshToken');
@@ -235,23 +260,25 @@ const Auth = {
     feedback.className = 'msg-feedback';
     feedback.textContent = '';
 
-    if (!senhaAtual || !novaSenha) {
-      feedback.className = 'msg-feedback show error';
-      feedback.textContent = 'Preencha a senha atual e a nova senha.';
-      return;
-    }
-
-    if (novaSenha.length < 8) {
-      feedback.className = 'msg-feedback show error';
-      feedback.textContent = 'A nova senha deve ter no mínimo 8 caracteres.';
-      return;
-    }
+    const valido = validarCampos([
+      [document.getElementById('senha-atual'), 'Informe a senha atual.', !senhaAtual],
+      [document.getElementById('senha-nova'),
+        !novaSenha ? 'Informe a nova senha.' : mensagemSenhaFraca(novaSenha),
+        !novaSenha || !SENHA_FORTE_REGEX.test(novaSenha)]
+    ]);
+    if (!valido) return;
 
     const res = await API.put('/auth/senha', { senhaAtual, novaSenha });
 
     if (!res || !res.success) {
-      feedback.className = 'msg-feedback show error';
-      feedback.textContent = res?.message || 'Erro ao alterar senha.';
+      const porCampo = aplicarErrosServidor(res, {
+        senhaAtual: document.getElementById('senha-atual'),
+        novaSenha: document.getElementById('senha-nova')
+      });
+      if (!porCampo) {
+        feedback.className = 'msg-feedback show error';
+        feedback.textContent = res?.message || 'Erro ao alterar senha.';
+      }
       return;
     }
 
@@ -289,12 +316,15 @@ const Auth = {
     this.usuario = null;
     this.empresa = null;
     this.atualizarInterface();
-    for (const id of ['login-senha', 'reg-senha', 'reg-confirmar', 'troca-senha-atual', 'troca-nova-senha', 'troca-confirmar-senha']) {
-      document.getElementById(id).value = '';
+    for (const id of ['login-email', 'login-senha', 'reg-senha', 'reg-confirmar', 'troca-senha-atual', 'troca-nova-senha', 'troca-confirmar-senha']) {
+      const campo = document.getElementById(id);
+      if (campo) campo.value = '';
     }
 
     showScreen('screen-login');
     showToast('Você saiu da sua conta.', 'info');
+    const emailLogin = document.getElementById('login-email');
+    if (emailLogin) emailLogin.focus();
   },
 
   /**
@@ -345,9 +375,10 @@ const Auth = {
     const nomeEl = document.getElementById('topbar-user-name');
     const btnBackoffice = document.getElementById('btn-nav-backoffice');
     const btnNovaEmpresa = document.getElementById('btn-nova-empresa');
-    if (btnNovaEmpresa) btnNovaEmpresa.style.display = this.usuario?.papel === 'super_admin' ? 'inline-flex' : 'none';
+    // Super Admin: "Nova empresa" e "Empresas" ficam só no console (cabeçalho, KPI, barra lateral); sem duplicar na topbar
+    if (btnNovaEmpresa) btnNovaEmpresa.style.display = 'none';
     const btnListarEmpresas = document.getElementById('btn-listar-empresas');
-    if (btnListarEmpresas) btnListarEmpresas.style.display = this.usuario?.papel === 'super_admin' ? 'inline-flex' : 'none';
+    if (btnListarEmpresas) btnListarEmpresas.style.display = 'none';
 
     if (this.usuario) {
       const iniciais = (this.usuario.nome || 'U')
@@ -365,7 +396,7 @@ const Auth = {
 
       // Mostra botão de back-office para administrador, gestor ou admin
       if (btnBackoffice) {
-        btnBackoffice.style.display = admin ? 'inline-flex' : 'none';
+        btnBackoffice.style.display = admin && !isSuperAdmin ? 'inline-flex' : 'none';
       }
     } else {
       if (badgeEl) badgeEl.style.display = 'none';

@@ -88,7 +88,7 @@
 }
 
 .bo-brand-subtitle {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: #9fb2cb;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -323,14 +323,13 @@
 }
 
 .bo-kpi-label {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--cor-texto-mudo);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .bo-kpi-value {
@@ -339,6 +338,13 @@
   color: var(--cor-texto);
   line-height: 1.2;
   margin-top: 2px;
+}
+
+/* Valor em texto (data ou aviso), não número grande */
+.bo-kpi-value.bo-kpi-value--texto {
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.3;
 }
 
 /* ==================== CONTEÚDO DAS ABAS ==================== */
@@ -436,5 +442,56 @@
 
   .bo-kpi-card {
     padding: 12px 14px;
+  }
+}
+
+/* KPIs: so aparecem na aba Produtos (hidden via JS) */
+.bo-kpis-wrapper[hidden] { display: none; }
+
+/* Filtros de Atividades: uma linha com quebra */
+@media (min-width: 761px) {
+  .bo-content-area .audit-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+  }
+  .bo-content-area .audit-filters > input,
+  .bo-content-area .audit-filters > select {
+    min-width: 160px;
+    flex: 0 1 180px;
+  }
+  .bo-content-area .audit-filters > input[type="text"] {
+    flex: 1 1 240px;
+  }
+}
+
+/* KPIs compactos em grade 2x2 no celular */
+@media (max-width: 760px) {
+  .bo-kpis-wrapper {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .bo-kpi-card {
+    padding: 8px 10px;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .bo-kpi-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  .bo-kpi-label {
+    font-size: 0.75rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    line-height: 1.25;
+  }
+  .bo-kpi-value {
+    font-size: 1.1rem;
+    overflow-wrap: anywhere;
   }
 }

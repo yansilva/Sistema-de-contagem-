@@ -69,16 +69,33 @@ const Produtos = {
 
     // Atualiza KPIs do backoffice de forma reativa
     if (typeof carregarBackofficeKPIs === 'function' && typeof Auth !== 'undefined' && Auth.isAdmin()) {
-      carregarBackofficeKPIs();
+      carregarBackofficeKPIs(true);
     }
 
     if (produtos.length === 0) {
-      listaEl.innerHTML = `
+      const comFiltro = Boolean(this.termoBusca || this.fornecedorFiltro || this.pecasFiltro !== '');
+      listaEl.innerHTML = comFiltro ? `
         <div style="text-align:center; padding:40px 20px; color:var(--cor-texto-secundario)">
           <i class="ti ti-package-off" style="font-size:2.5rem; margin-bottom:8px; display:block"></i>
-          Nenhum produto cadastrado ou encontrado com os filtros atuais.
+          <p style="margin:0 0 12px">Nenhum resultado para os filtros atuais.</p>
+          <button type="button" class="btn btn-outline btn-sm" id="produtos-limpar-filtros">Limpar filtros</button>
+        </div>
+      ` : `
+        <div style="text-align:center; padding:40px 20px; color:var(--cor-texto-secundario)">
+          <i class="ti ti-package-off" style="font-size:2.5rem; margin-bottom:8px; display:block"></i>
+          <p style="margin:0 0 12px">Nenhum produto cadastrado ainda. Cadastre um produto ou importe sua planilha.</p>
+          <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap">
+            <label class="btn btn-outline btn-sm">
+              <i class="ti ti-file-upload"></i> Importar Excel (.xlsx)
+              <input type="file" class="sr-only" accept=".xlsx,.xls" data-change="action-47">
+            </label>
+            <button type="button" class="btn btn-primary btn-sm" data-click="action-48">
+              <i class="ti ti-plus"></i> Novo Produto
+            </button>
+          </div>
         </div>
       `;
+      document.getElementById('produtos-limpar-filtros')?.addEventListener('click', () => this.limparFiltros());
       if (paginationEl) paginationEl.style.display = 'none';
       return;
     }
@@ -97,7 +114,7 @@ const Produtos = {
             <button class="btn btn-outline btn-sm" data-click="action-78" data-arg-0="${escapeHtml(p.id)}">
               <i class="ti ti-edit"></i> Editar
             </button>
-            <button class="btn btn-danger btn-sm" data-click="action-79" data-arg-0="${escapeHtml(p.id)}">
+            <button class="btn btn-ghost btn-sm btn-trash" data-click="action-79" data-arg-0="${escapeHtml(p.id)}" aria-label="Desativar produto" title="Desativar produto">
               <i class="ti ti-trash"></i>
             </button>
           </div>
@@ -112,7 +129,7 @@ const Produtos = {
       const btnAnt = document.getElementById('btn-pag-anterior');
       const btnProx = document.getElementById('btn-pag-proxima');
 
-      if (infoEl) infoEl.textContent = `Página ${pagination.page} de ${pagination.totalPages} (${pagination.total} produtos)`;
+      if (infoEl) infoEl.textContent = `Página ${pagination.page} de ${pagination.totalPages} (${pluralizar(pagination.total, 'produto')})`;
       if (btnAnt) btnAnt.disabled = pagination.page <= 1;
       if (btnProx) btnProx.disabled = pagination.page >= pagination.totalPages;
     }
@@ -123,6 +140,18 @@ const Produtos = {
     if (this.paginaAtual < 1) this.paginaAtual = 1;
     if (this.paginaAtual > this.totalPaginas) this.paginaAtual = this.totalPaginas;
     this.carregar();
+  },
+
+  limparFiltros() {
+    this.termoBusca = '';
+    this.fornecedorFiltro = '';
+    this.pecasFiltro = '';
+    this.paginaAtual = 1;
+    const busca = document.getElementById('filtro-busca-produto');
+    if (busca) busca.value = '';
+    const pecas = document.getElementById('produto-filtro-pecas');
+    if (pecas) pecas.value = '';
+    return this.carregar();
   },
 
   aplicarFiltroBusca(termo) {
@@ -148,10 +177,12 @@ const Produtos = {
     const fornecedor = document.getElementById('prod-fornecedor').value.trim();
     const estoque_atual = parseInt(document.getElementById('prod-estoque-atual').value, 10) || 0;
 
-    if (!codigo || !nome || !fornecedor) {
-      showToast('Preencha código/SKU, nome e produtor/fornecedor.', 'error');
-      return;
-    }
+    const valido = validarCampos([
+      [document.getElementById('prod-codigo'), 'Informe o código ou SKU.', !codigo],
+      [document.getElementById('prod-nome'), 'Informe o nome do produto.', !nome],
+      [document.getElementById('prod-fornecedor'), 'Informe o produtor ou fornecedor.', !fornecedor]
+    ]);
+    if (!valido) return;
 
     let res;
     if (id) {
@@ -161,6 +192,13 @@ const Produtos = {
     }
 
     if (!res || !res.success) {
+      const campoCodigo = document.getElementById('prod-codigo');
+      if (res?.code === 'CODIGO_DUPLICADO' || res?.code === 'DUPLICIDADE_REGISTRO' || /j[áa] (existe|cadastrad)/i.test(res?.message || '')) {
+        marcarErroCampo(campoCodigo, res?.message && !/^Registro duplicado/i.test(res.message) ? res.message : 'Este código ou SKU já existe.');
+        campoCodigo.focus();
+      } else {
+        aplicarErrosServidor(res, { codigo: campoCodigo, nome: document.getElementById('prod-nome'), fornecedor: document.getElementById('prod-fornecedor') });
+      }
       showToast(res?.message || 'Erro ao salvar produto.', 'error');
       return;
     }
@@ -178,6 +216,7 @@ const Produtos = {
     document.getElementById('prod-nome').value = '';
     document.getElementById('prod-fornecedor').value = '';
     document.getElementById('prod-estoque-atual').value = '0';
+    ['prod-codigo', 'prod-nome', 'prod-fornecedor'].forEach((i) => limparErroCampo(document.getElementById(i)));
     document.getElementById('modal-produto').style.display = 'flex';
   },
 
@@ -192,6 +231,7 @@ const Produtos = {
     document.getElementById('prod-nome').value = p.nome;
     document.getElementById('prod-fornecedor').value = p.fornecedor;
     document.getElementById('prod-estoque-atual').value = p.estoque_atual !== undefined ? p.estoque_atual : 0;
+    ['prod-codigo', 'prod-nome', 'prod-fornecedor'].forEach((i) => limparErroCampo(document.getElementById(i)));
     document.getElementById('modal-produto').style.display = 'flex';
   },
 
@@ -204,7 +244,13 @@ const Produtos = {
    * Desativa produto (soft delete)
    */
   async remover(id) {
-    if (!confirm('Deseja realmente desativar este produto do catálogo?')) return;
+    const confirmado = await confirmarAcao({
+      titulo: 'Desativar produto?',
+      mensagem: 'O produto sairá do catálogo ativo e não aparecerá nas próximas contagens. O histórico é mantido.',
+      confirmar: 'Desativar produto',
+      perigo: true
+    });
+    if (!confirmado) return;
 
     const res = await API.delete(`/produtos/${id}`);
     if (res && res.success) {
@@ -268,16 +314,18 @@ const Produtos = {
           return;
         }
 
-        const modoSubstituir = confirm(
-          `Foram identificados ${produtosValidados.length} produtos válidos na planilha.\n\n` +
-          `Deseja SUBSTITUIR todo o catálogo existente?\n\n` +
-          `[OK] = Substituir catálogo completo\n` +
-          `[Cancelar] = Mesclar/Atualizar sem excluir os outros produtos`
-        );
+        const modo = await confirmarAcao({
+          titulo: 'Como importar a planilha?',
+          mensagem: `A planilha tem ${produtosValidados.length === 1 ? '1 produto válido' : `${produtosValidados.length} produtos válidos`}. Mesclar atualiza e adiciona produtos sem excluir os outros. Substituir apaga o catálogo atual e usa só a planilha.`,
+          cancelar: 'Cancelar importação',
+          acoes: [
+            { rotulo: 'Mesclar com o catálogo atual', valor: 'mesclar', padrao: true },
+            { rotulo: 'Substituir catálogo completo', valor: 'substituir', perigo: true }
+          ]
+        });
+        if (!modo) return;
 
-        const modo = modoSubstituir ? 'substituir' : 'mesclar';
-
-        showToast(`Importando ${produtosValidados.length} produto(s)...`, 'info');
+        showToast(`Importando ${pluralizar(produtosValidados.length, 'produto')}...`, 'info');
         const res = await API.post('/produtos/importar', {
           modo,
           produtos: produtosValidados

@@ -14,6 +14,8 @@ describe('Formulário de funcionários no frontend', () => {
   let usuarios;
   let api;
   let dispatch;
+  let marcarErroCampo;
+  let limparErroCampo;
 
   beforeEach(() => {
     elements = new Map(
@@ -34,7 +36,20 @@ describe('Formulário de funcionários no frontend', () => {
       post: jest.fn().mockResolvedValue({ success: true }),
       put: jest.fn().mockResolvedValue({ success: true })
     };
+    // Stubs fiéis aos helpers de frontend/js/utils.js (validarCampos marca os inválidos e devolve true só se nenhum falhar).
+    marcarErroCampo = jest.fn();
+    limparErroCampo = jest.fn();
+    const validarCampos = (regras) => {
+      let invalido = false;
+      for (const [input, msg, falhou] of regras) {
+        if (falhou) { marcarErroCampo(input, msg); invalido = true; } else limparErroCampo(input);
+      }
+      return !invalido;
+    };
     context = vm.createContext({
+      marcarErroCampo,
+      limparErroCampo,
+      validarCampos,
       document: {
         getElementById: (id) => elements.get(id) || null,
         addEventListener: jest.fn(),
@@ -90,6 +105,18 @@ describe('Formulário de funcionários no frontend', () => {
       expect(criarUsuarioSchema.body.safeParse(body).success).toBe(true);
       expect(elements.get('modal-usuario').style.display).toBe('none');
     }
+  });
+
+  it('salvar com nome vazio marca o erro no campo e não chama a API', async () => {
+    usuarios.abrirModalCriar();
+    elements.get('user-nome').value = '   ';
+    elements.get('user-email').value = 'maria@teste.test';
+    elements.get('user-senha-temp').value = 'Temporaria@123';
+    await usuarios.salvar();
+    expect(marcarErroCampo).toHaveBeenCalledWith(elements.get('user-nome'), 'Informe o nome completo do usuário.');
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.put).not.toHaveBeenCalled();
+    expect(elements.get('modal-usuario').style.display).toBe('flex');
   });
 
   it('a edição preenche os mesmos campos e preserva email e senha', async () => {

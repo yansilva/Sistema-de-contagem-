@@ -61,9 +61,11 @@ const Semana = {
     const aviso = document.getElementById('semana-status-leitor');
     if (!container) return;
     if (periodo) periodo.textContent = '';
+    if (this.estado === 'carregando') container.setAttribute?.('aria-busy', 'true');
+    else container.removeAttribute?.('aria-busy');
     if (this.estado === 'carregando') {
       if (aviso) aviso.textContent = 'Carregando semana atual...';
-      container.innerHTML = '<p><span class="spinner" aria-hidden="true"></span> Carregando semana atual...</p>';
+      container.innerHTML = '<p role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span> Carregando semana atual...</p>';
       return;
     }
     if (this.estado === 'erro') {

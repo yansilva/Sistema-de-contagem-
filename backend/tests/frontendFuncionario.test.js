@@ -24,6 +24,8 @@ describe('Área do funcionário de contagem', () => {
         style: {},
         dataset: {},
         hidden: /\bhidden(?:\s|>)/.test(tag),
+        // Paginação oculta (consulta.js) alterna `hidden` no contêiner pai do rótulo de página.
+        parentElement: { hidden: false },
         admin: tag.includes('data-admin-only'),
         classes,
         classList: {
@@ -35,6 +37,8 @@ describe('Área do funcionário de contagem', () => {
         setAttribute: jest.fn(),
         removeAttribute: jest.fn(),
         focus: jest.fn(),
+        // exibirResultado move o foco para o h2 do cartão de resultado.
+        querySelector: jest.fn(() => ({ focus: jest.fn() })),
         open: false,
         showModal: jest.fn(function () { this.open = true; }),
         close: jest.fn(function () { this.open = false; })
@@ -82,6 +86,8 @@ describe('Área do funcionário de contagem', () => {
       context
     );
     context.showToast = jest.fn();
+    // app.js define o confirmarAcao real (modal); aqui é substituído por stub que registra a chamada e confirma.
+    context.confirmarAcao = jest.fn(() => Promise.resolve(true));
     dispatch = loadFrontendEvents(context);
     auth = context.auth;
     consulta = context.consulta;
@@ -383,7 +389,7 @@ describe('Área do funcionário de contagem', () => {
     });
     expect(elements.get('bloco-produtos-contagem').open).toBe(false);
     expect(context.showToast).toHaveBeenCalledWith('Contagem de D\'Água salva.', 'success');
-    expect(elements.get('progresso-contagem-texto').textContent).toBe('1 de 1 produtos contados');
+    expect(elements.get('progresso-contagem-texto').textContent).toBe('1 de 1 produto contado');
     expect(elements.get('btn-finalizar-contagem').disabled).toBe(false);
     expect(elements.get('bloco-produtos-contagem').close).toHaveBeenCalledTimes(1);
   });
@@ -498,9 +504,12 @@ describe('Área do funcionário de contagem', () => {
     expect(context.Semana.invalidar).not.toHaveBeenCalled();
     for (const tipo of ['geral', 'pecas_queijo']) {
       context.contagens.tipoAtual = tipo;
+      context.contagens.contagemId = 'sessao'; // finalizar com sucesso zera a sessão ativa
       await context.contagens.finalizarSessao();
     }
     expect(context.Semana.invalidar).toHaveBeenCalledTimes(2);
+    expect(context.confirmarAcao).toHaveBeenCalledTimes(3);
+    expect(context.confirmarAcao).toHaveBeenCalledWith(expect.objectContaining({ titulo: 'Finalizar contagem?', perigo: false }));
   });
 
   it('entradas dos dois perfis abrem modalidades sem criar sessão', async () => {
@@ -532,7 +541,12 @@ describe('Área do funcionário de contagem', () => {
     api.get.mockResolvedValue({ success: true, data: { contagem: c } });
 
     await context.contagens.finalizarSessao();
-    expect(context.confirm).toHaveBeenCalledWith(expect.stringContaining('não entrará no resultado desta contagem'));
+    expect(context.confirmarAcao).toHaveBeenCalledWith(expect.objectContaining({
+      titulo: 'Finalizar com 1 produto sem contar?',
+      mensagem: expect.stringContaining('não entrará no resultado desta contagem'),
+      perigo: true
+    }));
+    expect(context.confirm).not.toHaveBeenCalled();
     await context.contagens.exibirResultado(c.id);
     expect(elements.get('resultado-metricas').innerHTML).toContain('Produtos contados');
     expect(elements.get('resultado-metricas').innerHTML).toContain('>1</div>');

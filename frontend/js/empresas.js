@@ -13,10 +13,20 @@ const Empresas = {
   focoAntesModal: null,
   requestIds: {},
   filtroTimer: null,
+  containerAtivo: null,
 
-  async carregar({ containerId = 'empresas-lista', page = 1, resumo = false } = {}) {
+  /** Container da lista que o usuário está vendo (tela /#empresas ou aba Empresas do console). */
+  resolverContainer() {
+    const tela = document.getElementById('screen-empresas');
+    if (tela?.classList?.contains('active')) return 'empresas-lista-compat';
+    return this.containerAtivo && this.containerAtivo !== 'empresas-lista-compat' ? this.containerAtivo : 'empresas-lista';
+  },
+
+  async carregar({ containerId, page = 1, resumo = false } = {}) {
+    if (!containerId) containerId = this.resolverContainer();
     const container = document.getElementById(containerId);
     if (!container) return;
+    if (!resumo) this.containerAtivo = containerId;
     const requestId = (this.requestIds[containerId] || 0) + 1;
     this.requestIds[containerId] = requestId;
     container.setAttribute('aria-busy', 'true');
@@ -139,7 +149,7 @@ const Empresas = {
     const paginador = !resumo && pagination && pagination.totalPages > 1
       ? `<div class="saas-pagination"><button class="btn btn-outline btn-sm" data-click="action-111" data-page="${pagination.page - 1}" ${pagination.page <= 1 ? 'disabled' : ''}>Anterior</button><span>Página ${pagination.page} de ${pagination.totalPages}</span><button class="btn btn-outline btn-sm" data-click="action-111" data-page="${pagination.page + 1}" ${pagination.page >= pagination.totalPages ? 'disabled' : ''}>Próxima</button></div>`
       : '';
-    container.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Lista de empresas"><table class="saas-table"><thead><tr><th>Empresa</th><th>Acesso</th><th>Administrador principal</th><th>Usuários</th><th>Última atividade</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table></div></div>${paginador}`;
+    container.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Lista de empresas"><table class="saas-table tabela-acoes-fixas"><thead><tr><th>Empresa</th><th>Acesso</th><th>Administrador principal</th><th>Usuários</th><th>Última atividade</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table></div></div>${paginador}`;
   },
 
   abrirDrawer(id) {
@@ -229,11 +239,26 @@ const Empresas = {
     const texto = this.empresaStatusDestino === 'inativa'
       ? 'O acesso será interrompido imediatamente e todas as sessões da empresa serão encerradas.'
       : 'A empresa poderá entrar novamente, mas sessões antigas continuarão inválidas.';
+    const empresa = this.dados.find((e) => e.id === id);
+    const nomeEl = document.getElementById('status-empresa-nome');
+    if (nomeEl) {
+      nomeEl.textContent = (this.empresaStatusDestino === 'inativa' ? 'Inativar empresa: ' : 'Reativar empresa: ') + (empresa?.nome || 'empresa selecionada');
+    }
     const explicacao = document.getElementById('status-empresa-explicacao');
     if (explicacao) explicacao.textContent = texto;
     const motivo = document.getElementById('status-empresa-motivo');
     if (motivo) motivo.value = '';
-    this.abrirModal('modal-status-empresa', motivo);
+    const inativar = this.empresaStatusDestino === 'inativa';
+    const confirmar = document.getElementById('btn-confirmar-status');
+    if (confirmar) {
+      confirmar.classList.toggle('btn-danger', inativar);
+      confirmar.classList.toggle('btn-primary', !inativar);
+      confirmar.textContent = inativar ? 'Inativar empresa' : 'Reativar empresa';
+    }
+    const titulo = document.getElementById('modal-status-empresa-titulo');
+    if (titulo) titulo.lastChild.textContent = inativar ? ' Inativar empresa' : ' Reativar empresa';
+    // Foco inicial no botão seguro (Cancelar), não no campo nem na ação de risco
+    this.abrirModal('modal-status-empresa', document.getElementById('btn-cancelar-status'));
   },
 
   fecharModalStatus() {

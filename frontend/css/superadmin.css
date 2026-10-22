@@ -45,7 +45,7 @@
 .saas-brand-title .brand-mark { width: 28px; height: 28px; }
 
 .saas-env-tag {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   padding: 2px 8px;
@@ -629,7 +629,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 }
 
 .drawer-stat-label {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--cor-texto-mudo);
 }
 
@@ -666,7 +666,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 }
 
 .drawer-user-email {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   color: var(--cor-texto-mudo);
 }
 
@@ -978,6 +978,17 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   .detail-stat-grid { grid-template-columns: 1fr; }
   .empresa-detail-tabs { overflow-x: auto; flex-wrap: nowrap; }
   .empresa-detail-tab { white-space: nowrap; }
+}
+
+/* KPIs da plataforma no celular: 2 colunas compactas */
+@media (max-width: 760px) {
+  .saas-kpis-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
+  .saas-kpi-card { padding: 12px; gap: 6px; }
+  .saas-kpi-header { align-items: flex-start; gap: 6px; }
+  .saas-kpi-title { font-size: .75rem; line-height: 1.25; letter-spacing: .03em; overflow-wrap: anywhere; }
+  .saas-kpi-icon { width: 28px; height: 28px; font-size: 1rem; flex-shrink: 0; }
+  .saas-kpi-val { font-size: 1.5rem; }
+  .saas-kpi-sub { font-size: .75rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -59,8 +59,16 @@ const Auditoria = {
 
   async validarERenderizar() {
     const requestId = ++this.requestId;
-    if (this.container) this.container.innerHTML = '<div class="loading-state"><span class="spinner"></span><p>Validando sessão de auditoria…</p></div>';
-    const res = await API.get(`/auditoria/sessoes/${this.sessao.id}/resumo?page=1&limit=20`);
+    if (this.container) {
+      this.container.setAttribute('aria-busy', 'true');
+      this.container.innerHTML = '<div class="loading-state" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><p>Validando sessão de auditoria...</p></div>';
+    }
+    let res;
+    try {
+      res = await API.get(`/auditoria/sessoes/${this.sessao.id}/resumo?page=1&limit=20`);
+    } finally {
+      this.container?.removeAttribute('aria-busy');
+    }
     if (requestId !== this.requestId) return;
     if (!res?.success) {
       this.limparLocal();
@@ -79,8 +87,14 @@ const Auditoria = {
     const target = document.getElementById('audit-resource-content');
     if (!target) return;
     const requestId = ++this.requestId;
-    target.innerHTML = '<div class="loading-state"><span class="spinner"></span><p>Consultando dados…</p></div>';
-    const res = await API.get(`/auditoria/sessoes/${this.sessao.id}/${recurso}?page=1&limit=20`);
+    target.setAttribute('aria-busy', 'true');
+    target.innerHTML = '<div class="loading-state" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><p>Consultando dados...</p></div>';
+    let res;
+    try {
+      res = await API.get(`/auditoria/sessoes/${this.sessao.id}/${recurso}?page=1&limit=20`);
+    } finally {
+      target.removeAttribute('aria-busy');
+    }
     if (requestId !== this.requestId) return;
     if (!res?.success) {
       if (['AUDITORIA_ENCERRADA', 'NAO_ENCONTRADO'].includes(res?.code)) this.limparLocal();
@@ -96,11 +110,24 @@ const Auditoria = {
     if (!items.length) return void (target.innerHTML = '<div class="empty-state"><p>Nenhum registro encontrado.</p></div>');
     const colunas = recurso === 'usuarios' ? ['nome','email','papel','ativo'] : recurso === 'produtos' ? ['codigo','nome','fornecedor','estoque_atual'] : recurso === 'contagens' ? ['iniciado_em','status','finalizado_em','tem_diferenca'] : ['criado_em','acao','resultado','motivo'];
     const rotulos = { usuarios: 'usuários', produtos: 'produtos', contagens: 'contagens', logs: 'registros de auditoria' };
-    target.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de ${rotulos[recurso] || 'registros'} da empresa"><table class="saas-table"><thead><tr>${colunas.map((c) => `<th>${c.replaceAll('_',' ')}</th>`).join('')}</tr></thead><tbody>${items.map((item) => `<tr>${colunas.map((c) => `<td>${this.valor(item[c])}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
+    target.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de ${rotulos[recurso] || 'registros'} da empresa"><table class="saas-table"><thead><tr>${colunas.map((c) => `<th>${c.replaceAll('_',' ')}</th>`).join('')}</tr></thead><tbody>${items.map((item) => `<tr>${colunas.map((c) => `<td>${this.valor(item[c], c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></div>`;
   },
 
-  valor(value) {
+  ROTULOS_PAPEL: { super_admin: 'Super Admin', funcionario: 'Funcionário', administrador: 'Administrador', admin: 'Administrador', gestor: 'Gestor' },
+  ROTULOS_ENTIDADE: { sessao: 'Sessão', contagem: 'Contagem', usuario: 'Usuário', empresa: 'Empresa', produto: 'Produto', estoque: 'Estoque' },
+
+  rotulo(mapa, codigo) {
+    const cod = String(codigo || '');
+    if (mapa[cod]) return mapa[cod];
+    const texto = cod.replace(/_/g, ' ').trim();
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  },
+
+  valor(value, coluna) {
     if (value === null || value === undefined) return '—';
+    if (coluna === 'papel') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(this.rotulo(this.ROTULOS_PAPEL, value))}</span>`;
+    if (coluna === 'entidade') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(this.rotulo(this.ROTULOS_ENTIDADE, value))}</span>`;
+    if (coluna === 'acao' && typeof Atividades !== 'undefined') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(Atividades.rotuloAcao(value))}</span>`;
     if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
     if (/^\d{4}-\d{2}-\d{2}T/.test(String(value))) return new Date(value).toLocaleString('pt-BR');
     return Empresas.escapeHtml(value);

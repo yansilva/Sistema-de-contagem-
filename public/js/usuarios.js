@@ -32,7 +32,7 @@ const Usuarios = {
 
     // Atualiza KPIs do backoffice de forma reativa
     if (typeof carregarBackofficeKPIs === 'function' && typeof Auth !== 'undefined' && Auth.isAdmin()) {
-      carregarBackofficeKPIs();
+      carregarBackofficeKPIs(true);
     }
   },
 
@@ -58,7 +58,9 @@ const Usuarios = {
 
     const rows = this.lista.map((u) => {
       const isEu = Auth.usuario && Auth.usuario.id === u.id;
-      const papelLabel = u.papel === 'administrador' || u.papel === 'gestor' || u.papel === 'admin'
+      const papelLabel = u.papel === 'super_admin'
+        ? '<span class="badge badge-admin"><i class="ti ti-shield-lock"></i> Super Admin</span>'
+        : u.papel === 'administrador' || u.papel === 'gestor' || u.papel === 'admin'
         ? '<span class="badge badge-admin"><i class="ti ti-shield"></i> Administrador</span>'
         : '<span class="badge badge-funcionario"><i class="ti ti-user"></i> Funcionário</span>';
 
@@ -72,11 +74,11 @@ const Usuarios = {
 
       const btnStatus = isEu
         ? ''
-        : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}">
+        : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}" aria-label="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}" style="min-width:44px;min-height:44px">
             <i class="ti ti-${u.ativo ? 'user-x' : 'user-check'}"></i>
           </button>`;
 
-      const btnReset = `<button class="btn btn-ghost btn-sm" data-click="action-84" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(u.nome)}" title="Redefinir Senha Temporária">
+      const btnReset = `<button class="btn btn-ghost btn-sm" data-click="action-84" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(u.nome)}" title="Redefinir Senha Temporária" aria-label="Redefinir Senha Temporária" style="min-width:44px;min-height:44px">
         <i class="ti ti-rotate-2"></i>
       </button>`;
 
@@ -90,7 +92,7 @@ const Usuarios = {
           <td>${statusBadge} ${trocaPendente}</td>
           <td style="text-align:right">
             <div style="display:inline-flex; gap:4px">
-              <button class="btn btn-ghost btn-sm" data-click="action-85" data-arg-0="${escapeHtml(String(u.id))}" title="Editar dados">
+              <button class="btn btn-ghost btn-sm" data-click="action-85" data-arg-0="${escapeHtml(String(u.id))}" title="Editar dados" aria-label="Editar dados" style="min-width:44px;min-height:44px">
                 <i class="ti ti-edit"></i>
               </button>
               ${btnReset}
@@ -103,7 +105,7 @@ const Usuarios = {
 
     container.innerHTML = `
       <div class="table-scroll" role="region" aria-label="Lista de funcionários" tabindex="0">
-      <table class="data-table">
+      <table class="data-table tabela-acoes-fixas">
         <thead>
           <tr>
             <th>Nome / E-mail</th>
@@ -133,6 +135,7 @@ const Usuarios = {
     document.getElementById(_SENHA_TEMP_GROUP_ID).style.display = 'block';
     document.getElementById('user-senha-temp').value = '';
     document.getElementById('modal-usuario-error').textContent = '';
+    ['user-nome', 'user-email', 'user-senha-temp'].forEach((i) => limparErroCampo(document.getElementById(i)));
     document.getElementById('modal-usuario').style.display = 'flex';
   },
 
@@ -151,6 +154,7 @@ const Usuarios = {
     document.getElementById('user-papel').value = u.papel === 'gestor' || u.papel === 'admin' ? 'administrador' : u.papel;
     document.getElementById(_SENHA_TEMP_GROUP_ID).style.display = 'none';
     document.getElementById('modal-usuario-error').textContent = '';
+    ['user-nome', 'user-email', 'user-senha-temp'].forEach((i) => limparErroCampo(document.getElementById(i)));
     document.getElementById('modal-usuario').style.display = 'flex';
   },
 
@@ -167,10 +171,19 @@ const Usuarios = {
     const erroEl = document.getElementById('modal-usuario-error');
     erroEl.textContent = '';
 
-    if (!nome) {
-      erroEl.textContent = 'Informe o nome completo do usuário.';
-      return;
-    }
+    const emailEl = document.getElementById('user-email');
+    const senhaEl = document.getElementById('user-senha-temp');
+    const criando = !this.usuarioEditandoId;
+    const emailVal = emailEl.value.trim();
+    const senhaVal = senhaEl.value;
+    const valido = validarCampos([
+      [document.getElementById('user-nome'), 'Informe o nome completo do usuário.', !nome],
+      ...(criando ? [
+        [emailEl, 'Informe o e-mail de acesso.', !emailVal],
+        [senhaEl, !senhaVal ? 'Informe a senha temporária.' : 'A senha temporária deve ter pelo menos 6 caracteres.', !senhaVal || senhaVal.length < 6]
+      ] : [])
+    ]);
+    if (!valido) return;
 
     if (this.usuarioEditandoId) {
       // Edição
@@ -203,7 +216,12 @@ const Usuarios = {
       });
 
       if (!res || !res.success) {
-        erroEl.textContent = res?.message || 'Erro ao cadastrar usuário.';
+        if (res?.code === 'EMAIL_EXISTENTE') {
+          marcarErroCampo(emailEl, 'Este e-mail já está cadastrado. Use outro e-mail de acesso.');
+          emailEl.focus();
+        } else if (!aplicarErrosServidor(res, { nome: document.getElementById('user-nome'), email: emailEl, senha_temporaria: senhaEl })) {
+          erroEl.textContent = res?.message || 'Erro ao cadastrar usuário.';
+        }
         return;
       }
 
@@ -221,7 +239,15 @@ const Usuarios = {
     const novoStatus = !statusAtual;
     const acao = novoStatus ? 'ativar' : 'desativar';
 
-    if (!confirm(`Tem certeza que deseja ${acao} este usuário?`)) return;
+    const confirmado = await confirmarAcao({
+      titulo: novoStatus ? 'Reativar usuário?' : 'Desativar usuário?',
+      mensagem: novoStatus
+        ? 'O usuário voltará a poder entrar no sistema.'
+        : 'O usuário não poderá mais entrar no sistema. Os registros dele são mantidos.',
+      confirmar: novoStatus ? 'Reativar usuário' : 'Desativar usuário',
+      perigo: !novoStatus
+    });
+    if (!confirmado) return;
 
     const res = await API.patch(`/usuarios/${id}/status`, { ativo: novoStatus });
     if (!res || !res.success) {

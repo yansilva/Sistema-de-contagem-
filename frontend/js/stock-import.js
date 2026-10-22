@@ -10,8 +10,19 @@ const StockImport = {
   _versaoHistorico: 0,
   _confirmando: false,
 
-  abrir() {
-    showScreen('screen-importar-estoque');
+  origem: 'home',
+  _viaAbrir: false,
+
+  definirOrigem(origem) {
+    this.origem = origem === 'backoffice' ? 'backoffice' : 'home';
+    const rotulo = document.getElementById('estoque-voltar-rotulo');
+    if (rotulo) rotulo.textContent = this.origem === 'backoffice' ? 'Voltar ao back-office' : 'Voltar ao painel';
+  },
+
+  abrir(origem = 'home') {
+    this.definirOrigem(origem);
+    this._viaAbrir = true;
+    try { showScreen('screen-importar-estoque'); } finally { this._viaAbrir = false; }
     this.carregarHistorico();
   },
 
@@ -328,7 +339,7 @@ const StockImport = {
       container.innerHTML = `
         <div class="empty-state">
           <i class="ti ti-file-text" style="font-size:2rem; color:var(--cor-texto-mutado)"></i>
-          <p>Nenhuma importação de estoque registrada até o momento.</p>
+          <p>Nenhuma importação ainda. Envie o PDF do ERP para atualizar o saldo de referência.</p>
         </div>
       `;
       return;

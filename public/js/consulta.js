@@ -108,9 +108,12 @@ const Consulta = {
   async carregarHistorico() {
     const requisicao = ++this.requisicaoHistorico;
     this.fecharDetalhe();
-    this.mensagem('consulta-historico-lista', 'Carregando contagens...');
+    const listaHist = document.getElementById('consulta-historico-lista');
+    listaHist.innerHTML = '<p class="consulta-vazio" role="status">Carregando contagens...</p>';
+    listaHist.setAttribute?.('aria-busy', 'true');
     const res = await API.get(`/contagens?page=${this.paginaHistorico}&limit=${this.limite}`);
     if (requisicao !== this.requisicaoHistorico) return;
+    listaHist.removeAttribute?.('aria-busy');
     if (!res?.success) {
       this.mensagem('consulta-historico-lista', 'Não foi possível carregar o histórico.');
       return;
@@ -120,6 +123,7 @@ const Consulta = {
     document.getElementById('consulta-historico-anterior').disabled = this.paginaHistorico <= 1;
     document.getElementById('consulta-historico-proxima').disabled = !this.historicoTemProxima;
     document.getElementById('consulta-historico-pagina').textContent = `Página ${this.paginaHistorico}`;
+    document.getElementById('consulta-historico-pagina').parentElement.hidden = !contagens.length && this.paginaHistorico <= 1;
     if (!contagens.length) {
       this.mensagem('consulta-historico-lista', 'Nenhuma contagem nesta página.');
       return;
@@ -153,7 +157,7 @@ const Consulta = {
     const c = res.data.contagem;
     const pecas = c.tipo === 'pecas_queijo';
     detalhe.innerHTML = `<div class="contagem-dialog-header"><div><span class="contagem-dialog-eyebrow">Histórico de contagens</span><h3>Quantidades registradas · ${escapeHtml(formatarData(c.iniciado_em))}</h3></div>
-      <button type="button" class="btn btn-ghost btn-sm" data-click="action-122" aria-label="Fechar detalhes"><i class="ti ti-x"></i></button></div>
+      <button type="button" class="btn btn-ghost btn-sm" data-click="action-122" aria-label="Fechar detalhes" title="Fechar detalhes"><i class="ti ti-x" aria-hidden="true"></i></button></div>
       <p>${pecas ? 'Peças de queijo' : 'Contagem geral'}</p>
       ${!pecas && c.status === 'finalizada' && (c.tem_diferenca || (c.fornecedores || []).some(f => (f.produtos || []).some(p => Number(p.quantidade_vencida || 0) > 0))) ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Excel</button>` : ''}
       <div class="consulta-detalhe-corpo">` +

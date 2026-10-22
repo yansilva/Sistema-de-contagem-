@@ -171,7 +171,7 @@ describe('Autenticação, Onboarding & Refresh Token com Rotação', () => {
     expect(res.statusCode).toBe(401);
     expect(res.body.success).toBe(false);
     expect(res.body.code).toBe('CREDENCIAIS_INVALIDAS');
-    expect(res.body.message).toBe('Credenciais inválidas.');
+    expect(res.body.message).toBe('E-mail ou senha incorretos. Confira os dados ou fale com o administrador da sua empresa.');
   });
 
   it('POST /api/auth/refresh — deve rotacionar refresh token e invalidar o anterior', async () => {

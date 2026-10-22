@@ -35,10 +35,11 @@ const Atividades = {
     }
 
     this.paginaAtual = page;
-    const container = document.getElementById('lista-atividades');
+    const container = this.obterContainer();
     if (!container) return;
 
-    container.innerHTML = '<div style="text-align:center; padding:30px"><span class="spinner"></span> Carregando atividades...</div>';
+    container.setAttribute('aria-busy', 'true');
+    container.innerHTML = '<div role="status" aria-live="polite" style="text-align:center; padding:30px"><span class="spinner" aria-hidden="true"></span> Carregando atividades...</div>';
 
     const filtros = this.obterFiltros();
     const queryParams = new URLSearchParams({
@@ -51,7 +52,7 @@ const Atividades = {
       const res = await API.get(`/atividades?${queryParams.toString()}`);
       if (!res || !res.success) {
         const mensagem = escapeHtml(res?.message || 'Erro ao carregar atividades.');
-        container.innerHTML = `<div class="card" style="color:var(--cor-perigo); text-align:center; padding:20px">${mensagem}</div>`;
+        container.innerHTML = this.htmlErro(mensagem);
         return;
       }
 
@@ -60,23 +61,123 @@ const Atividades = {
       this.renderizarTabela(atividades, pagination);
       this.atualizarPaginacao(pagination);
     } catch (err) {
-      container.innerHTML = '<div class="card" style="color:var(--cor-perigo); text-align:center; padding:20px">Falha na conexão com o servidor.</div>';
+      container.innerHTML = this.htmlErro('Falha na conexão com o servidor.');
+    } finally {
+      container.removeAttribute('aria-busy');
     }
+  },
+
+  /**
+   * Lista que pertence ao contexto visível: Super Admin usa a aba
+   * "Auditoria Global" (#atividades-lista); administrador usa o back-office (#lista-atividades).
+   */
+  obterContainer() {
+    const ehSuper = Auth.usuario?.papel === 'super_admin';
+    return document.getElementById(ehSuper ? 'atividades-lista' : 'lista-atividades')
+      || document.getElementById('atividades-lista')
+      || document.getElementById('lista-atividades');
+  },
+
+  htmlErro(mensagem) {
+    return `
+      <div class="card" role="alert" style="color:var(--cor-perigo); text-align:center; padding:20px">
+        <p style="margin-bottom:10px">${mensagem}</p>
+        <button type="button" class="btn btn-outline btn-sm" data-click="action-57">Tentar de novo</button>
+      </div>`;
+  },
+
+  /**
+   * Rótulo legível para o código da ação (o filtro continua usando o código original)
+   */
+  rotuloAcao(codigo) {
+    const cod = String(codigo || '');
+    if (this.ROTULOS_ACAO[cod]) return this.ROTULOS_ACAO[cod];
+    const semPrefixo = cod.includes('.') ? cod.split('.').pop() : cod;
+    const texto = semPrefixo.replace(/_/g, ' ').trim();
+    return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : '';
+  },
+
+  ROTULOS_ENTIDADE: {
+    sessao: 'Sessão',
+    contagem: 'Contagem',
+    usuario: 'Usuário',
+    empresa: 'Empresa',
+    produto: 'Produto',
+    estoque: 'Estoque'
+  },
+
+  ROTULOS_PAPEL: {
+    super_admin: 'Super Admin',
+    funcionario: 'Funcionário',
+    administrador: 'Administrador',
+    admin: 'Administrador',
+    gestor: 'Gestor'
+  },
+
+  rotuloDe(mapa, codigo) {
+    const cod = String(codigo || '');
+    if (!cod) return '';
+    if (mapa[cod]) return mapa[cod];
+    const texto = cod.replace(/_/g, ' ').trim();
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  },
+
+  rotuloEntidade(codigo) { return this.rotuloDe(this.ROTULOS_ENTIDADE, codigo); },
+  rotuloPapel(codigo) { return this.rotuloDe(this.ROTULOS_PAPEL, codigo); },
+
+  ROTULOS_ACAO: {
+    login_sucesso: 'Login realizado',
+    login_falha: 'Falha no login',
+    logout: 'Saída do sistema',
+    sessao_comprometida: 'Sessão comprometida',
+    senha_alterada: 'Senha alterada',
+    senha_redefinida: 'Senha redefinida',
+    senha_temporaria_definida_superadmin: 'Senha temporária definida pelo Super Admin',
+    recuperacao_solicitada: 'Recuperação de senha solicitada',
+    recuperacao_entrega_aceita: 'E-mail de recuperação enviado',
+    recuperacao_entrega_falhou: 'Falha no envio do e-mail de recuperação',
+    recuperacao_concluida: 'Recuperação de senha concluída',
+    usuario_criado: 'Usuário criado',
+    usuario_editado: 'Usuário editado',
+    produto_criado: 'Produto criado',
+    produto_editado: 'Produto editado',
+    produto_desativado: 'Produto desativado',
+    catalogo_importado: 'Catálogo importado',
+    contagem_criada: 'Contagem criada',
+    contagem_progresso_salvo: 'Progresso da contagem salvo',
+    contagem_finalizada: 'Contagem finalizada',
+    contagem_reaberta: 'Contagem reaberta',
+    estoque_pdf_recebido: 'PDF de estoque recebido',
+    estoque_atualizado: 'Estoque atualizado',
+    empresa_criada: 'Empresa criada',
+    empresa_atualizada: 'Empresa atualizada',
+    empresa_excluida: 'Empresa excluída',
+    empresa_exclusao_negada: 'Exclusão de empresa negada',
+    auditoria_iniciada: 'Auditoria assistida iniciada',
+    auditoria_encerrada: 'Auditoria assistida encerrada',
+    auditoria_expirada: 'Auditoria assistida expirada'
   },
 
   /**
    * Renderiza a tabela de atividades
    */
   renderizarTabela(atividades, pagination) {
-    const container = document.getElementById('lista-atividades');
+    const container = this.obterContainer();
     if (!container) return;
 
     if (!atividades || atividades.length === 0) {
-      container.innerHTML = `
+      const comFiltro = Object.keys(this.obterFiltros()).length > 0;
+      container.innerHTML = comFiltro ? `
         <div class="card" style="text-align:center; padding:40px; color:var(--cor-texto-secundario)">
           <i class="ti ti-shield-check" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:10px; display:inline-block"></i>
-          <p style="font-weight:600; margin-bottom:4px">Nenhuma atividade registrada encontrada</p>
-          <p style="font-size:0.85rem">Ajuste os filtros acima para refinar a busca.</p>
+          <p style="font-weight:600; margin-bottom:8px">Nenhum resultado para os filtros atuais.</p>
+          <button type="button" class="btn btn-outline btn-sm" data-click="action-58">Limpar filtros</button>
+        </div>
+      ` : `
+        <div class="card" style="text-align:center; padding:40px; color:var(--cor-texto-secundario)">
+          <i class="ti ti-shield-check" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:10px; display:inline-block"></i>
+          <p style="font-weight:600; margin-bottom:4px">Nenhuma atividade registrada ainda.</p>
+          <p style="font-size:0.85rem">As ações feitas no sistema aparecem aqui conforme acontecem.</p>
         </div>
       `;
       return;
@@ -92,23 +193,27 @@ const Atividades = {
         ? '<span class="badge-audit sucesso"><i class="ti ti-check"></i> Sucesso</span>'
         : '<span class="badge-audit falha"><i class="ti ti-x"></i> Falha</span>';
 
-      const acaoBadge = `<span class="badge-audit acao">${escapeHtml(log.acao || '')}</span>`;
+      const acaoBadge = `<span class="badge-audit acao" title="${escapeHtml(log.acao || '')}">${escapeHtml(this.rotuloAcao(log.acao))}</span>`;
       const atorLabel = escapeHtml(log.ator?.rotulo || 'Sistema');
-      const atorPapel = log.ator?.papel ? `(${escapeHtml(log.ator.papel)})` : '';
-      const entidade = escapeHtml(log.entidade || '—');
+      const atorPapel = log.ator?.papel
+        ? `<span title="${escapeHtml(log.ator.papel)}">${escapeHtml(this.rotuloPapel(log.ator.papel))}</span>`
+        : '';
+      const entidade = log.entidade
+        ? `<span title="${escapeHtml(log.entidade)}">${escapeHtml(this.rotuloEntidade(log.entidade))}</span>`
+        : '—';
       const logId = escapeHtml(log.id || '');
 
       rowsHtml += `
-        <tr>
-          <td style="white-space:nowrap; font-size:0.8rem; color:var(--cor-texto-secundario)">${escapeHtml(dataFormatada)}</td>
-          <td>
+        <tr role="row">
+          <td role="cell" class="au-data">${escapeHtml(dataFormatada)}</td>
+          <td role="cell" class="au-ator">
             <strong>${atorLabel}</strong>
-            <span style="font-size:0.75rem; color:var(--cor-texto-mudo); display:block">${atorPapel}</span>
+            <span class="ator-papel">${atorPapel}</span>
           </td>
-          <td>${acaoBadge}</td>
-          <td><span style="font-size:0.85rem; font-weight:500">${entidade}</span></td>
-          <td>${statusBadge}</td>
-          <td style="text-align:right">
+          <td role="cell" class="au-acao">${acaoBadge}</td>
+          <td role="cell" class="au-entidade" data-label="Entidade"><span class="au-entidade-valor">${entidade}</span></td>
+          <td role="cell" class="au-res">${statusBadge}</td>
+          <td role="cell" class="au-det">
             <button class="btn btn-ghost btn-sm" title="Ver detalhes e diff" data-click="action-70" data-arg-0="${escapeHtml(String(logId))}">
               <i class="ti ti-eye"></i> Detalhes
             </button>
@@ -119,18 +224,18 @@ const Atividades = {
 
     container.innerHTML = `
       <div class="audit-table-wrapper" tabindex="0" role="region" aria-label="Log de atividades">
-        <table class="audit-table">
-          <thead>
-            <tr>
-              <th>Data/Hora</th>
-              <th>Ator</th>
-              <th>Ação</th>
-              <th>Entidade</th>
-              <th>Resultado</th>
-              <th style="text-align:right">Ações</th>
+        <table class="audit-table audit-cards" role="table" aria-label="Log de atividades">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader">Data/Hora</th>
+              <th role="columnheader">Ator</th>
+              <th role="columnheader">Ação</th>
+              <th role="columnheader">Entidade</th>
+              <th role="columnheader">Resultado</th>
+              <th role="columnheader" class="au-det">Detalhes</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody role="rowgroup">
             ${rowsHtml}
           </tbody>
         </table>
@@ -146,6 +251,20 @@ const Atividades = {
     const infoEl = document.getElementById('audit-paginacao-info');
     const btnAnt = document.getElementById('btn-audit-ant');
     const btnProx = document.getElementById('btn-audit-prox');
+
+    if (Auth.usuario?.papel === 'super_admin') {
+      // A aba Auditoria Global não tem controles próprios: paginação dentro da lista
+      const lista = this.obterContainer();
+      if (lista && pagination.totalPages > 1) {
+        lista.insertAdjacentHTML('beforeend', `
+          <div class="pagination-controls" style="margin-top:16px">
+            <button type="button" class="btn btn-outline btn-sm" data-click="action-60" ${pagination.page <= 1 ? 'disabled' : ''}><i class="ti ti-chevron-left" aria-hidden="true"></i> Anterior</button>
+            <span>Página ${pagination.page} de ${pagination.totalPages} (${pagination.total} registros)</span>
+            <button type="button" class="btn btn-outline btn-sm" data-click="action-61" ${pagination.page >= pagination.totalPages ? 'disabled' : ''}>Próxima <i class="ti ti-chevron-right" aria-hidden="true"></i></button>
+          </div>`);
+      }
+      return;
+    }
 
     if (!paginacaoEl || !infoEl) return;
 
@@ -187,6 +306,7 @@ const Atividades = {
       if (el) el.value = '';
     });
     this.carregar(1);
+    document.getElementById('filtro-audit-busca')?.focus();
   },
 
   /**
@@ -207,9 +327,9 @@ const Atividades = {
 
       document.getElementById('audit-det-id').textContent = log.id;
       document.getElementById('audit-det-acao').textContent = log.acao;
-      document.getElementById('audit-det-entidade').textContent = `${log.entidade || ''} (ID: ${log.entidade_id || 'N/A'})`;
+      document.getElementById('audit-det-entidade').textContent = `${this.rotuloEntidade(log.entidade)} (ID: ${log.entidade_id || 'N/A'})`;
       document.getElementById('audit-det-data').textContent = new Date(log.criado_em).toLocaleString('pt-BR');
-      document.getElementById('audit-det-ator').textContent = `${log.ator?.rotulo || 'Sistema'} — Papel: ${log.ator?.papel || 'N/A'}`;
+      document.getElementById('audit-det-ator').textContent = `${log.ator?.rotulo || 'Sistema'}, papel: ${this.rotuloPapel(log.ator?.papel) || 'N/A'}`;
       document.getElementById('audit-det-ip').textContent = log.ip || '—';
       document.getElementById('audit-det-ua').textContent = log.user_agent || '—';
       document.getElementById('audit-det-request-id').textContent = log.request_id || '—';
@@ -288,3 +408,11 @@ const Atividades = {
     }
   }
 };
+
+// Enter no campo de busca aplica o filtro (mesma ação do botão "Filtrar")
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target && e.target.id === 'filtro-audit-busca') {
+    e.preventDefault();
+    Atividades.aplicarFiltros();
+  }
+});

@@ -31,7 +31,10 @@ describe('Modalidade de peças', () => {
           remove: (c) => classes.delete(c),
           contains: (c) => classes.has(c)
         },
-        scrollIntoView: jest.fn(), focus: jest.fn(), setAttribute: jest.fn(), removeAttribute: jest.fn(),
+        scrollIntoView: jest.fn(), focus: jest.fn(),
+        // exibirResultado move o foco para o h2 do cartão de resultado.
+        querySelector: jest.fn(() => ({ focus: jest.fn() })),
+        setAttribute: jest.fn(), removeAttribute: jest.fn(),
         open: false,
         showModal: jest.fn(function () { this.open = true; }),
         close: jest.fn(function () { this.open = false; })
@@ -78,6 +81,10 @@ describe('Modalidade de peças', () => {
       context
     );
     context.showToast = jest.fn();
+    // O DOM falso deste teste não tem getAttribute/closest: substitui os helpers reais de validação visual de utils.js.
+    context.marcarErroCampo = jest.fn();
+    context.limparErroCampo = jest.fn();
+    context.validarCampos = jest.fn((regras) => !regras.some(([, , falhou]) => falhou));
     dispatch = loadFrontendEvents(context);
     auth = context.auth;
     consulta = context.consulta;
@@ -93,7 +100,7 @@ describe('Modalidade de peças', () => {
     }
     expect(html).toContain('Sessões recentes');
     expect(html.includes('Sessões disponíveis no painel')).toBe(true);
-    expect(html).toContain('Última sessão disponível');
+    expect(html).toContain('Última contagem');
     expect(html).toContain('Sessões exibidas:');
     expect(html).not.toContain('Total de contagens finalizadas:');
   });
@@ -350,6 +357,8 @@ describe('Modalidade de peças', () => {
     const c = session(); c.status = 'finalizada'; c.fornecedores[0].produtos[0].quantidade_contada = 0;
     api.get.mockResolvedValue({ success: true, data: { contagem: c } });
     await context.contagens.exibirResultado(c.id);
+    // Foco vai para o h2 do cartão de resultado (acessibilidade).
+    expect(elements.get('resultado-status-card').querySelector).toHaveBeenCalledWith('h2');
     const result = ['resultado-status-card', 'resultado-metricas', 'resultado-divergencias'].map(id => elements.get(id).innerHTML).join('');
     expect(result).toContain('Peças de queijo'); expect(result).toContain('Quantidade de peças');
     expect(result).not.toMatch(/Estoque de referência|Sem diferença|Sobra|Falta|Excel/i);

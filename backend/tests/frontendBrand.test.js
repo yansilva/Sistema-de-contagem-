@@ -17,6 +17,13 @@ const contrast = (foreground, background) => {
 };
 
 describe('identidade do Sistema de Estoque', () => {
+  test('mantem ajuda, confirmacao e botao de ajuda da topbar no index.html', () => {
+    const html = read('index.html');
+    for (const id of ['modal-ajuda', 'modal-confirmacao', 'btn-ajuda-topbar']) {
+      expect(html).toMatch(new RegExp(`\\sid="${id}"`));
+    }
+  });
+
   test('usa uma marca local acessível no login e no cabeçalho', () => {
     const html = read('index.html');
     const logo = read('assets/logo-sistema-estoque.svg');
@@ -56,7 +63,7 @@ describe('identidade do Sistema de Estoque', () => {
     for (const action of ['action-16', 'action-17', 'action-18']) {
       expect(html).toMatch(new RegExp(`<button[^>]+data-click="${action}"`));
     }
-    expect(html).toMatch(/<button[^>]+data-click="action-105"[^>]+aria-label="Ver todas as organizações"/);
+    expect(html).toMatch(/<button[^>]+data-click="action-105"[^>]+aria-label="Ver todas as empresas"/);
     expect(html).toMatch(/id="progresso-contagem-medidor"[^>]+role="progressbar"[^>]+aria-labelledby="progresso-contagem-texto"/);
     expect(contagens).toContain("progressoMedidor.setAttribute('aria-valuenow', String(totalContados))");
     for (const label of ['Fechar janela de produto', 'Fechar janela de usuário', 'Fechar detalhes da auditoria']) {

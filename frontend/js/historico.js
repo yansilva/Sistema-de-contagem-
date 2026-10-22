@@ -12,10 +12,16 @@ const Historico = {
     const counterEl = document.getElementById('historico-counter-total');
 
     if (listaEl) {
-      listaEl.innerHTML = '<div style="text-align:center; padding:30px; color:var(--cor-texto-mudo)"><span class="spinner"></span> Carregando histórico...</div>';
+      listaEl.setAttribute('aria-busy', 'true');
+      listaEl.innerHTML = '<div role="status" aria-live="polite" style="text-align:center; padding:30px; color:var(--cor-texto-mudo)"><span class="spinner" aria-hidden="true"></span> Carregando histórico...</div>';
     }
 
-    const res = await API.get('/contagens');
+    let res;
+    try {
+      res = await API.get('/contagens');
+    } finally {
+      listaEl?.removeAttribute?.('aria-busy');
+    }
 
     if (!res || !res.success || !res.data) {
       if (listaEl) {
@@ -35,7 +41,8 @@ const Historico = {
         listaEl.innerHTML = `
           <div style="text-align:center; padding:40px 20px; color:var(--cor-texto-secundario)">
             <i class="ti ti-history-off" style="font-size:2.5rem; margin-bottom:8px; display:block"></i>
-            Nenhuma sessão de contagem disponível até o momento.
+            <p style="margin:0 0 6px">Nenhuma contagem registrada ainda. Quando alguém finalizar uma contagem, ela aparece aqui.</p>
+            <p style="margin:0; font-size:0.85rem">Conciliação compara o que foi contado com o saldo de referência.</p>
           </div>
         `;
       }
@@ -80,7 +87,7 @@ const Historico = {
               <span class="hist-chips">
                 ${fornecedores.map(f => `
                   <span class="hist-chip">
-                    ${escapeHtml(f.fornecedor)} ${pecas || c.status !== 'finalizada' ? '' : f.tem_diferenca ? '⚠️' : '✓'}
+                    ${escapeHtml(f.fornecedor)} ${pecas || c.status !== 'finalizada' ? '' : f.tem_diferenca ? '<i class="ti ti-alert-triangle" aria-hidden="true"></i>' : '✓'}
                   </span>
                 `).join('')}
               </span>

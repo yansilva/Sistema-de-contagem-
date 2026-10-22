@@ -1294,7 +1294,20 @@ button.kpi-card .kpi-value { display: block; }
   flex-wrap: wrap;
 }
 
+.dash-action-bar { align-items: flex-start; gap: 16px 28px; }
+.dash-action-bar .action-bloco { display: flex; flex-direction: column; gap: 6px; }
+.dash-action-bar .action-bloco-titulo {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--cor-texto-secundario);
+}
+.dash-action-bar .action-bloco-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+
 @media (max-width: 768px) {
+  .dash-action-bar .action-bloco { width: 100%; }
+  .dash-action-bar .action-bloco-botoes .btn { flex: 1 1 100%; justify-content: center; min-height: 44px; }
   .dash-action-bar .action-group {
     margin-left: 0;
     width: 100%;
@@ -1641,13 +1654,14 @@ button.kpi-card .kpi-value { display: block; }
 }
 /* Modalidades compartilham o mesmo motor de contagem. */
 .modalidade-abas { display: flex; gap: 8px; margin: 20px 0; }
-.modalidade-abas [aria-selected="true"] { background: var(--cor-primaria); color: #fff; border-color: var(--cor-primaria); }
+.modalidade-abas [aria-selected="true"] { background: var(--cor-botao-primario); color: #fff; border-color: var(--cor-botao-primario); }
 .modalidade-abas button:focus-visible { outline: 3px solid var(--cor-primaria); outline-offset: 3px; }
 #contagem-modalidade-painel > p { margin: 12px 0 20px; color: var(--cor-texto-secundario); }
 .sessoes-abertas-titulo { margin: 28px 0 14px; }
 .pendente-acoes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
 .produto-classificacao { display: flex; gap: 10px; align-items: center; }
-.produto-classificacao input { width: auto; }
+.produto-classificacao { min-height: 44px; padding: 8px 0; cursor: pointer; }
+.produto-classificacao input { width: 24px; height: 24px; flex: none; margin: 0; cursor: pointer; }
 .produto-classificacao-ajuda { font-size: .85rem; color: var(--cor-texto-secundario); margin: 8px 0 16px; }
 .quick-card h4, .contagem-dialog h3 { color: var(--cor-texto); -webkit-text-fill-color: var(--cor-texto); }
 .input-qtd-fisica[aria-invalid="true"] { border-color: var(--cor-perigo); outline: 2px solid var(--cor-perigo); }
@@ -1661,12 +1675,12 @@ button.kpi-card .kpi-value { display: block; }
 .semana-visao-geral { position:relative; overflow:hidden; isolation:isolate; display:flex; align-items:center; justify-content:space-between; gap:24px; min-height:185px; padding:28px 32px; border-radius:20px; background:linear-gradient(125deg,#132542 0%,#204284 55%,#2457d6 100%); color:#fff; box-shadow:0 16px 35px rgba(0,0,0,.22); }
 .semana-visao-geral::after { content:""; position:absolute; width:260px; height:260px; right:90px; top:-190px; border:1px solid rgba(255,255,255,.22); border-radius:36px; transform:rotate(24deg); z-index:-1; }
 .semana-visao-texto { max-width:440px; }
-.semana-eyebrow { color:#b9e9ff; font-size:.7rem; font-weight:800; letter-spacing:.14em; }
+.semana-eyebrow { color:#b9e9ff; font-size:.75rem; font-weight:800; letter-spacing:.14em; }
 .semana-visao-texto h3 { margin:10px 0 8px; font-size:clamp(1.5rem,4vw,2.2rem); line-height:1.2; letter-spacing:-.04em; }
 .semana-visao-texto p { color:#e5efff; font-size:.9rem; }
 .semana-medidor { flex:none; width:122px; height:122px; border:10px solid transparent; border-radius:50%; background:linear-gradient(#204284,#204284) padding-box,conic-gradient(#67d9f4 var(--semana-progresso),rgba(255,255,255,.24) 0) border-box; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1; }
 .semana-medidor strong { font-size:1.85rem; letter-spacing:-.05em; }
-.semana-medidor span { font-size:.7rem; color:#dceaff; margin-top:4px; }
+.semana-medidor span { font-size:.75rem; color:#dceaff; margin-top:4px; }
 .semana-controles { display:grid; gap:14px; margin:22px 0 8px; }
 .semana-filtros { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; }
 .semana-filtro { --semana-acento:var(--cor-primaria); --semana-fundo:var(--cor-primaria-bg); display:flex; align-items:center; gap:8px; min-width:0; min-height:62px; padding:12px; border:1px solid var(--cor-borda); border-radius:13px; background:var(--cor-superficie); color:var(--cor-texto-secundario); text-align:left; cursor:pointer; font:inherit; font-size:.83rem; transition:transform var(--transicao),border-color var(--transicao),box-shadow var(--transicao); }
@@ -1693,8 +1707,8 @@ button.kpi-card .kpi-value { display: block; }
 .semana-card-corpo { padding-top:1px; }
 .semana-card-top,.semana-card h3,.semana-card-progresso,.semana-card-barra { margin-left:18px; margin-right:18px; }
 .semana-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:16px; }
-.semana-card-ordinal { color:var(--cor-texto-mudo); font-size:.72rem; font-weight:800; letter-spacing:.12em; }
-.semana-status { display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border-radius:999px; color:var(--cor-texto); background:var(--cor-superficie2); font-size:.72rem; font-weight:700; }
+.semana-card-ordinal { color:var(--cor-texto-secundario); font-size:.75rem; font-weight:800; letter-spacing:.12em; }
+.semana-status { display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border-radius:999px; color:var(--cor-texto); background:var(--cor-superficie2); font-size:.75rem; font-weight:700; }
 .semana-status i { color:var(--semana-acento); }
 .semana-card h3 { margin-top:12px; margin-bottom:18px; min-height:2.7em; font-size:1.05rem; line-height:1.35; color:var(--cor-texto); }
 .semana-card-progresso { display:flex; justify-content:space-between; gap:8px; color:var(--cor-texto-secundario); font-size:.78rem; }
@@ -1723,7 +1737,11 @@ button.kpi-card .kpi-value { display: block; }
 #screen-importar-estoque .data-table { min-width: 560px; }
 #screen-importar-estoque .page-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 20px; }
 
-#stock-pdf-file { max-width: 100%; margin-top: 8px; }
+/* Dropzone inteira clicavel: input nativo cobre a area, invisivel, mas focavel */
+#stock-upload-area { position: relative; }
+#stock-pdf-file { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+#stock-upload-area:focus-within { outline: 2px solid var(--cor-primaria); outline-offset: 2px; }
+.upload-area-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 12px; padding: 10px 16px; font-weight: 600; border: 1px solid var(--cor-borda-forte); border-radius: var(--raio); background: var(--cor-superficie); color: var(--cor-texto); }
 .contagem-vencidos { display: grid; gap: 4px; min-width: 150px; }
 .contagem-vencidos label { display: block; font-size: .75rem; color: var(--cor-texto-mudo); }
 .contagem-vencidos input { width: 100%; min-height: 38px; }

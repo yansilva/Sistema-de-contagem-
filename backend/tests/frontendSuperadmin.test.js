@@ -12,7 +12,13 @@ describe('Contrato da interface do Super Admin', () => {
     const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
     expect(new Set(ids).size).toBe(ids.length);
     const empresas = read('js/empresas.js');
-    expect(empresas).toContain("containerId = 'empresas-lista'");
+    // Destino explícito: a lista visível é resolvida entre dois contêineres nomeados, nunca por fallback implícito.
+    expect(empresas).toContain('resolverContainer()');
+    expect(empresas).toContain("'empresas-lista-compat'");
+    expect(empresas).toContain(": 'empresas-lista'");
+    expect(empresas).toContain('if (!containerId) containerId = this.resolverContainer();');
+    expect(html).toContain('id="empresas-lista-compat"');
+    expect(html).toContain('id="empresas-lista"');
     expect(empresas).not.toContain("getElementById('super-empresas-lista') ||");
   });
 

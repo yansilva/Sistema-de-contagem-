@@ -9,6 +9,8 @@ const { validarAcessoConta } = require('../services/acessoService');
 const SALT_ROUNDS = 12;
 // Hash bcrypt válido só para equalizar tempo quando o e-mail não existe.
 const DUMMY_BCRYPT_HASH = bcrypt.hashSync('dummy-login-comparison-only', SALT_ROUNDS);
+// Mesma mensagem para e-mail inexistente, senha errada e conta inativa, sem revelar qual deles ocorreu.
+const MENSAGEM_CREDENCIAIS_INVALIDAS = 'E-mail ou senha incorretos. Confira os dados ou fale com o administrador da sua empresa.';
 
 /**
  * POST /api/auth/login
@@ -33,7 +35,7 @@ async function login(req, res, next) {
     const senhaValida = await bcrypt.compare(senha, usuario?.senha_hash || DUMMY_BCRYPT_HASH);
 
     if (!usuario || !senhaValida || usuario.ativo === false) {
-      throw new UnauthorizedError('Credenciais inválidas.', 'CREDENCIAIS_INVALIDAS');
+      throw new UnauthorizedError(MENSAGEM_CREDENCIAIS_INVALIDAS, 'CREDENCIAIS_INVALIDAS');
     }
 
     validarAcessoConta(usuario);
