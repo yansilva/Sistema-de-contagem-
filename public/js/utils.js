@@ -49,7 +49,16 @@ function showToast(msg, tipo = 'info') {
 
   toast.appendChild(iconEl);
   toast.appendChild(textNode);
-  document.body.appendChild(toast);
+  // Um <dialog> aberto com showModal() fica na camada superior e cobriria o toast no body:
+  // dentro dele o aviso continua visível (position: fixed).
+  const dialogAberto = document.querySelector('dialog[open]');
+  (dialogAberto || document.body).appendChild(toast);
+  if (dialogAberto && typeof dialogAberto.addEventListener === 'function') {
+    // Se o diálogo fechar com o aviso dentro, o aviso migra para o body (erros persistem).
+    dialogAberto.addEventListener('close', () => {
+      if (toast.parentNode === dialogAberto && document.body) document.body.appendChild(toast);
+    }, { once: true });
+  }
 
   if (tipo === 'error') {
     // Erros permanecem até serem dispensados (botão Fechar aviso ou Esc com o foco no toast)

@@ -21,6 +21,7 @@ const Consulta = {
     ]);
     document.getElementById('funcionario-total-produtos').textContent = produtos?.data?.pagination?.total ?? '—';
     document.getElementById('funcionario-total-produtores').textContent = produtores?.data?.fornecedores?.length ?? '—';
+    if (typeof Contagens !== 'undefined' && typeof Contagens.carregarCartaoEmAndamento === 'function') Contagens.carregarCartaoEmAndamento();
   },
 
   abrirCatalogo(produtor = '', busca = '') {
@@ -130,14 +131,15 @@ const Consulta = {
     }
     document.getElementById('consulta-historico-lista').innerHTML = contagens.map(c => `
       <article class="consulta-item">
-        <div class="table-toolbar"><strong>${escapeHtml(formatarData(c.iniciado_em))}</strong>
+        <div class="table-toolbar"><strong>Iniciada em ${escapeHtml(formatarData(c.iniciado_em))}</strong>
           <span class="badge badge-neutral">${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span></div>
         <p>${c.tipo === 'pecas_queijo' ? 'Peças de queijo' : 'Contagem geral'} · Iniciada por: ${escapeHtml(c.iniciado_por_nome || 'Usuário')}</p>
         <p>Produtores: ${(c.fornecedores || []).length}</p>
+        ${c.status === 'finalizada' && c.finalizado_em ? `<p>Finalizada em ${escapeHtml(formatarData(c.finalizado_em))}</p>` : ''}
         ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && Number(c.total_vencidos || 0) > 0 ? `<p>Unidades vencidas: <strong>${Number(c.total_vencidos)}</strong></p>` : ''}
         <div class="table-toolbar">
           <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-72">Ver contagem</button>
-          ${c.status === 'em_andamento' ? `<button class="btn btn-primary btn-sm" data-id="${escapeHtml(c.id)}" data-click="contagem-continuar">Retomar contagem</button>` : ''}
+          ${c.status === 'em_andamento' ? `<button class="btn btn-primary btn-sm btn-alvo-44" data-id="${escapeHtml(c.id)}" data-click="contagem-continuar" aria-label="Retomar contagem de ${escapeHtml(formatarData(c.iniciado_em))}">Retomar contagem</button>` : ''}
           ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && (c.tem_diferenca || Number(c.total_vencidos || 0) > 0) ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Baixar relatório</button>` : ''}
         </div>
       </article>`).join('');

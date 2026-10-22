@@ -75,25 +75,25 @@ const Usuarios = {
       const btnStatus = isEu
         ? ''
         : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}" aria-label="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}" style="min-width:44px;min-height:44px">
-            <i class="ti ti-${u.ativo ? 'user-x' : 'user-check'}"></i>
+            <i class="ti ti-${u.ativo ? 'user-x' : 'user-check'}" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">${u.ativo ? 'Desativar' : 'Ativar'}</span>
           </button>`;
 
       const btnReset = `<button class="btn btn-ghost btn-sm" data-click="action-84" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(u.nome)}" title="Redefinir Senha Temporária" aria-label="Redefinir Senha Temporária" style="min-width:44px;min-height:44px">
-        <i class="ti ti-rotate-2"></i>
+        <i class="ti ti-rotate-2" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">Redefinir senha</span>
       </button>`;
 
       return `
-        <tr>
-          <td>
+        <tr role="row">
+          <td role="cell" class="cartao-principal">
             <strong>${escapeHtml(u.nome)}</strong> ${isEu ? '<span class="badge" style="background:var(--cor-borda)">(Você)</span>' : ''}
-            <div style="font-size:0.8rem; color:var(--cor-texto-mutado)">${escapeHtml(u.email)}</div>
+            <div class="cartao-email" style="font-size:0.8rem; color:var(--cor-texto-mutado)">${escapeHtml(u.email)}</div>
           </td>
-          <td>${papelLabel}</td>
-          <td>${statusBadge} ${trocaPendente}</td>
-          <td style="text-align:right">
-            <div style="display:inline-flex; gap:4px">
+          <td role="cell" data-label="Papel">${papelLabel}</td>
+          <td role="cell" data-label="Situação">${statusBadge} ${trocaPendente}</td>
+          <td role="cell" class="cartao-acoes" style="text-align:right">
+            <div class="cartao-acoes-grupo" style="display:inline-flex; gap:4px">
               <button class="btn btn-ghost btn-sm" data-click="action-85" data-arg-0="${escapeHtml(String(u.id))}" title="Editar dados" aria-label="Editar dados" style="min-width:44px;min-height:44px">
-                <i class="ti ti-edit"></i>
+                <i class="ti ti-edit" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">Editar</span>
               </button>
               ${btnReset}
               ${btnStatus}
@@ -105,16 +105,16 @@ const Usuarios = {
 
     container.innerHTML = `
       <div class="table-scroll" role="region" aria-label="Lista de funcionários" tabindex="0">
-      <table class="data-table tabela-acoes-fixas">
-        <thead>
-          <tr>
-            <th>Nome / E-mail</th>
-            <th>Papel</th>
-            <th>Situação</th>
-            <th style="text-align:right">Ações</th>
+      <table class="data-table tabela-acoes-fixas" role="table" aria-label="Funcionários">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">Nome / E-mail</th>
+            <th scope="col" role="columnheader">Papel</th>
+            <th scope="col" role="columnheader">Situação</th>
+            <th scope="col" role="columnheader" style="text-align:right">Ações</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody role="rowgroup">
           ${rows}
         </tbody>
       </table>
@@ -125,9 +125,15 @@ const Usuarios = {
   /**
    * Abre modal para cadastrar novo usuário
    */
+  tituloDoModal(editando, papel) {
+    const alvo = papel === 'administrador' || papel === 'gestor' || papel === 'admin' ? 'administrador'
+      : papel === 'funcionario' ? 'funcionário' : 'usuário';
+    return (editando ? 'Editar ' : 'Novo ') + alvo;
+  },
+
   abrirModalCriar() {
     this.usuarioEditandoId = null;
-    document.getElementById('modal-usuario-titulo').textContent = 'Cadastrar Novo Usuário';
+    document.getElementById('modal-usuario-titulo').textContent = this.tituloDoModal(false, _PAPEL_PADRAO);
     document.getElementById('user-nome').value = '';
     document.getElementById('user-email').value = '';
     document.getElementById('user-email').disabled = false;
@@ -147,7 +153,7 @@ const Usuarios = {
     if (!u) return;
 
     this.usuarioEditandoId = id;
-    document.getElementById('modal-usuario-titulo').textContent = 'Editar Usuário';
+    document.getElementById('modal-usuario-titulo').textContent = this.tituloDoModal(true, u.papel);
     document.getElementById('user-nome').value = u.nome;
     document.getElementById('user-email').value = u.email;
     document.getElementById('user-email').disabled = true;
@@ -239,8 +245,10 @@ const Usuarios = {
     const novoStatus = !statusAtual;
     const acao = novoStatus ? 'ativar' : 'desativar';
 
+    const alvo = (this.lista || []).find((item) => String(item.id) === String(id));
+    const nome = alvo && alvo.nome ? String(alvo.nome) : '';
     const confirmado = await confirmarAcao({
-      titulo: novoStatus ? 'Reativar usuário?' : 'Desativar usuário?',
+      titulo: nome ? `${novoStatus ? 'Reativar' : 'Desativar'} ${nome}?` : (novoStatus ? 'Reativar usuário?' : 'Desativar usuário?'),
       mensagem: novoStatus
         ? 'O usuário voltará a poder entrar no sistema.'
         : 'O usuário não poderá mais entrar no sistema. Os registros dele são mantidos.',

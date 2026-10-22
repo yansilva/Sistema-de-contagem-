@@ -42,7 +42,7 @@ const UIActions = {
   'action-19': (element, event) => { showScreen('screen-backoffice'); },
   'action-20': (element, event) => { Contagens.abrirModalidade('geral'); },
   'action-21': (element, event) => { StockImport.abrir(); },
-  'action-22': (element, event) => { showScreen('screen-backoffice'); switchTab('produtos'); },
+  'action-22': (element, event) => { showScreen('screen-backoffice'); switchTab('produtos'); focarImportarCatalogo(); },
   'action-23': (element, event) => { showScreen('screen-backoffice'); switchTab('historico'); },
   'action-24': (element, event) => { showScreen('screen-home'); },
   'action-25': (element, event) => {
@@ -95,7 +95,7 @@ const UIActions = {
   'action-71': (element, event) => { Consulta.abrirCatalogo(element.dataset.produtor); },
   'action-72': (element, event) => { Consulta.detalharContagem(element.dataset.id); },
   'action-73': (element, event) => { Contagens.selecionarFornecedor(element.dataset.produtor); },
-  'action-74': (element, event) => { Contagens.atualizarQuantidadeItem(Number(element.getAttribute('data-arg-0')), element.value); },
+  'action-74': (element, event) => { Contagens.atualizarQuantidadeItem(Number(element.getAttribute('data-arg-0')), Contagens.filtrarDigitos(element)); },
   'contagem-vencidos-abrir': (element) => { Contagens.abrirVencidos(Number(element.dataset.index)); },
   'contagem-vencidos-alterar': (element) => { Contagens.atualizarVencidos(Number(element.dataset.index), element.value); },
   'action-75': (element, event) => { Contagens.baixarExcelDiferencas(element.getAttribute('data-arg-0')); },
@@ -146,7 +146,12 @@ const UIActions = {
   'action-118': () => { EmpresaDetalhes.salvarSenhaTemporaria(); },
   'action-119': (element, event) => { if (event.key === 'Enter') EmpresaDetalhes.salvarSenhaTemporaria(); },
   'action-120': (element) => { EmpresaDetalhes.abrir(element.getAttribute('data-id'), 'usuarios'); },
-  'action-121': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Contagens.fecharFornecedor(); },
+  'action-121': (element, event) => {
+    // Clique no fundo = fora da caixa do <dialog>; o padding interno também reporta target === dialog
+    const caixa = element.tagName === 'DIALOG' && typeof element.getBoundingClientRect === 'function' ? element.getBoundingClientRect() : null;
+    const foraDaCaixa = !caixa || event.clientX < caixa.left || event.clientX > caixa.right || event.clientY < caixa.top || event.clientY > caixa.bottom;
+    if ((event.target === element && foraDaCaixa) || element.tagName === 'BUTTON') Contagens.tentarFecharFornecedor();
+  },
   'action-122': (element, event) => { if (event.target === element || element.tagName === 'BUTTON') Consulta.fecharDetalhe(); },
   'action-123': (element) => { Consulta.baixarExcel(element.dataset.id); },
   'action-124': (element, event) => { event.preventDefault(); element.classList.add('drag-over'); },
@@ -175,3 +180,10 @@ for (const type of ['click', 'input', 'change', 'keydown', 'dragover', 'dragleav
     if (typeof action === 'function') action(element, event);
   });
 }
+
+// Esc no diálogo do produtor: 'cancel' não borbulha, então escuta na captura e confirma se houver digitação não salva.
+document.addEventListener('cancel', event => {
+  if (event.target?.id !== 'bloco-produtos-contagem') return;
+  event.preventDefault?.();
+  Contagens.tentarFecharFornecedor();
+}, true);

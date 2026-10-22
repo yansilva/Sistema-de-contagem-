@@ -197,12 +197,12 @@ const StockImport = {
           <table class="data-table" style="margin:0">
             <thead>
               <tr>
-                <th>SKU</th>
-                <th>Nome</th>
-                <th>Produtor</th>
-                ${admin ? '<th style="text-align:center">Estoque Anterior</th>' : ''}
-                <th style="text-align:center">Novo Estoque (PDF)</th>
-                ${admin ? '<th style="text-align:center">Variação</th>' : ''}
+                <th scope="col">SKU</th>
+                <th scope="col">Nome</th>
+                <th scope="col">Produtor</th>
+                ${admin ? '<th scope="col" style="text-align:center">Estoque Anterior</th>' : ''}
+                <th scope="col" style="text-align:center">Novo Estoque (PDF)</th>
+                ${admin ? '<th scope="col" style="text-align:center">Variação</th>' : ''}
               </tr>
             </thead>
             <tbody>
@@ -220,10 +220,10 @@ const StockImport = {
             <table class="data-table" style="margin:0">
               <thead>
                 <tr>
-                  <th>SKU Pendente</th>
-                  <th>Descrição no Relatório</th>
-                  <th style="text-align:center">Quantidade no PDF</th>
-                  <th>Situação</th>
+                  <th scope="col">SKU Pendente</th>
+                  <th scope="col">Descrição no Relatório</th>
+                  <th scope="col" style="text-align:center">Quantidade no PDF</th>
+                  <th scope="col">Situação</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,7 +240,7 @@ const StockImport = {
           </p>
           <div style="max-height:200px; overflow-y:auto; border:1px solid var(--cor-borda); border-radius:6px">
             <table class="data-table" style="margin:0">
-              <thead><tr><th>SKU</th><th>Descrição no Relatório</th><th>Quantidade</th><th>Motivo</th></tr></thead>
+              <thead><tr><th scope="col">SKU</th><th scope="col">Descrição no Relatório</th><th scope="col">Quantidade</th><th scope="col">Motivo</th></tr></thead>
               <tbody>${rowsIgnorados}</tbody>
             </table>
           </div>

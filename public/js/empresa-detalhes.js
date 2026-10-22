@@ -2,12 +2,21 @@ const EmpresaDetalhes = {
   empresaId: null,
   empresa: null,
   abaAtual: 'visao-geral',
+  /** De onde o detalhe foi aberto: 'console' (aba Empresas) ou 'compat' (/#empresas). */
+  origem: 'console',
   requestId: 0,
   usuarioSenhaTemporaria: null,
   focoAntesSenhaTemporaria: null,
   salvandoSenhaTemporaria: false,
 
   async abrir(id, aba = 'visao-geral') {
+    // A tela /#empresas não contém a área de detalhes: leva ao console, onde ela é visível, e lembra de onde veio.
+    if (document.getElementById('screen-empresas')?.classList?.contains('active')) {
+      this.origem = 'compat';
+      showScreen('screen-home');
+    } else if (!this.empresaId) {
+      this.origem = 'console';
+    }
     this.empresaId = id;
     this.abaAtual = aba;
     const requestId = ++this.requestId;
@@ -105,6 +114,7 @@ const EmpresaDetalhes = {
   renderizarResumo(content) {
     const e = this.empresa;
     content.innerHTML = `<div class="detail-stat-grid">
+      <article><span>Situação</span><strong>${e.status === 'inativa' ? 'Inativa' : 'Ativa'}</strong></article>
       <article><span>Plano</span><strong>${this.escape(e.plano || '—')}</strong></article>
       <article><span>Usuários</span><strong>${Number(e.total_usuarios || 0)}</strong></article>
       <article><span>Produtos ativos</span><strong>${Number(e.total_produtos || 0)}</strong></article>
@@ -114,7 +124,7 @@ const EmpresaDetalhes = {
 
   renderizarUsuarios(content, usuarios) {
     if (!usuarios.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhum usuário cadastrado.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de usuários da empresa"><table class="saas-table"><thead><tr><th>Usuário</th><th>Papel</th><th>Status</th><th>Recuperação</th></tr></thead><tbody>${usuarios.map((u) => {
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de usuários da empresa"><table class="saas-table"><thead><tr><th scope="col">Usuário</th><th scope="col">Papel</th><th scope="col">Status</th><th scope="col">Recuperação</th></tr></thead><tbody>${usuarios.map((u) => {
       const administrativo = ['administrador', 'gestor', 'admin'].includes(u.papel);
       const acao = administrativo && u.ativo
         ? `<button class="btn btn-outline btn-sm" data-click="action-116" data-user-id="${u.id}" data-user-name="${this.escape(u.nome)}" data-user-email="${this.escape(u.email)}">Definir senha temporária</button>`
@@ -125,18 +135,23 @@ const EmpresaDetalhes = {
 
   renderizarContagens(content, contagens) {
     if (!contagens.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhuma contagem registrada.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de contagens da empresa"><table class="saas-table"><thead><tr><th>Início</th><th>Status</th><th>Finalização</th><th>Divergência</th></tr></thead><tbody>${contagens.map((c) => `<tr><td>${this.data(c.iniciado_em)}</td><td>${this.escape(c.status)}</td><td>${this.data(c.finalizado_em)}</td><td>${c.tem_diferenca ? 'Sim' : 'Não'}</td></tr>`).join('')}</tbody></table></div></div>`;
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de contagens da empresa"><table class="saas-table"><thead><tr><th scope="col">Início</th><th scope="col">Status</th><th scope="col">Finalização</th><th scope="col">Divergência</th></tr></thead><tbody>${contagens.map((c) => `<tr><td>${this.data(c.iniciado_em)}</td><td>${this.escape(c.status)}</td><td>${this.data(c.finalizado_em)}</td><td>${c.tem_diferenca ? 'Sim' : 'Não'}</td></tr>`).join('')}</tbody></table></div></div>`;
   },
 
   renderizarLogs(content, logs) {
     if (!logs.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhum evento encontrado.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de registros de atividade da empresa"><table class="saas-table"><thead><tr><th>Data</th><th>Ação</th><th>Ator</th><th>Resultado</th></tr></thead><tbody>${logs.map((log) => `<tr><td>${this.data(log.criado_em)}</td><td>${this.escape(log.acao)}</td><td>${this.escape(log.ator?.rotulo || 'Sistema')}</td><td>${this.escape(log.resultado)}</td></tr>`).join('')}</tbody></table></div></div>`;
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de registros de atividade da empresa"><table class="saas-table"><thead><tr><th scope="col">Data</th><th scope="col">Ação</th><th scope="col">Ator</th><th scope="col">Resultado</th></tr></thead><tbody>${logs.map((log) => `<tr><td>${this.data(log.criado_em)}</td><td>${this.escape(log.acao)}</td><td>${this.escape(log.ator?.rotulo || 'Sistema')}</td><td>${this.escape(log.resultado)}</td></tr>`).join('')}</tbody></table></div></div>`;
   },
 
   voltar() {
     this.requestId++;
     this.empresaId = null;
     this.empresa = null;
+    if (this.origem === 'compat') {
+      this.origem = 'console';
+      showScreen('screen-empresas');
+      return;
+    }
     switchSaasTab('tenants');
   },
 

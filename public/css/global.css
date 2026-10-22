@@ -170,7 +170,7 @@ select {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none; /* sem transform persistente: não cria bloco de contenção para filhos position:fixed (gaveta do back-office) */
   }
 }
 

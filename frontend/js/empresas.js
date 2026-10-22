@@ -2,8 +2,10 @@
 const Empresas = {
   dados: [],
   metricas: null,
-  filtroTexto: '',
-  filtroStatus: 'todas',
+  /** Filtro por container: { [containerId]: { texto, status, pagina } }. Nada vaza entre a aba do console e /#empresas. */
+  filtros: {},
+  /** Só a aba Empresas do console tem campo de busca e abas de status. */
+  containersComFiltro: ['empresas-lista'],
   pagina: 1,
   paginacao: null,
   empresaExcluindoId: null,
@@ -22,8 +24,21 @@ const Empresas = {
     return this.containerAtivo && this.containerAtivo !== 'empresas-lista-compat' ? this.containerAtivo : 'empresas-lista';
   },
 
+  filtroDe(containerId) {
+    if (!this.filtros[containerId]) this.filtros[containerId] = { texto: '', status: 'todas', pagina: 1 };
+    return this.filtros[containerId];
+  },
+
+  /** Recarrega a lista visível (uma requisição) na página e com o filtro do próprio container. */
+  recarregar() {
+    const id = this.resolverContainer();
+    return this.carregar({ containerId: id, page: this.filtroDe(id).pagina });
+  },
+
   async carregar({ containerId, page = 1, resumo = false } = {}) {
     if (!containerId) containerId = this.resolverContainer();
+    const filtro = this.filtroDe(containerId);
+    const comControles = this.containersComFiltro.includes(containerId);
     const container = document.getElementById(containerId);
     if (!container) return;
     if (!resumo) this.containerAtivo = containerId;
@@ -37,10 +52,10 @@ const Empresas = {
       limit: resumo ? '5' : '20',
       sort: resumo ? 'criado_em' : 'nome',
       direction: resumo ? 'desc' : 'asc',
-      status: resumo ? 'todas' : this.filtroStatus,
+      status: resumo || !comControles ? 'todas' : filtro.status,
       tipo: 'cliente'
     });
-    if (!resumo && this.filtroTexto) query.set('search', this.filtroTexto);
+    if (!resumo && comControles && filtro.texto) query.set('search', filtro.texto);
 
     try {
       const res = await API.get('/empresas?' + query.toString());
@@ -50,6 +65,7 @@ const Empresas = {
       if (!resumo) {
         this.dados = empresas;
         this.pagina = page;
+        filtro.pagina = page;
         this.paginacao = res.data?.pagination || null;
       }
       this.renderizar(containerId, empresas, res.data?.pagination, resumo);
@@ -101,15 +117,16 @@ const Empresas = {
   },
 
   filtrar(termo) {
-    this.filtroTexto = String(termo || '').trim();
+    this.filtroDe(this.resolverContainer()).texto = String(termo || '').trim();
     clearTimeout(this.filtroTimer);
     this.filtroTimer = setTimeout(() => this.carregar({ page: 1 }), 250);
   },
 
   filtrarPorStatus(status) {
-    this.filtroStatus = status || 'todas';
+    const atual = this.filtroDe(this.resolverContainer());
+    atual.status = status || 'todas';
     document.querySelectorAll('.saas-tab-btn[data-status]').forEach((btn) => {
-      btn.classList.toggle('active', btn.getAttribute('data-status') === this.filtroStatus);
+      btn.classList.toggle('active', btn.getAttribute('data-status') === atual.status);
     });
     this.carregar({ page: 1 });
   },
@@ -132,13 +149,13 @@ const Empresas = {
       const status = excluida ? 'excluida' : (empresa.status || 'ativa');
       const label = status === 'ativa' ? 'Ativa' : status === 'inativa' ? 'Inativa' : 'Excluída';
       const principal = empresa.administrador_principal;
-      return `<tr>
-        <td><button class="saas-company-link" data-click="action-90" data-id="${empresa.id}">${this.escapeHtml(empresa.nome)}</button><small>${this.escapeHtml(empresa.email_contato || '')}</small></td>
-        <td><span class="status-pill ${status}"><span class="status-dot"></span>${label}</span></td>
-        <td>${principal ? this.escapeHtml(principal.nome) + '<small>' + this.escapeHtml(principal.email) + '</small>' : '<span class="text-muted">Sem administrador ativo</span>'}</td>
-        <td>${Number(empresa.total_usuarios || 0)}</td>
-        <td>${empresa.ultima_atividade ? new Date(empresa.ultima_atividade).toLocaleString('pt-BR') : '—'}</td>
-        <td class="saas-actions-cell">
+      return `<tr role="row">
+        <td role="cell" class="cartao-principal"><button class="saas-company-link" data-click="action-90" data-id="${empresa.id}">${this.escapeHtml(empresa.nome)}</button><small>${this.escapeHtml(empresa.email_contato || '')}</small></td>
+        <td role="cell" data-label="Acesso"><span class="status-pill ${status}"><span class="status-dot"></span>${label}</span></td>
+        <td role="cell" data-label="Administrador principal">${principal ? this.escapeHtml(principal.nome) + '<small>' + this.escapeHtml(principal.email) + '</small>' : '<span class="text-muted">Sem administrador ativo</span>'}</td>
+        <td role="cell" data-label="Usuários">${Number(empresa.total_usuarios || 0)}</td>
+        <td role="cell" data-label="Última atividade">${empresa.ultima_atividade ? new Date(empresa.ultima_atividade).toLocaleString('pt-BR') : '—'}</td>
+        <td role="cell" class="saas-actions-cell cartao-acoes">
           <button class="btn btn-outline btn-sm" data-click="action-90" data-id="${empresa.id}">Detalhes</button>
           ${excluida ? '' : '<button class="btn btn-outline btn-sm" data-click="action-120" data-id="' + empresa.id + '"><i class="ti ti-key"></i> Gerenciar senhas</button>'}
           ${excluida ? '' : '<button class="btn btn-ghost btn-sm" data-click="action-98" data-id="' + empresa.id + '"><i class="ti ti-shield-search"></i> Auditar</button>'}
@@ -149,7 +166,7 @@ const Empresas = {
     const paginador = !resumo && pagination && pagination.totalPages > 1
       ? `<div class="saas-pagination"><button class="btn btn-outline btn-sm" data-click="action-111" data-page="${pagination.page - 1}" ${pagination.page <= 1 ? 'disabled' : ''}>Anterior</button><span>Página ${pagination.page} de ${pagination.totalPages}</span><button class="btn btn-outline btn-sm" data-click="action-111" data-page="${pagination.page + 1}" ${pagination.page >= pagination.totalPages ? 'disabled' : ''}>Próxima</button></div>`
       : '';
-    container.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Lista de empresas"><table class="saas-table tabela-acoes-fixas"><thead><tr><th>Empresa</th><th>Acesso</th><th>Administrador principal</th><th>Usuários</th><th>Última atividade</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table></div></div>${paginador}`;
+    container.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Lista de empresas"><table class="saas-table tabela-acoes-fixas" role="table" aria-label="Empresas"><thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Empresa</th><th scope="col" role="columnheader">Acesso</th><th scope="col" role="columnheader">Administrador principal</th><th scope="col" role="columnheader">Usuários</th><th scope="col" role="columnheader">Última atividade</th><th scope="col" role="columnheader">Ações</th></tr></thead><tbody role="rowgroup">${linhas}</tbody></table></div></div>${paginador}`;
   },
 
   abrirDrawer(id) {
@@ -193,7 +210,7 @@ const Empresas = {
       if (EmpresaDetalhes?.empresaId === this.empresaExcluindoId) {
         EmpresaDetalhes.abrir(this.empresaExcluindoId, 'visao-geral');
       } else {
-        this.carregar({ page: this.pagina });
+        this.recarregar();
       }
     } else {
       showToast(res?.message || 'Não foi possível excluir a empresa.', 'error');
@@ -229,7 +246,7 @@ const Empresas = {
     if (!res?.success) return showToast(res?.message || 'Falha ao atualizar empresa.', 'error');
     showToast('Dados da empresa atualizados.', 'success');
     this.fecharModalEdicao();
-    this.carregar({ page: this.pagina });
+    this.recarregar();
     if (EmpresaDetalhes?.empresaId === id) EmpresaDetalhes.abrir(id, EmpresaDetalhes.abaAtual);
   },
 
@@ -281,7 +298,7 @@ const Empresas = {
     if (EmpresaDetalhes?.empresaId === this.empresaStatusId) {
       EmpresaDetalhes.abrir(this.empresaStatusId, EmpresaDetalhes.abaAtual);
     } else {
-      this.carregar({ page: this.pagina });
+      this.recarregar();
     }
   },
 

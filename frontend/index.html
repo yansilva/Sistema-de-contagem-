@@ -58,6 +58,9 @@
       </div>
 
       <button class="btn-theme" data-click="action-2" title="Alternar tema" aria-label="Alternar tema claro/escuro"><i class="ti ti-moon" aria-hidden="true"></i></button>
+      <button class="btn btn-ghost topbar-ajuda" id="btn-ajuda-topbar-rapido" type="button" data-click="action-127" aria-label="Abrir ajuda" title="Ajuda (atalho: ?)" hidden>
+        <i class="ti ti-help-circle" aria-hidden="true"></i>
+      </button>
       <button class="btn btn-ghost topbar-sair" id="topbar-sair" type="button" data-click="action-3" aria-label="Sair da conta" title="Sair da conta" hidden>
         <i class="ti ti-logout" aria-hidden="true"></i>
       </button>
@@ -240,6 +243,14 @@
 
       <!-- ==================== 1. DASHBOARD DO FUNCIONÁRIO (CHÃO DE ESTOQUE) ==================== -->
       <div id="home-funcionario" hidden>
+        <!-- Contagem em andamento (aparece só quando há sessão aberta) -->
+        <div id="func-contagem-aberta" class="func-aberta-card" role="status" aria-live="polite" aria-busy="false" hidden>
+          <div class="func-aberta-texto">
+            <i class="ti ti-clipboard-check" aria-hidden="true"></i>
+            <strong id="func-contagem-aberta-texto">Contagem em andamento</strong>
+          </div>
+          <button class="btn btn-primary btn-alvo-44" id="func-contagem-aberta-btn" data-click="contagem-continuar" data-id="">Retomar contagem</button>
+        </div>
         <!-- Hero de Início Rápido -->
         <div class="func-hero-card">
           <span class="func-hero-badge"><i class="ti ti-scan" aria-hidden="true"></i> Contagem física · Saldo oculto</span>
@@ -247,7 +258,7 @@
           <p class="func-hero-desc">Registre o que está fisicamente no estoque. O saldo do sistema e as diferenças aparecem somente depois da finalização.</p>
           
           <button class="btn btn-primary btn-lg btn-func-start" id="btn-iniciar-contagem-funcionario" data-click="action-11">
-            <i class="ti ti-plus" aria-hidden="true"></i> Iniciar ou retomar contagem
+            <i class="ti ti-plus" aria-hidden="true"></i> <span id="btn-iniciar-contagem-funcionario-texto">Iniciar ou retomar contagem</span>
           </button>
 
           <!-- Busca rápida de produto / SKU -->
@@ -276,8 +287,7 @@
           </button>
           <button class="kpi-card kpi-amber consulta-home-card" data-click="action-14">
             <span class="kpi-top"><span class="kpi-title">Histórico de contagens</span><i class="ti ti-history"></i></span>
-            <span class="consulta-home-action">Ver contagens <i class="ti ti-arrow-right"></i></span>
-            <span class="consulta-home-description">Consultar sessões e quantidades registradas</span>
+            <span class="consulta-home-action">Consultar contagens e quantidades registradas <i class="ti ti-arrow-right" aria-hidden="true"></i></span>
           </button>
         </div>
       </div>
@@ -336,11 +346,11 @@
 
           <button type="button" class="kpi-card" data-click="action-17">
             <span class="kpi-top">
-              <span class="kpi-title">Fornecedores</span>
+              <span class="kpi-title">Produtores</span>
               <span class="kpi-icon" style="background:rgba(217,119,6,0.12); color:#d97706"><i class="ti ti-truck-delivery"></i></span>
             </span>
             <span class="kpi-value" id="kpi-total-fornecedores">—</span>
-            <span class="kpi-badge neutral"><i class="ti ti-building-store"></i> Parceiros ativos</span>
+            <span class="kpi-badge neutral"><i class="ti ti-building-store"></i> Produtores ativos</span>
           </button>
 
           <button type="button" class="kpi-card" data-click="action-18">
@@ -363,7 +373,7 @@
               <div class="divergencia-alert-desc" id="admin-divergencia-desc">Foram encontradas sobras ou faltas que requerem conferência.</div>
             </div>
           </div>
-          <button class="btn btn-sm btn-danger" id="admin-divergencia-btn" data-click="action-23">
+          <button class="btn btn-sm btn-outline" id="admin-divergencia-btn" data-click="action-23">
             Ver Relatório <i class="ti ti-arrow-right"></i>
           </button>
         </div>
@@ -672,7 +682,8 @@
           <i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel
         </button>
         <div style="display:flex; align-items:center; gap:12px">
-          <button class="btn btn-danger btn-sm" id="btn-finalizar-contagem" data-click="action-35" disabled>
+          <span id="dica-finalizar-contagem" class="dica-finalizar">Conte ao menos um produto para finalizar</span>
+          <button class="btn btn-primary btn-sm" id="btn-finalizar-contagem" data-click="action-35" disabled aria-describedby="dica-finalizar-contagem" title="Conte ao menos um produto para finalizar">
             <i class="ti ti-flag-check" aria-hidden="true"></i> Finalizar e comparar
           </button>
         </div>
@@ -768,7 +779,7 @@
 
           <div id="stock-upload-area" class="upload-area" data-dragover="action-124" data-dragleave="action-125" data-drop="action-126">
             <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
-            <p style="font-weight:600; margin-bottom:4px">Arraste o PDF aqui ou clique para selecionar</p>
+            <p style="font-weight:600; margin-bottom:4px">Escolha o arquivo PDF ou arraste-o aqui</p>
             <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf. Relatório de estoque do Tiny ou ERP da Olist</p>
             <label for="stock-pdf-file" class="upload-area-btn">Selecionar Arquivo PDF</label>
             <input id="stock-pdf-file" type="file" accept=".pdf" data-change="action-51">
@@ -884,7 +895,7 @@
           <div class="bo-kpi-card">
             <div class="bo-kpi-icon icon-fornecedores"><i class="ti ti-truck-delivery"></i></div>
             <div class="bo-kpi-content">
-              <span class="bo-kpi-label">Fornecedores / Marcas</span>
+              <span class="bo-kpi-label">Produtores</span>
               <span class="bo-kpi-value" id="bo-kpi-fornecedores">—</span>
             </div>
           </div>
@@ -916,7 +927,7 @@
           <div style="display:flex; gap:8px">
             <label class="btn btn-outline btn-sm" title="Importar catálogo de produtos por planilha Excel">
               <i class="ti ti-file-upload"></i> Importar catálogo (.xlsx)
-              <input type="file" class="sr-only" accept=".xlsx,.xls" data-change="action-47">
+              <input type="file" class="sr-only" id="input-importar-catalogo" accept=".xlsx,.xls" data-change="action-47">
             </label>
             <button class="btn btn-primary btn-sm" data-click="action-48">
               <i class="ti ti-plus"></i> Novo Produto
@@ -1066,8 +1077,9 @@
         <input type="text" id="prod-nome" placeholder="Ex: Camiseta Básica Preta" required>
       </div>
       <div class="form-group">
-        <label for="prod-fornecedor">Fornecedor / Produtor</label>
-        <input type="text" id="prod-fornecedor" placeholder="Ex: Têxtil Sul" required>
+        <label for="prod-fornecedor">Produtor</label>
+        <input type="text" id="prod-fornecedor" list="lista-produtores" autocomplete="off" placeholder="Ex: Têxtil Sul" required>
+        <datalist id="lista-produtores"></datalist>
       </div>
       <div class="form-group">
         <label class="produto-classificacao"><input type="checkbox" id="prod-contagem-em-pecas"><span>Contar em peças de queijo</span></label>
@@ -1103,7 +1115,7 @@
           <input type="password" id="user-senha-temp" placeholder="Senha temporária de acesso" autocomplete="new-password" aria-describedby="user-senha-temp-dica" required>
           <button type="button" class="btn-ver-senha" data-alvo="user-senha-temp" aria-pressed="false" aria-label="Mostrar senha"><i class="ti ti-eye" aria-hidden="true"></i></button>
         </div>
-        <small id="user-senha-temp-dica" class="field-hint text-muted">Mínimo de 6 caracteres. O funcionário deve trocar a senha no primeiro acesso.</small>
+        <small id="user-senha-temp-dica" class="field-hint text-muted">Mínimo de 6 caracteres. A pessoa define uma senha forte (8 caracteres, com maiúscula, minúscula e número) no primeiro acesso.</small>
       </div>
       <div class="form-group">
         <label for="user-papel">Papel</label>
@@ -1116,7 +1128,7 @@
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
         <button type="button" class="btn btn-outline" data-click="action-66">Cancelar</button>
         <button class="btn btn-primary" data-click="action-67">
-          <i class="ti ti-check"></i> Salvar Funcionário
+          <i class="ti ti-check"></i> Salvar
         </button>
       </div>
     </div>
@@ -1155,6 +1167,8 @@
         <ul id="ajuda-contextual-lista" style="padding-left:20px; margin:0; display:grid; gap:6px"></ul>
       </section>
       <div id="ajuda-contagem">
+      <details>
+      <summary style="cursor:pointer; font-weight:700; margin:0 0 8px; min-height:44px; display:flex; align-items:center">Resumo da contagem</summary>
       <ol style="padding-left:20px; margin:0 0 16px; display:grid; gap:8px">
         <li>Escolha o produtor ou use a busca.</li>
         <li>Conte o físico e digite a quantidade, sem ver o saldo do sistema.</li>
@@ -1168,12 +1182,13 @@
         <li>Exporte o resultado em Excel.</li>
       </ul>
       <p style="margin:0 0 16px"><strong>Conciliação</strong> é comparar o que foi contado com o saldo do sistema para achar sobras e faltas.</p>
+      </details>
       </div>
       <h4 style="font-size:1rem; font-weight:700; margin-bottom:6px">Atalhos</h4>
       <ul style="padding-left:20px; margin:0 0 16px; display:grid; gap:6px">
         <li><kbd>/</kbd> foca a busca.</li>
         <li><kbd>?</kbd> abre esta ajuda.</li>
-        <li><kbd>Enter</kbd> no campo de quantidade vai para o próximo produto.</li>
+        <li id="ajuda-atalho-contagem"><kbd>Enter</kbd> no campo de quantidade vai para o próximo produto.</li>
         <li><kbd>Esc</kbd> fecha as janelas.</li>
       </ul>
       <div style="display:flex; justify-content:flex-end">

@@ -7,6 +7,9 @@
  * 3. Após finalização:
  *    - Após finalizar, funcionário e administrador veem também o estoque de referência.
  */
+const MSG_VENCIDOS_INCLUIDOS = 'Vencidos já estão incluídos na quantidade física contada.';
+const MSG_VENCIDOS_INVALIDOS = 'A quantidade vencida deve ficar entre zero e a quantidade física contada.';
+
 const Contagens = {
   contagemId: null,
   resultadoId: null,
@@ -283,7 +286,17 @@ const Contagens = {
     }
 
     if (btnFinalizar) {
-      btnFinalizar.disabled = totalContados === 0;
+      const semContagem = totalContados === 0;
+      btnFinalizar.disabled = semContagem;
+      const dicaFinalizar = document.getElementById('dica-finalizar-contagem');
+      if (dicaFinalizar) dicaFinalizar.hidden = !semContagem;
+      if (semContagem) {
+        btnFinalizar.setAttribute?.('aria-describedby', 'dica-finalizar-contagem');
+        btnFinalizar.setAttribute?.('title', 'Conte ao menos um produto para finalizar');
+      } else {
+        btnFinalizar.removeAttribute?.('aria-describedby');
+        btnFinalizar.removeAttribute?.('title');
+      }
     }
   },
 
@@ -366,11 +379,115 @@ const Contagens = {
     this.renderizarItensContagem();
     this.renderizarListaProdutores();
     if (bloco && !bloco.open) bloco.showModal();
+    this.zerarRolagemProdutor(bloco);
+  },
+
+  /** A lista do produtor abre sempre no topo, com foco no primeiro campo sem rolar de volta. */
+  zerarRolagemProdutor(bloco) {
+    if (!bloco) return;
+    const lista = document.getElementById('lista-produtos-produtor');
+    const rolavel = lista?.closest?.('.contagem-dialog-lista') || lista;
+    const zerar = () => {
+      bloco.scrollTop = 0;
+      if (rolavel) rolavel.scrollTop = 0;
+    };
+    zerar();
+    const primeiro = bloco.querySelector?.('.input-qtd-fisica:not([disabled])');
+    try { primeiro?.focus?.({ preventScroll: true }); } catch (err) { primeiro?.focus?.(); }
+    zerar();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(zerar);
+  },
+
+  /** Há quantidade digitada neste produtor que ainda não foi salva. */
+  temDigitacaoPendente() {
+    return Boolean(this.edicaoPendente || this.itensTocados?.size || this.entradasInvalidas?.size);
   },
 
   fecharFornecedor() {
     const bloco = document.getElementById('bloco-produtos-contagem');
     if (bloco?.open && typeof bloco.close === 'function') bloco.close();
+  },
+
+  /** Fechar pelo X, Esc ou fundo: confirma antes quando há digitação não salva. */
+  async tentarFecharFornecedor() {
+    const bloco = document.getElementById('bloco-produtos-contagem');
+    if (!bloco?.open) return;
+    if (this._confirmandoSaida) return;
+    if (!this.temDigitacaoPendente() || this._salvando) return this.fecharFornecedor();
+    this._confirmandoSaida = true;
+    let sair = false;
+    try {
+      sair = await confirmarAcao({
+        titulo: 'Sair sem salvar?',
+        mensagem: 'As quantidades digitadas neste produtor ainda não foram salvas e serão mantidas apenas nesta tela até você salvar.',
+        confirmar: 'Sair sem salvar',
+        cancelar: 'Continuar editando',
+        perigo: true
+      });
+    } finally {
+      this._confirmandoSaida = false;
+    }
+    if (sair) {
+      const produtor = this.fornecedorAtual;
+      this.fecharFornecedor();
+      this.focarCardProdutor(produtor);
+      return;
+    }
+    const alvo = this._ultimoCampoEditado && document.getElementById(this._ultimoCampoEditado);
+    const campo = alvo || bloco.querySelector?.('input:not([disabled])');
+    campo?.focus?.();
+  },
+
+  /** Cartão da home do funcionário: sessão em andamento, sem saldo de referência (contagem cega). */
+  async carregarCartaoEmAndamento() {
+    const cartao = document.getElementById('func-contagem-aberta');
+    if (!cartao) return;
+    const requisicao = (this._reqCartao = (this._reqCartao || 0) + 1);
+    cartao.setAttribute?.('aria-busy', 'true');
+    // Reserva a altura do cartão (invisível) quando a última consulta teve contagem aberta: evita o salto do hero.
+    let lembrado = false;
+    try { lembrado = globalThis.localStorage?.getItem('func-cartao-aberto') === '1'; } catch (err) { lembrado = false; }
+    if (lembrado && cartao.hidden) {
+      cartao.hidden = false;
+      cartao.classList?.add('func-aberta-reservando');
+    }
+    let sessao = null;
+    try {
+      const lista = await API.get('/contagens?status=em_andamento&limit=1');
+      const primeira = lista?.success && lista.data?.contagens?.[0];
+      if (primeira?.id) {
+        const det = await API.get(`/contagens/${encodeURIComponent(primeira.id)}`);
+        const contagem = det?.success && det.data?.contagem;
+        if (contagem && contagem.status === 'em_andamento') {
+          let total = 0;
+          let contados = 0;
+          (contagem.fornecedores || []).forEach((f) => (f.produtos || []).forEach((p) => {
+            total++;
+            if (p.quantidade_contada !== null && p.quantidade_contada !== undefined) contados++;
+          }));
+          sessao = { id: contagem.id, total, contados };
+        }
+      }
+    } catch (err) {
+      sessao = null;
+    }
+    if (requisicao !== this._reqCartao) return;
+    cartao.setAttribute?.('aria-busy', 'false');
+    cartao.classList?.remove('func-aberta-reservando');
+    cartao.hidden = !sessao;
+    try { globalThis.localStorage?.setItem('func-cartao-aberto', sessao ? '1' : '0'); } catch (err) { /* sem armazenamento */ }
+    // Com o cartão "Retomar contagem" visível, o botão do hero passa a só iniciar uma nova contagem.
+    const textoHero = document.getElementById('btn-iniciar-contagem-funcionario-texto');
+    if (textoHero) textoHero.textContent = sessao ? 'Iniciar nova contagem' : 'Iniciar ou retomar contagem';
+    if (!sessao) return;
+    const texto = document.getElementById('func-contagem-aberta-texto');
+    if (texto) texto.textContent = `Contagem em andamento: ${sessao.contados} de ${pluralizar(sessao.total, 'produto')} ${sessao.total === 1 ? 'contado' : 'contados'}`;
+    const botao = document.getElementById('func-contagem-aberta-btn');
+    if (botao) {
+      botao.dataset = botao.dataset || {};
+      botao.dataset.id = String(sessao.id);
+      botao.setAttribute?.('data-id', String(sessao.id));
+    }
   },
 
   /**
@@ -408,8 +525,9 @@ const Contagens = {
           ${p.quantidade_vencida > 0 ? `<span class="badge badge-warning">${p.quantidade_vencida} vencidas</span>` : ''}
           <div id="contagem-vencidos-campo-${index}" ${p.vencidosAbertos ? '' : 'hidden'}>
             <label for="qtd-vencida-${index}">Quantidade vencida</label>
-            <input id="qtd-vencida-${index}" class="input-qtd-vencida" type="number" inputmode="numeric" min="0" step="1" max="${p.quantidade_contada ?? 0}" value="${escapeHtml(p.vencidosTexto ?? p.quantidade_vencida)}" ${this._salvando ? 'disabled' : ''} aria-describedby="erro-vencidos-${index}" aria-invalid="${this.entradasInvalidas.has(`vencidos-${index}`)}" data-input="contagem-vencidos-alterar" data-index="${index}">
-            <small id="erro-vencidos-${index}" class="contagem-vencidos-erro" role="alert">${this.entradasInvalidas.has(`vencidos-${index}`) ? 'Vencidos devem ser inteiros entre zero e a quantidade física contada.' : ''}</small>
+            <input id="qtd-vencida-${index}" class="input-qtd-vencida" type="number" inputmode="numeric" min="0" step="1" max="${p.quantidade_contada ?? 0}" value="${escapeHtml(p.vencidosTexto ?? p.quantidade_vencida)}" ${this._salvando ? 'disabled' : ''} aria-label="Quantidade vencida, ${escapeHtml(p.nome)}" aria-describedby="dica-vencidos-${index} erro-vencidos-${index}" aria-invalid="${this.entradasInvalidas.has(`vencidos-${index}`)}" data-input="contagem-vencidos-alterar" data-index="${index}">
+            <small id="dica-vencidos-${index}" class="contagem-vencidos-dica">${MSG_VENCIDOS_INCLUIDOS}</small>
+            <small id="erro-vencidos-${index}" class="contagem-vencidos-erro" role="alert">${this.entradasInvalidas.has(`vencidos-${index}`) ? MSG_VENCIDOS_INVALIDOS : ''}</small>
           </div>
         </div>` : '';
 
@@ -429,6 +547,7 @@ const Contagens = {
                      placeholder="Não contado"
                      value="${escapeHtml(valorInput)}"
                      class="input-qtd-fisica"
+                     aria-label="${this.tipoAtual === 'pecas_queijo' ? 'Peças encontradas' : 'Quantidade física'}, ${escapeHtml(p.nome)}"
                      aria-invalid="${fisicoInvalido}" aria-describedby="contagem-quantidade-ajuda erro-fisico-${index}"
                      data-input="action-74" data-keydown="contagem-qtd-enter" data-arg-0="${escapeHtml(String(index))}">
               <small id="erro-fisico-${index}" class="contagem-vencidos-erro" role="alert">${fisicoInvalido ? 'Informe uma quantidade inteira maior ou igual a zero.' : ''}</small>
@@ -454,6 +573,7 @@ const Contagens = {
       return;
     }
     this.edicaoPendente = true;
+    this._ultimoCampoEditado = `qtd-fisica-${index}`;
     // Um input explícito também confirma recontagem com a mesma quantidade.
     this.itensTocados.add(item.produto_id);
     const limpo = valorStr.trim();
@@ -479,11 +599,48 @@ const Contagens = {
     this.validarVencidos(index);
   },
 
+  /** Mantém só dígitos no campo de quantidade, preservando o cursor. Decimais coladas seguem para a validação. */
+  filtrarDigitos(input) {
+    const original = String(input?.value ?? '');
+    if (/^\d*$/.test(original) || /^\d+[.,]\d+$/.test(original)) return original;
+    const limpo = original.replace(/\D/g, '');
+    const pos = input.selectionStart;
+    input.value = limpo;
+    if (typeof pos === 'number' && typeof input.setSelectionRange === 'function') {
+      const novaPos = original.slice(0, pos).replace(/\D/g, '').length;
+      try { input.setSelectionRange(novaPos, novaPos); } catch (err) { /* campo sem seleção */ }
+    }
+    return limpo;
+  },
+
+  /** Rola até o primeiro campo inválido da lista, foca e deixa o erro visível junto dele. */
+  focarPrimeiroCampoInvalido() {
+    const ids = [];
+    this.itensFornecedor.forEach((_, index) => {
+      if (this.entradasInvalidas.has(index)) ids.push(`qtd-fisica-${index}`);
+      if (this.entradasInvalidas.has(`vencidos-${index}`)) {
+        const campo = document.getElementById(`contagem-vencidos-campo-${index}`);
+        if (campo?.hidden) campo.hidden = false;
+        ids.push(`qtd-vencida-${index}`);
+      }
+    });
+    const alvo = ids.length ? document.getElementById(ids[0]) : null;
+    if (!alvo) return;
+    alvo.scrollIntoView?.({ block: 'center' });
+    alvo.focus?.();
+    const erro = document.getElementById(ids[0].replace('qtd-fisica-', 'erro-fisico-').replace('qtd-vencida-', 'erro-vencidos-'));
+    if (erro && !erro.textContent) erro.textContent = ids[0].startsWith('qtd-vencida') ? MSG_VENCIDOS_INVALIDOS : 'Informe uma quantidade inteira maior ou igual a zero.';
+  },
+
   abrirVencidos(index) {
     if (this.tipoAtual !== 'geral' || !this.itensFornecedor[index]) return;
     this.itensFornecedor[index].vencidosAbertos = !this.itensFornecedor[index].vencidosAbertos;
     this.renderizarItensContagem();
-    if (this.itensFornecedor[index].vencidosAbertos) document.getElementById(`qtd-vencida-${index}`)?.focus();
+    if (this.itensFornecedor[index].vencidosAbertos) {
+      const campo = document.getElementById(`qtd-vencida-${index}`);
+      campo?.focus();
+      if (campo?.value === '0') campo.select?.();
+    }
   },
 
   atualizarVencidos(index, valorStr) {
@@ -491,6 +648,7 @@ const Contagens = {
     const item = this.itensFornecedor[index];
     if (!item) return;
     this.edicaoPendente = true;
+    this._ultimoCampoEditado = `qtd-vencida-${index}`;
     this.itensTocados.add(item.produto_id);
     const limpo = valorStr.trim();
     const valor = Number(limpo);
@@ -505,7 +663,7 @@ const Contagens = {
     const valor = item.quantidade_vencida;
     const digitado = texto === undefined ? item.vencidosTexto : texto;
     const valido = (digitado === undefined || digitado === '' || /^(0|[1-9]\d*)$/.test(digitado)) && Number.isSafeInteger(valor) && valor >= 0 && (valor === 0 || (item.quantidade_contada !== null && valor <= item.quantidade_contada));
-    const mensagem = valido ? '' : 'Vencidos devem ser inteiros entre zero e a quantidade física contada.';
+    const mensagem = valido ? '' : MSG_VENCIDOS_INVALIDOS;
     const input = document.getElementById(`qtd-vencida-${index}`);
     input?.setCustomValidity?.(mensagem);
     input?.setAttribute?.('aria-invalid', String(!valido));
@@ -524,12 +682,15 @@ const Contagens = {
     if (!this.fornecedorAtual) return false;
     this.itensFornecedor.forEach((_, index) => this.validarVencidos(index));
     if (this.entradasInvalidas.size) {
+      this.focarPrimeiroCampoInvalido();
       showToast('Informe quantidades inteiras maiores ou iguais a zero.', 'error');
       return false;
     }
     if (this.itensTocados.size === 0) {
       showToast('Não há alterações para salvar. A janela foi fechada.', 'info');
+      const produtorAtual = this.fornecedorAtual;
       this.fecharFornecedor();
+      this.focarCardProdutor(produtorAtual);
       return true;
     }
 
@@ -597,7 +758,14 @@ const Contagens = {
       const proximo = [...cards.slice(indice + 1), ...cards.slice(0, indice)].find((c) => !c.classList.contains('is-complete'));
       if (proximo) alvo = proximo;
     }
-    (alvo || cards[0])?.focus();
+    const destino = alvo || cards[0];
+    if (!destino || typeof destino.focus !== 'function') return;
+    destino.focus();
+    // O fechamento do diálogo pode devolver o foco ao elemento antigo no mesmo ciclo: reforça depois.
+    setTimeout(() => {
+      const ativo = document.activeElement;
+      if ((!ativo || ativo === document.body) && document.contains(destino)) destino.focus();
+    }, 0);
   },
 
   bloquearEdicaoDuranteSalvamento(bloquear) {

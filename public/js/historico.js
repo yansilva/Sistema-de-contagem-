@@ -276,7 +276,7 @@ const Historico = {
       const fornecedores = c.fornecedores || [];
 
       if (fornecedores.length === 0) {
-        body.innerHTML = '<div style="padding:10px; color:var(--cor-texto-mudo)">Nenhum fornecedor registrado.</div>';
+        body.innerHTML = '<div style="padding:10px; color:var(--cor-texto-mudo)">Nenhum produtor registrado.</div>';
         return;
       }
 

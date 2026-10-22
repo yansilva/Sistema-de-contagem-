@@ -228,12 +228,12 @@ const Atividades = {
         <table class="audit-table audit-cards" role="table" aria-label="Log de atividades">
           <thead role="rowgroup">
             <tr role="row">
-              <th role="columnheader">Data/Hora</th>
-              <th role="columnheader">Ator</th>
-              <th role="columnheader">Ação</th>
-              <th role="columnheader">Entidade</th>
-              <th role="columnheader">Resultado</th>
-              <th role="columnheader" class="au-det">Detalhes</th>
+              <th scope="col" role="columnheader">Data/Hora</th>
+              <th scope="col" role="columnheader">Ator</th>
+              <th scope="col" role="columnheader">Ação</th>
+              <th scope="col" role="columnheader">Entidade</th>
+              <th scope="col" role="columnheader">Resultado</th>
+              <th scope="col" role="columnheader" class="au-det">Detalhes</th>
             </tr>
           </thead>
           <tbody role="rowgroup">

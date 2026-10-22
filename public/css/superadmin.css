@@ -278,7 +278,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 }
 
 .saas-tab-btn.active {
-  background: var(--cor-primaria);
+  background: var(--cor-botao-primario);
   color: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
 }
@@ -311,7 +311,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--cor-texto-mudo);
+  color: var(--cor-texto-secundario);
   border-bottom: 1px solid var(--cor-borda);
 }
 
@@ -934,7 +934,11 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 .saas-table-scroll { overflow-x: auto; }
 .saas-company-link { display: block; border: 0; background: transparent; color: var(--cor-texto); font: inherit; font-weight: 700; padding: 0; cursor: pointer; text-align: left; }
 .saas-company-link:hover, .saas-company-link:focus-visible { color: var(--cor-primaria); text-decoration: underline; }
-.saas-table td small { display: block; margin-top: 3px; color: var(--cor-texto-mudo); }
+.saas-table td small { display: block; margin-top: 3px; color: var(--cor-texto-mudo); font-size: 0.75rem; }
+@media (max-width: 760px) {
+  .saas-tab-btn { min-height: 44px; }
+  .saas-company-link { min-height: 44px; display: flex; align-items: center; }
+}
 .status-pill.inativa, .status-pill.excluida { color: var(--cor-perigo-texto); background: var(--cor-perigo-bg); border-color: var(--cor-perigo-border); }
 .saas-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 14px; color: var(--cor-texto-secundario); font-size: .85rem; }
 .empresa-detail-header { display: grid; gap: 16px; margin-bottom: 20px; }
@@ -982,6 +986,8 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 
 /* KPIs da plataforma no celular: 2 colunas compactas */
 @media (max-width: 760px) {
+  .empresa-detail-tab { min-height: 44px; }
+  #modal-status-empresa .btn-close { min-width: 44px; min-height: 44px; }
   .saas-kpis-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
   .saas-kpi-card { padding: 12px; gap: 6px; }
   .saas-kpi-header { align-items: flex-start; gap: 6px; }

@@ -104,7 +104,8 @@ describe('Área do funcionário de contagem', () => {
     expect(elements.get('btn-nova-empresa').style.display).toBe('none');
     for (const element of elements.values()) if (element.admin) expect(element.hidden).toBe(true);
     const home = html.split('id="home-funcionario"')[1].split('id="home-administrador"')[0];
-    expect(home.match(/<button /g)).toHaveLength(6);
+    // 6 atalhos fixos + o botão Retomar contagem do cartão de contagem em andamento (escondido sem sessão)
+    expect(home.match(/<button /g)).toHaveLength(7);
     expect(home).not.toMatch(/screen-backoffice|Sincroniza|Exporta/);
   });
 

@@ -47,7 +47,7 @@ const API = {
       return res;
     } catch (err) {
       console.error('[API ERROR]', path, err);
-      showToast('Erro de conexão com o servidor. Verifique se o backend está ativo.', 'error');
+      showToast('Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.', 'error');
       return null;
     }
   },
@@ -114,7 +114,7 @@ const API = {
     if (!res) {
       return {
         success: false,
-        message: 'Não foi possível conectar ao servidor. Verifique se o backend está ativo.'
+        message: 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.'
       };
     }
 

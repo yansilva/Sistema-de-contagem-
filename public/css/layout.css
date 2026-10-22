@@ -19,6 +19,11 @@
   background: rgba(17, 24, 39, 0.82);
 }
 
+/* Foco e rolagem por âncora nunca ficam cobertos pelo topbar fixo (64px) */
+html { scroll-padding-top: 72px; }
+#bo-page-title,
+#saas-page-title { scroll-margin-top: 72px; }
+
 .topbar h1 {
   font-size: 1.125rem;
   font-weight: 700;
@@ -93,7 +98,7 @@
 
 .screen.active {
   display: block;
-  animation: screenEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: screenEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) backwards; /* backwards: após a entrada volta ao estilo normal, sem transform persistente (não prende filhos position:fixed) */
 }
 
 /* ===== TABS (BACK-OFFICE) ===== */

@@ -185,7 +185,8 @@ input[type="search"],
 input[type="number"],
 input[type="password"],
 input[type="email"],
-select {
+select,
+textarea {
   width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--cor-borda);
@@ -198,8 +199,11 @@ select {
   outline: none;
 }
 
+textarea { resize: vertical; }
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--cor-primaria);
   box-shadow: 0 0 0 3px var(--cor-foco);
   background: var(--cor-superficie);
@@ -289,7 +293,9 @@ input::placeholder {
   align-items: center;
   gap: 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
+  pointer-events: none; /* cliques fora do botão Fechar passam ao que está por baixo (ex.: X de modais) */
 }
+.toast .toast-close, .toast a, .toast button { pointer-events: auto; }
 
 .toast.success { background: #047857; color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
 .toast.error { background: #e11d48; color: #fff; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25); }
@@ -689,6 +695,16 @@ textarea[aria-invalid="true"] {
 }
 .toast-close:hover { background: rgba(255, 255, 255, 0.18); }
 .toast-close:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+/* No celular o toast ocupa a largura toda: o botão Fechar vai para a esquerda e não cobre o X dos modais (canto direito) */
+@media (max-width: 760px) {
+  .toast .toast-close { order: -1; margin-left: 0 !important; margin-right: 8px; min-width: 44px; min-height: 44px; }
+  /* No topo da tela, acima do cabeçalho dos modais, para não cobrir o X */
+  .toast { top: calc(env(safe-area-inset-top, 0px) + 8px); left: 12px; right: 12px; }
+}
+
+/* Caixa de seleção do produto: tamanho fixo e respiro do rótulo, mesmo dentro de .form-group */
+label.produto-classificacao { display: flex; align-items: center; gap: 10px; }
+label.produto-classificacao input[type="checkbox"] { width: 24px; height: 24px; min-width: 24px; min-height: 0; flex: none; margin: 0; }
 
 /* Dicas de campo (regras de senha, formatos) */
 small.field-hint,

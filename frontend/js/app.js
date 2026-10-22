@@ -17,15 +17,71 @@ function modalAberto() {
 const AJUDA_CONTEXTUAL = {
   'screen-contagem': [
     '"Digitado, falta salvar" quer dizer que você digitou a quantidade, mas ela ainda não foi gravada.',
-    'Use Salvar e continuar para gravar. Dá para parar e retomar depois, do ponto em que ficou.'
+    'Use Salvar e continuar para gravar. Dá para parar e retomar depois, do ponto em que ficou.',
+    'Informar vencidos (só na contagem geral, não na de peças de queijo): o vencido já está incluído na quantidade física contada.'
   ],
   'screen-resultado': [
     'Sobra: foi contado mais do que o saldo de referência.',
     'Falta: foi contado menos do que o saldo de referência.'
   ],
   'screen-importar-estoque': [
-    'O PDF do ERP atualiza só os SKUs ativos que já estão cadastrados.',
-    'Você vê uma prévia e confirma antes de aplicar qualquer mudança.'
+    'Passo 1: escolha o PDF do relatório de estoque do ERP.',
+    'Passo 2: confira a prévia. Só os SKUs ativos já cadastrados são atualizados e nada é criado.',
+    'Passo 3: confirme para aplicar.',
+    'Quem tem permissão de administrador importa o catálogo (.xlsx) na aba Produtos, onde pode mesclar ou substituir.'
+  ],
+  'screen-home': [
+    'Aqui você inicia uma contagem nova ou retoma uma que ficou em andamento.',
+    'Catálogo, Produtores, Semana e Histórico ficam nos atalhos desta tela.'
+  ],
+  'screen-home:admin': [
+    'Inicie uma contagem nova ou retome uma em andamento. Na contagem, o saldo do sistema só aparece depois de finalizar.',
+    'Importe o saldo de estoque (PDF) e o catálogo de produtos (.xlsx) pelos atalhos de importação.',
+    'No Back-office, a aba Histórico permite apagar contagens em aberto.'
+  ],
+  'screen-home:visao-geral': [
+    'Mostra as métricas gerais das empresas clientes da plataforma.',
+    'Use os atalhos desta tela para ir às empresas e à auditoria global.'
+  ],
+  'screen-home:tenants': [
+    'Crie uma empresa nova e abra os detalhes de cada uma pela lista.',
+    'Inativar uma empresa encerra na hora todas as sessões dela.'
+  ],
+  'screen-modalidade-contagem': [
+    'Escolha a modalidade: Produtos gerais ou Peças de queijo.',
+    'Inicie uma sessão nova ou retome uma sessão aberta da lista. Você pode parar e continuar depois.'
+  ],
+  'screen-catalogo': [
+    'Lista os produtos cadastrados com código, nome e produtor.',
+    'Busque por código ou nome. Você também pode filtrar por produtor.'
+  ],
+  'screen-produtores': [
+    'Lista os produtores cadastrados.',
+    'Use a busca para achar um produtor e ver os produtos dele no Catálogo.'
+  ],
+  'screen-historico-contagens': [
+    'Mostra as contagens recentes, as finalizadas e as que ainda estão em andamento.',
+    'Abra uma contagem para ver os detalhes. Use Anterior e Próxima para navegar entre as páginas.'
+  ],
+  'screen-semana-contagem': [
+    'Mostra o que já foi contado na semana, em sessões finalizadas.',
+    'Use Atualizar semana para recarregar os dados.'
+  ],
+  'screen-backoffice:usuarios': [
+    'Crie funcionários e use Redefinir senha temporária quando alguém esquecer a senha.',
+    'Desativar um funcionário bloqueia o acesso dele ao sistema.'
+  ],
+  'screen-backoffice:historico': [
+    'Lista as contagens da empresa, finalizadas e em andamento.',
+    'Contagens em andamento têm o botão Apagar. Apagar é definitivo e o progresso do funcionário se perde.'
+  ],
+  'screen-backoffice:config': [
+    'Aqui você altera a senha da sua conta.',
+    'Use uma senha nova que você não use em outros lugares.'
+  ],
+  'screen-home:auditoria-global': [
+    'Mostra eventos de segurança, acessos e alterações de toda a plataforma.',
+    'Use os filtros para achar um registro e Exportar CSV para levar a lista.'
   ],
   'screen-backoffice:produtos': [
     'Importar catálogo (.xlsx) pode mesclar com o catálogo atual ou substituí-lo por completo.',
@@ -50,10 +106,19 @@ function preencherAjudaContextual() {
   const lista = document.getElementById('ajuda-contextual-lista');
   if (!secao || !lista) return;
   const tela = document.querySelector('.screen.active')?.id || '';
-  const aba = tela === 'screen-backoffice'
-    ? document.querySelector('#screen-backoffice .tab.active')?.getAttribute('data-tab')
-    : '';
-  const linhas = AJUDA_CONTEXTUAL[aba ? `${tela}:${aba}` : tela] || [];
+  let aba = '';
+  if (tela === 'screen-backoffice') {
+    aba = document.querySelector('#screen-backoffice .tab.active')?.getAttribute('data-tab') || '';
+  } else if (tela === 'screen-home') {
+    // Mesma tela para três perfis: funcionário (sem sufixo), administrador e abas do console
+    const papel = typeof Auth !== 'undefined' ? Auth.usuario?.papel : '';
+    if (papel === 'super_admin') aba = document.querySelector('.saas-nav-btn.active[data-saas-tab]')?.getAttribute('data-saas-tab') || '';
+    else if (typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin()) aba = 'admin';
+  }
+  let linhas = AJUDA_CONTEXTUAL[aba ? `${tela}:${aba}` : tela] || [];
+  // Importar catálogo (.xlsx) é da administração: o funcionário vê só o passo a passo do PDF
+  const ehAdmin = typeof Auth !== 'undefined' && Auth.isAdmin && Auth.isAdmin();
+  if (tela === 'screen-importar-estoque' && !ehAdmin) linhas = linhas.filter((l) => !/\.xlsx/.test(l));
   lista.textContent = '';
   linhas.forEach((texto) => {
     const li = document.createElement('li');
@@ -65,9 +130,38 @@ function preencherAjudaContextual() {
   const superAdmin = typeof Auth !== 'undefined' && Auth.usuario?.papel === 'super_admin';
   const blocoContagem = document.getElementById('ajuda-contagem');
   if (blocoContagem) blocoContagem.hidden = superAdmin;
+  const atalhoContagem = document.getElementById('ajuda-atalho-contagem');
+  if (atalhoContagem) atalhoContagem.hidden = superAdmin;
   const titulo = document.getElementById('modal-ajuda-titulo');
   if (titulo) titulo.textContent = superAdmin ? 'Ajuda' : 'Como funciona a contagem';
 }
+
+/** Campos de quantidade com "0": ao focar, seleciona o conteúdo para que digitar substitua o zero. */
+document.addEventListener('focusin', (event) => {
+  const campo = event.target;
+  const classes = campo && campo.classList;
+  if (!classes || !(classes.contains('input-qtd-vencida') || classes.contains('input-qtd-fisica'))) return;
+  if (campo.value !== '0' || typeof campo.select !== 'function') return;
+  try { campo.select(); } catch (e) { /* tipo sem seleção */ }
+});
+
+/** Sugere os produtores já cadastrados no campo do modal Novo Produto (a entrada continua livre). */
+document.addEventListener('focusin', async (event) => {
+  if (event.target?.id !== 'prod-fornecedor') return;
+  const datalist = document.getElementById('lista-produtores');
+  if (!datalist || typeof API === 'undefined') return;
+  const res = await API.get('/produtos/fornecedores');
+  const nomes = res?.data?.fornecedores;
+  if (!Array.isArray(nomes)) return;
+  datalist.textContent = '';
+  nomes.forEach((nome) => {
+    const texto = typeof nome === 'string' ? nome : nome?.fornecedor || nome?.nome;
+    if (!texto) return;
+    const opcao = document.createElement('option');
+    opcao.value = texto;
+    datalist.appendChild(opcao);
+  });
+});
 
 function abrirAjuda() {
   const modal = document.getElementById('modal-ajuda');
@@ -180,13 +274,33 @@ function confirmarAcao({ titulo = 'Confirmar ação', mensagem = '', confirmar =
       : [{ rotulo: confirmar, valor: true, perigo: !!perigo }];
     const temPadrao = lista.some(a => a.padrao);
 
+    // Um <dialog> aberto com showModal() fica na top layer e deixa o resto da página inerte:
+    // o confirmar precisa viver dentro dele enquanto estiver aberto.
+    const origem = modal.parentNode;
+    const abertos = document.querySelectorAll ? [...document.querySelectorAll('dialog[open]')] : [];
+    const dialogAberto = abertos.length ? abertos[abertos.length - 1] : null;
+    const aoCancelarDialog = (e) => e.preventDefault();
+
     const fechar = (valor) => {
       document.removeEventListener('keydown', aoTeclar, true);
+      document.removeEventListener('cancel', aoCancelarDialog, true);
       _confirmacaoPendente = null;
       modal.style.display = 'none';
+      if (dialogAberto && modal.parentNode === dialogAberto && origem && origem !== dialogAberto) origem.appendChild(modal);
       resolve(valor);
     };
     const aoTeclar = (e) => {
+      if (e.key === 'Tab') {
+        const botoes = [...modal.querySelectorAll('button:not(:disabled)')].filter(elementoVisivel);
+        if (!botoes.length) return;
+        const primeiro = botoes[0];
+        const ultimo = botoes[botoes.length - 1];
+        const ativo = document.activeElement;
+        if (!modal.contains(ativo)) { e.preventDefault(); primeiro.focus(); }
+        else if (e.shiftKey && ativo === primeiro) { e.preventDefault(); ultimo.focus(); }
+        else if (!e.shiftKey && ativo === ultimo) { e.preventDefault(); primeiro.focus(); }
+        return;
+      }
       if (e.key !== 'Escape') return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -208,6 +322,9 @@ function confirmarAcao({ titulo = 'Confirmar ação', mensagem = '', confirmar =
 
     _confirmacaoPendente = fechar;
     document.addEventListener('keydown', aoTeclar, true);
+    document.addEventListener('cancel', aoCancelarDialog, true);
+    modal.setAttribute('role', 'alertdialog');
+    if (dialogAberto && dialogAberto.appendChild) dialogAberto.appendChild(modal);
     // O gerenciador de modais guarda o foco anterior e foca [data-foco-inicial]
     modal.style.display = 'flex';
   });
@@ -230,15 +347,71 @@ const ROTAS_TELAS = {
   'screen-backoffice': ['#backoffice', 'Painel de gestão'],
   'screen-importar-estoque': ['#estoque', 'Importar estoque']
 };
+// Subabas por tela: id da tela -> { idDaAba: [hash, título] }. A primeira é a padrão.
+// O idDaAba é o data-tab (back-office) ou data-saas-tab (console do Super Admin).
+// A aba "Importar estoque" do back-office tem tela própria (#estoque).
+const ROTAS_ABAS = {
+  'screen-backoffice': {
+    'produtos': ['#backoffice/produtos', 'Produtos'],
+    'usuarios': ['#backoffice/funcionarios', 'Funcionários'],
+    'historico': ['#backoffice/historico', 'Histórico'],
+    'atividades': ['#backoffice/atividades', 'Atividades'],
+    'config': ['#backoffice/configuracoes', 'Configurações']
+  },
+  'screen-home': {
+    'visao-geral': ['#inicio', 'Visão geral'],
+    'tenants': ['#inicio/empresas', 'Empresas'],
+    'auditoria-global': ['#inicio/auditoria', 'Auditoria global']
+  }
+};
 let _telaAtualId = null;
 let _primeiraTela = true;
+let _pushRecente = false;
+let _abaPedida = null;
 
 function hashAtual() {
   try { return (typeof window !== 'undefined' && window.location && window.location.hash) || ''; } catch (e) { return ''; }
 }
 
+/** Abas válidas da tela para o perfil atual, ou null (a home só tem abas no console do Super Admin) */
+function abasDaTela(screenId) {
+  const abas = ROTAS_ABAS[screenId];
+  if (!abas) return null;
+  if (screenId === 'screen-home' && !(typeof Auth !== 'undefined' && Auth.usuario?.papel === 'super_admin')) return null;
+  return abas;
+}
+
 function telaDoHash(hash) {
-  return Object.keys(ROTAS_TELAS).find(id => ROTAS_TELAS[id][0] && ROTAS_TELAS[id][0] === hash) || null;
+  const exata = Object.keys(ROTAS_TELAS).find(id => ROTAS_TELAS[id][0] && ROTAS_TELAS[id][0] === hash);
+  if (exata) return exata;
+  const base = typeof hash === 'string' && hash.includes('/') ? hash.split('/')[0] : '';
+  return base ? Object.keys(ROTAS_ABAS).find(id => ROTAS_TELAS[id][0] === base) || null : null;
+}
+
+/** Aba indicada pelo hash; hash de aba inválido ou sem aba cai na primeira aba. Null se a tela não tem abas. */
+function abaDoHash(screenId, hash) {
+  const abas = abasDaTela(screenId);
+  if (!abas) return null;
+  return Object.keys(abas).find(id => abas[id][0] === hash) || Object.keys(abas)[0];
+}
+
+/** Aba ativa hoje no DOM da tela, ou null */
+function abaAtivaDe(screenId) {
+  if (!abasDaTela(screenId)) return null;
+  const sel = screenId === 'screen-backoffice' ? '#screen-backoffice .tab.active' : '.saas-nav-btn.active[data-saas-tab]';
+  const el = document.querySelector(sel);
+  const id = el && el.getAttribute(screenId === 'screen-backoffice' ? 'data-tab' : 'data-saas-tab');
+  return id && ROTAS_ABAS[screenId][id] ? id : Object.keys(ROTAS_ABAS[screenId])[0];
+}
+
+/** { hash, titulo } da tela, com a aba quando houver: "<Aba> · <Tela>" */
+function rotaDaTela(screenId, aba) {
+  const rota = ROTAS_TELAS[screenId];
+  if (!rota) return null;
+  const abas = abasDaTela(screenId);
+  const rotaAba = abas && abas[aba];
+  if (!rotaAba) return { hash: rota[0], titulo: rota[1] };
+  return { hash: rotaAba[0], titulo: `${rotaAba[1]} · ${rota[1]}` };
 }
 
 /** Telas que dependem de uma sessão de contagem em andamento */
@@ -246,31 +419,73 @@ function telaExigeContagem(id) {
   return id === 'screen-contagem' || id === 'screen-resultado';
 }
 
-function atualizarRota(screenId, semHistorico) {
-  const rota = ROTAS_TELAS[screenId];
+function atualizarRota(screenId, semHistorico, aba) {
+  const rota = rotaDaTela(screenId, aba);
   if (!rota) return;
-  if (typeof document !== 'undefined') document.title = `${rota[1]} · Sistema de Estoque`;
+  if (typeof document !== 'undefined') document.title = `${rota.titulo} · Sistema de Estoque`;
   try {
     if (typeof history === 'undefined' || !history.pushState || !history.replaceState) return;
-    const hash = rota[0];
+    const hash = rota.hash;
     if (hashAtual() === hash) return;
     const base = `${window.location.pathname}${window.location.search}`;
     const url = hash ? base + hash : base;
-    const usarPush = !semHistorico && hash && !_primeiraTela;
-    if (usarPush) history.pushState({ tela: screenId }, '', url);
-    else history.replaceState({ tela: screenId }, '', url);
+    // Trocar de tela e de aba no mesmo gesto gera uma entrada só no histórico
+    const usarPush = !semHistorico && hash && !_primeiraTela && !_pushRecente;
+    if (usarPush) {
+      history.pushState({ tela: screenId, aba: aba || null }, '', url);
+      _pushRecente = true;
+      Promise.resolve().then(() => { _pushRecente = false; });
+    } else {
+      history.replaceState({ tela: screenId, aba: aba || null }, '', url);
+    }
   } catch (e) { /* ambiente sem histórico */ }
 }
 
-function moverFocoParaTela(target, screenId) {
-  const rota = ROTAS_TELAS[screenId];
+/**
+ * Registra a rota da aba (hash, título e anúncio) depois de trocar de aba.
+ * opcoes.semHistorico: veio de Voltar/Avançar ou da abertura da tela, sem nova entrada.
+ * opcoes.focar: leva o foco ao título da aba (navegação pelo histórico, em que o gatilho some).
+ */
+function rotearAba(screenId, aba, opcoes) {
+  const tela = document.getElementById(screenId);
+  if (!tela || !tela.classList || !tela.classList.contains('active') || !abasDaTela(screenId)) return;
+  const semHistorico = !!(opcoes && opcoes.semHistorico);
+  atualizarRota(screenId, semHistorico, aba);
+  const rota = rotaDaTela(screenId, aba);
   const anuncio = document.getElementById('anuncio-tela');
-  if (anuncio && rota) anuncio.textContent = rota[1];
+  if (anuncio && rota) anuncio.textContent = rota.titulo;
+  if (opcoes && opcoes.focar) {
+    const alvo = document.getElementById(screenId === 'screen-backoffice' ? 'bo-page-title' : 'saas-page-title');
+    if (alvo && alvo.focus) {
+      if (!alvo.hasAttribute('tabindex')) alvo.setAttribute('tabindex', '-1');
+      try { alvo.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+    }
+  }
+  // Voltar/Avançar: a rolagem guardada pelo navegador não vale para a aba restaurada
+  if (semHistorico || (opcoes && opcoes.focar)) {
+    try { if (typeof window.scrollTo === 'function') window.scrollTo(0, 0); } catch (e) { /* sem rolagem */ }
+  }
+}
+
+function moverFocoParaTela(target, screenId) {
+  const rota = rotaDaTela(screenId, _abaPedida || abaAtivaDe(screenId));
+  const anuncio = document.getElementById('anuncio-tela');
+  if (anuncio && rota) anuncio.textContent = rota.titulo;
   if (_primeiraTela || screenId === 'screen-login' || !target || !target.querySelectorAll) return;
   const visivel = (el) => !el.getClientRects || el.getClientRects().length > 0;
   const alvo = [...target.querySelectorAll('h1, h2')].find(visivel) || target;
   if (!alvo.hasAttribute('tabindex')) alvo.setAttribute('tabindex', '-1');
   try { alvo.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+}
+
+/** Tela sem abas para o perfil, mas com hash de aba (ex.: #inicio/empresas): volta ao hash da tela */
+function normalizarHash(screenId) {
+  const rota = rotaDaTela(screenId, null);
+  if (!rota || !rota.hash || hashAtual() === rota.hash) return;
+  try {
+    if (typeof history === 'undefined' || !history.replaceState) return;
+    history.replaceState({ tela: screenId, aba: null }, '', `${window.location.pathname}${window.location.search}${rota.hash}`);
+  } catch (e) { /* ambiente sem histórico */ }
 }
 
 /** Volta/avança do navegador: abre a tela do hash sem criar nova entrada */
@@ -281,8 +496,21 @@ function aoMudarHistorico() {
     ? !!(contagensOk && Contagens.resultadoId)
     : !!(contagensOk && Contagens.contagemId);
   if (!id || (telaExigeContagem(id) && !temSessao)) id = 'screen-home';
-  if (id === _telaAtualId) return;
-  showScreen(id, { semHistorico: true });
+  const aba = abaDoHash(id, hashAtual());
+  if (id === _telaAtualId) {
+    // Mesma tela: só a aba mudou (Voltar/Avançar entre abas), sem nova entrada no histórico
+    if (aba && aba !== abaAtivaDe(id)) trocarAbaDaTela(id, aba, { semHistorico: true, focar: true });
+    else if (aba) rotearAba(id, aba, { semHistorico: true });
+    else normalizarHash(id);
+    return;
+  }
+  showScreen(id, { semHistorico: true, aba });
+}
+
+/** Troca a aba de uma tela com abas (back-office ou console do Super Admin) */
+function trocarAbaDaTela(screenId, aba, opcoes) {
+  if (screenId === 'screen-backoffice') switchTab(aba, opcoes);
+  else if (screenId === 'screen-home') switchSaasTab(aba, opcoes);
 }
 
 /**
@@ -307,12 +535,22 @@ function showScreen(screenId, opcoes) {
     if (typeof StockImport !== 'undefined' && StockImport.cancelarPrevia && !StockImport._confirmando) StockImport.cancelarPrevia(true);
   }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  // Ajuda da barra no celular: só com sessão (sem login existe o link "Como funciona?")
+  const ajudaRapida = document.getElementById('btn-ajuda-topbar-rapido');
+  if (ajudaRapida) ajudaRapida.hidden = !Auth.usuario;
+  const ajudaMenu = document.getElementById('btn-ajuda-topbar');
+  if (ajudaMenu && ajudaMenu.setAttribute) {
+    ajudaMenu.setAttribute('aria-label', Auth.usuario?.papel === 'super_admin' ? 'Abrir ajuda' : 'Abrir ajuda: como funciona a contagem');
+  }
   const target = document.getElementById(screenId);
   if (target) {
     target.classList.add('active');
     const reduzirMovimento = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     window.scrollTo({ top: 0, behavior: reduzirMovimento ? 'auto' : 'smooth' });
-    atualizarRota(screenId, opcoes && opcoes.semHistorico);
+    // Aba pedida só vale se a tela (já corrigida pelo perfil) tem essa aba
+    const abas = abasDaTela(screenId);
+    _abaPedida = abas && opcoes && opcoes.aba && abas[opcoes.aba] ? opcoes.aba : null;
+    atualizarRota(screenId, opcoes && opcoes.semHistorico, _abaPedida || abaAtivaDe(screenId));
     moverFocoParaTela(target, screenId);
     _telaAtualId = screenId;
     _primeiraTela = false;
@@ -320,8 +558,16 @@ function showScreen(screenId, opcoes) {
 
   // Ações contextuais por tela
   if (screenId === 'screen-backoffice') {
-    Produtos.carregar();
-    carregarBackofficeKPIs();
+    if (_abaPedida && _abaPedida !== abaAtivaDe(screenId)) {
+      // F5, hash ou Voltar do navegador: abre a aba da URL (sem nova entrada)
+      const aba = _abaPedida;
+      _abaPedida = null;
+      switchTab(aba, { semHistorico: true });
+    } else {
+      _abaPedida = null;
+      Produtos.carregar();
+      carregarBackofficeKPIs();
+    }
   } else if (screenId === 'screen-home') {
     Auth.atualizarInterface();
     carregarDashboard();
@@ -344,6 +590,23 @@ function showScreen(screenId, opcoes) {
       if (StockImport.carregarHistorico) StockImport.carregarHistorico();
     }
   }
+  atualizarMenuMovel();
+}
+
+/**
+ * Esconde o hambúrguer quando o menu não tem item próprio visível: Ajuda e Sair já ficam na barra
+ * no celular, então sem Back-office (funcionário, Super Admin) o painel abriria vazio.
+ */
+function atualizarMenuMovel() {
+  try {
+    const toggle = document.getElementById('mobile-nav-toggle');
+    const menu = document.getElementById('topbar-menu');
+    if (!toggle || !menu || !menu.querySelectorAll || !Auth.usuario) return;
+    const itens = [...menu.querySelectorAll('button')].filter((b) => b.id !== 'btn-ajuda-topbar'
+      && !(b.classList && b.classList.contains('topbar-menu-sair'))
+      && !b.hidden && !(b.style && b.style.display === 'none'));
+    toggle.hidden = itens.length === 0;
+  } catch (e) { /* ambiente sem DOM completo */ }
 }
 
 /**
@@ -366,9 +629,9 @@ async function carregarDashboard() {
             <table class="dash-recent-table">
               <thead>
                 <tr>
-                  <th>Data e Hora</th>
-                  <th>Status</th>
-                  <th>Ação</th>
+                  <th scope="col">Data e Hora</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -399,10 +662,13 @@ async function carregarDashboard() {
   // 2. Papel Super Admin (Console SaaS)
   if (Auth.usuario?.papel === 'super_admin') {
     const sessaoAuditoria = typeof Auditoria !== 'undefined' ? Auditoria.restaurarLocal() : null;
+    const abaInicial = _abaPedida;
+    _abaPedida = null;
     if (sessaoAuditoria) {
       EmpresaDetalhes.abrir(sessaoAuditoria.empresaId, 'auditoria');
     } else {
-      switchSaasTab('visao-geral');
+      // A rota já foi registrada pelo showScreen: não cria outra entrada no histórico
+      switchSaasTab(abaInicial || 'visao-geral', { semHistorico: true });
     }
     return;
   }
@@ -466,24 +732,25 @@ async function carregarDashboard() {
 
         // Tabela recente
         if (tbody) {
+          garantirRolesDeTabela(document.getElementById('admin-recent-table'));
           tbody.innerHTML = contagens.slice(0, 5).map(c => {
             const dataStr = c.iniciado_em ? new Date(c.iniciado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
             const difBadge = c.tipo === 'pecas_queijo' ? `<span class="badge ${c.status === 'finalizada' ? 'badge-success' : 'badge-warning'}">Peças de queijo · ${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span>` : c.status !== 'finalizada' ? '<span class="badge badge-warning">Geral · Em andamento</span>' : c.tem_diferenca
               ? '<span class="badge badge-danger"><i class="ti ti-alert-triangle"></i> Com divergência</span>'
               : '<span class="badge badge-success"><i class="ti ti-check"></i> Sem diferença</span>';
             return `
-              <tr>
-                <td><strong>${dataStr}</strong></td>
-                <td>${escapeHtml(c.iniciado_por_nome || 'Operador')}</td>
-                <td>${difBadge}</td>
-                <td><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72">Conferir</button></td>
+              <tr role="row">
+                <td role="cell" class="cartao-principal" data-label="Data e hora"><strong>${dataStr}</strong></td>
+                <td role="cell" data-label="Operador">${escapeHtml(c.iniciado_por_nome || 'Operador')}</td>
+                <td role="cell" data-label="Estoque">${difBadge}</td>
+                <td role="cell" class="cartao-acoes"><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72" aria-label="Conferir contagem de ${dataStr}">Conferir</button></td>
               </tr>
             `;
           }).join('');
         }
       } else {
         if (tbody) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:24px; color:var(--cor-texto-mudo);">Nenhuma contagem finalizada ainda. Inicie uma contagem para ela aparecer aqui.</td></tr>';
+          tbody.innerHTML = '<tr role="row"><td role="cell" colspan="4" style="text-align:center; padding:24px; color:var(--cor-texto-mudo);">Nenhuma contagem finalizada ainda. Inicie uma contagem para ela aparecer aqui.</td></tr>';
         }
         if (alertCard) alertCard.style.display = 'none';
       }
@@ -494,12 +761,25 @@ async function carregarDashboard() {
 }
 
 /**
- * Alterna abas dentro do Back-office
- * @param {string} tabId 
+ * Roles explícitos de tabela: no celular a tabela vira cartões (display:block) e perderia a semântica
  */
-function switchTab(tabId) {
+function garantirRolesDeTabela(tabela) {
+  if (!tabela || !tabela.setAttribute || !tabela.querySelectorAll) return;
+  tabela.setAttribute('role', 'table');
+  tabela.querySelectorAll('thead, tbody').forEach((el) => el.setAttribute('role', 'rowgroup'));
+  tabela.querySelectorAll('thead tr').forEach((el) => el.setAttribute('role', 'row'));
+  tabela.querySelectorAll('thead th').forEach((el) => el.setAttribute('role', 'columnheader'));
+}
+
+/**
+ * Alterna abas dentro do Back-office
+ * @param {string} tabId
+ * @param {{semHistorico?: boolean, focar?: boolean}} [opcoes]
+ */
+function switchTab(tabId, opcoes) {
   if (!Auth.isAdmin() || Auth.usuario?.mustChangePassword) return;
   if (tabId === 'estoque') { fecharBoSidebar(); StockImport.abrir('backoffice'); return; }
+  if (!ROTAS_ABAS['screen-backoffice'][tabId]) tabId = 'produtos';
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
 
@@ -538,6 +818,9 @@ function switchTab(tabId) {
   } else if (tabId === 'atividades' && typeof Atividades !== 'undefined') {
     Atividades.carregar();
   }
+  rotearAba('screen-backoffice', tabId, opcoes);
+  // Sem isto, o foco/scroll da troca deixa a página rolada e esconde o título e o botão "Seções" sob a barra fixa
+  try { if (typeof window.scrollTo === 'function') window.scrollTo(0, 0); } catch (e) { /* sem rolagem */ }
 }
 
 /**
@@ -555,7 +838,7 @@ function toggleBoSidebar() {
     const primeiro = sidebar.querySelector('.bo-nav-item, .bo-sidebar-nav button, button:not(.bo-sidebar-close)') || sidebar.querySelector('button');
     if (primeiro && primeiro.focus) primeiro.focus();
   } else if (menuBtn && menuBtn.focus) {
-    menuBtn.focus();
+    menuBtn.focus({ preventScroll: true });
   }
 }
 
@@ -565,7 +848,7 @@ function fecharBoSidebar() {
   const menuBtn = document.getElementById('bo-menu-btn');
   // Devolve o foco ao botão "Seções" só se o foco estava dentro da gaveta aberta
   if (sidebar && sidebar.classList.contains('open') && menuBtn && menuBtn.focus && sidebar.contains(document.activeElement)) {
-    menuBtn.focus();
+    menuBtn.focus({ preventScroll: true });
   }
   if (sidebar) sidebar.classList.remove('open');
   if (backdrop) backdrop.classList.remove('active');
@@ -623,6 +906,13 @@ async function carregarBackofficeKPIs(forcar = false) {
   }
 }
 
+/** Leva o foco ao envio de catálogo (.xlsx) da aba Produtos, sem abrir o seletor de arquivos */
+function focarImportarCatalogo() {
+  const campo = document.getElementById('input-importar-catalogo');
+  if (!campo || !campo.focus) return;
+  try { campo.focus(); } catch (e) { /* sem foco */ }
+}
+
 function abrirHistoricoContagens() {
   if (Auth.isAdmin()) {
     showScreen('screen-backoffice');
@@ -635,8 +925,9 @@ function abrirHistoricoContagens() {
 /**
  * Alterna entre as abas do Console SaaS do Super Admin
  * @param {string} tabId - 'visao-geral' | 'tenants' | 'auditoria-global'
+ * @param {{semHistorico?: boolean, focar?: boolean}} [opcoes]
  */
-function switchSaasTab(tabId) {
+function switchSaasTab(tabId, opcoes) {
   const tabs = ['visao-geral', 'tenants', 'auditoria-global'];
   if (!tabs.includes(tabId)) tabId = 'visao-geral';
 
@@ -683,6 +974,7 @@ function switchSaasTab(tabId) {
       Atividades.carregar();
     }
   }
+  rotearAba('screen-home', tabId, opcoes);
 }
 window.switchSaasTab = switchSaasTab;
 
@@ -754,8 +1046,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (typeof EmpresaDetalhes !== 'undefined') EmpresaDetalhes.fecharSenhaTemporaria();
     }
     // Atalho "?" abre a ajuda, fora de campos de digitação
-    if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing && !e.repeat) {
-      const digitandoAjuda = e.target.closest && e.target.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
+    // (e.key '?' ou Shift+Barra, para layouts em que a tecla Barra produz outro caractere)
+    const teclaAjuda = e.key === '?' || (e.code === 'Slash' && e.shiftKey);
+    if (teclaAjuda && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing && !e.repeat && !e.defaultPrevented) {
+      const digitandoAjuda = e.target && e.target.closest && e.target.closest('input, textarea, select, [role="textbox"], [role="combobox"], [contenteditable]:not([contenteditable="false"])');
       if (!digitandoAjuda && !modalAberto()) {
         e.preventDefault();
         abrirAjuda();
@@ -792,6 +1086,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // 4b. Botão Voltar/Avançar do navegador
+  try {
+    if (typeof history !== 'undefined' && 'scrollRestoration' in history) history.scrollRestoration = 'manual';
+  } catch (e) { /* ambiente sem histórico */ }
   if (typeof window !== 'undefined' && window.addEventListener) {
     window.addEventListener('popstate', aoMudarHistorico);
     window.addEventListener('hashchange', aoMudarHistorico);
@@ -805,7 +1102,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       let inicial = telaDoHash(hashAtual());
       // Telas sem sessão de contagem em andamento ou públicas voltam ao início
       if (!inicial || telaExigeContagem(inicial) || inicial === 'screen-login' || inicial === 'screen-troca-senha-obrigatoria') inicial = 'screen-home';
-      showScreen(inicial);
+      // F5 mantém a aba da URL; o showScreen descarta a aba que o perfil não tem
+      showScreen(inicial, { aba: abaDoHash(inicial, hashAtual()) });
     }
   } else {
     showScreen('screen-login');
