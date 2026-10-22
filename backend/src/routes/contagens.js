@@ -10,10 +10,15 @@ const {
   finalizar,
   listar,
   detalhe,
-  semana
+  semana,
+  apagar,
+  apagarEmAberto
 } = require('../controllers/contagensController');
+const { requireRole } = require('../middlewares/authorize');
 const {
   idParamSchema,
+  apagarContagemSchema,
+  apagarContagensEmAbertoSchema,
   iniciarContagemSchema,
   listarContagensQuerySchema,
   salvarProgressoContagemSchema,
@@ -43,5 +48,15 @@ router.get('/semana', semana);
 
 // GET /api/contagens/:id — Detalhe da contagem (protegido por RBAC: funcionário só vê diferenças se finalizada)
 router.get('/:id', validate(idParamSchema), detalhe);
+
+// Apagar contagens: somente administrador da empresa (super_admin fica de fora de propósito).
+// A rota fixa precisa vir ANTES de '/:id'.
+const somenteAdministradorEmpresa = requireRole('administrador', 'gestor', 'admin');
+
+// DELETE /api/contagens/em-andamento — Apagar várias contagens em aberto de uma vez
+router.delete('/em-andamento', somenteAdministradorEmpresa, validate(apagarContagensEmAbertoSchema), apagarEmAberto);
+
+// DELETE /api/contagens/:id — Apagar uma contagem em aberto
+router.delete('/:id', somenteAdministradorEmpresa, validate(apagarContagemSchema), apagar);
 
 module.exports = router;

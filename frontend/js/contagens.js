@@ -54,6 +54,31 @@ const Contagens = {
     }
   },
 
+  /**
+   * Um administrador apagou a contagem: avisa uma vez, descarta o estado local e volta ao início.
+   * Devolve true quando tratou a resposta (o chamador deve parar).
+   */
+  tratarContagemApagada(res) {
+    if (!res || res.success || res.code !== 'CONTAGEM_APAGADA') return false;
+    const dialogEdicao = document.getElementById('contagem-edicao-pendente');
+    if (dialogEdicao?.open) dialogEdicao.close();
+    this.fecharFornecedor();
+    this.contagemId = null;
+    this.resultadoId = null;
+    this.dadosSessao = null;
+    this.fornecedorAtual = null;
+    this.itensFornecedor = [];
+    this.edicaoPendente = false;
+    this.acaoAposEdicao = null;
+    this.entradasInvalidas.clear();
+    this.itensTocados.clear();
+    this.produtoresConcluidos.clear();
+    showToast(res.message || 'Esta contagem foi apagada por um administrador. As quantidades não salvas foram perdidas.', 'error');
+    if (typeof Semana !== 'undefined' && typeof Semana.invalidar === 'function') Semana.invalidar();
+    showScreen('screen-home');
+    return true;
+  },
+
   protegerEdicao(acao) {
     if (this._salvando) return true;
     if (!this.edicaoPendente) return false;
@@ -85,6 +110,7 @@ const Contagens = {
     this._carregandoSessao = true;
     try {
       const res = await API.get(`/contagens/${encodeURIComponent(id)}`);
+      if (this.tratarContagemApagada(res)) return;
       if (!res?.success || !res.data?.contagem) throw new Error('carregamento');
       if (res.data.contagem.status !== 'em_andamento') return this.exibirResultado(id);
       this.fecharFornecedor();
@@ -183,6 +209,7 @@ const Contagens = {
     if (!this.contagemId) return;
 
     const res = await API.get(`/contagens/${this.contagemId}`);
+    if (this.tratarContagemApagada(res)) return false;
     if (!res || !res.success || !res.data?.contagem) {
       showToast(res?.message || 'Não foi possível carregar os produtos da contagem.', 'error');
       return false;
@@ -527,6 +554,7 @@ const Contagens = {
       let res;
       try { res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload); }
       catch (err) { res = null; }
+      if (this.tratarContagemApagada(res)) return false;
       if (!res || !res.success) {
         showToast(res?.message || 'Não foi possível salvar as quantidades. Tente novamente.', 'error');
         return false;
@@ -626,6 +654,7 @@ const Contagens = {
       btn.innerHTML = '<i class="ti ti-flag-check"></i> Finalizar e comparar';
     }
 
+    if (this.tratarContagemApagada(res)) return;
     if (!res || !res.success) {
       showToast(res?.message || 'Não foi possível finalizar a contagem. Tente novamente.', 'error');
       return;

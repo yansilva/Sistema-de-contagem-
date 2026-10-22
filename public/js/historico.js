@@ -3,6 +3,126 @@
  */
 const Historico = {
   contagens: [],
+  idsEmAberto: [],
+
+  /** Só o administrador da empresa (e papéis legados) apaga; super_admin e funcionário não. */
+  podeApagar() {
+    const papel = typeof Auth !== 'undefined' ? Auth.usuario?.papel : null;
+    return ['administrador', 'gestor', 'admin'].includes(papel);
+  },
+
+  /** Busca todos os ids em andamento (a lista padrão traz só 20) e atualiza o botão em lote. */
+  async carregarEmAberto() {
+    this.idsEmAberto = [];
+    if (this.podeApagar()) {
+      try {
+        const res = await API.get('/contagens?status=em_andamento&limit=100');
+        if (res?.success && Array.isArray(res.data?.contagens)) {
+          this.idsEmAberto = res.data.contagens.map(c => c.id);
+        }
+      } catch (err) { /* sem lote: o botão fica oculto */ }
+    }
+    this.atualizarLote();
+  },
+
+  atualizarLote() {
+    const bloco = document.getElementById('historico-lote');
+    const texto = document.getElementById('historico-lote-texto');
+    const n = this.idsEmAberto.length;
+    if (texto) texto.textContent = `Apagar contagens em aberto (${n})`;
+    if (bloco) bloco.hidden = !(this.podeApagar() && n > 0);
+  },
+
+  /** Recarrega lista, KPIs, dashboard e semana depois de apagar. */
+  async aposApagar() {
+    await this.carregar();
+    if (typeof carregarBackofficeKPIs === 'function') carregarBackofficeKPIs(true);
+    if (typeof carregarDashboard === 'function') carregarDashboard();
+    if (typeof Semana !== 'undefined' && typeof Semana.invalidar === 'function') Semana.invalidar();
+    // Depois do re-render o foco ficaria no body: devolve a um alvo estável do Histórico
+    const lote = document.getElementById('btn-historico-apagar-em-aberto');
+    const blocoLote = document.getElementById('historico-lote');
+    const contador = document.getElementById('historico-counter');
+    const alvo = lote && blocoLote && !blocoLote.hidden ? lote : contador;
+    if (alvo && typeof alvo.focus === 'function') {
+      if (alvo === contador) alvo.setAttribute('tabindex', '-1');
+      alvo.focus();
+    }
+  },
+
+  async apagar(id, botao) {
+    if (!this.podeApagar() || !id) return;
+    const confirmado = await confirmarAcao({
+      titulo: 'Apagar contagem em andamento?',
+      mensagem: 'O progresso já registrado pelo funcionário será perdido. Esta ação não pode ser desfeita.',
+      confirmar: 'Apagar contagem',
+      cancelar: 'Cancelar',
+      perigo: true
+    });
+    if (!confirmado) return;
+
+    if (botao) { botao.disabled = true; botao.setAttribute('aria-busy', 'true'); }
+    let res;
+    try {
+      res = await API.delete('/contagens/' + encodeURIComponent(id));
+    } catch (err) {
+      res = null;
+    }
+    if (!res || !res.success) {
+      if (botao) { botao.disabled = false; botao.removeAttribute('aria-busy'); }
+      if (res?.status === 409 || res?.code === 'CONTAGEM_NAO_EM_ANDAMENTO') {
+        showToast('Esta contagem já foi finalizada e não pode ser apagada.', 'error');
+        await this.aposApagar();
+      } else if (res?.status === 404 || res?.code === 'CONTAGEM_NAO_ENCONTRADA') {
+        showToast('Contagem não encontrada.', 'error');
+        await this.aposApagar();
+      } else {
+        showToast(res?.message || 'Não foi possível apagar a contagem. Tente novamente.', 'error');
+      }
+      return;
+    }
+    showToast('Contagem apagada.', 'success');
+    await this.aposApagar();
+  },
+
+  async apagarEmAberto() {
+    if (!this.podeApagar() || this._apagandoLote) return;
+    const ids = [...this.idsEmAberto];
+    const total = ids.length;
+    if (total === 0) return;
+    const confirmado = await confirmarAcao({
+      titulo: `Apagar ${pluralizar(total, 'contagem', 'contagens')} em andamento?`,
+      mensagem: 'O progresso registrado pelos funcionários nessas contagens será perdido. Esta ação não pode ser desfeita. Contagens com progresso salvo recentemente também serão apagadas.',
+      confirmar: 'Apagar contagens',
+      cancelar: 'Cancelar',
+      perigo: true
+    });
+    if (!confirmado) return;
+
+    this._apagandoLote = true;
+    const botao = document.getElementById('btn-historico-apagar-em-aberto');
+    if (botao) { botao.disabled = true; botao.setAttribute('aria-busy', 'true'); }
+    try {
+      let res;
+      try { res = await API.delete('/contagens/em-andamento', { ids }); } catch (err) { res = null; }
+      if (!res || !res.success) {
+        showToast(res?.message || 'Não foi possível apagar as contagens. Tente novamente.', 'error');
+        return;
+      }
+      const apagadas = Number(res.data?.apagadas ?? 0);
+      if (apagadas < total) {
+        const mantidas = total - apagadas;
+        const feitas = apagadas > 0 ? `${pluralizar(apagadas, 'contagem apagada', 'contagens apagadas')}. ` : '';
+        showToast(`${feitas}${pluralizar(mantidas, 'contagem já tinha', 'contagens já tinham')} sido finalizada${mantidas === 1 ? '' : 's'} ou apagada${mantidas === 1 ? '' : 's'} e ${mantidas === 1 ? 'foi mantida' : 'foram mantidas'}.`, 'info');
+      } else {
+        showToast(apagadas === 1 ? 'Contagem apagada.' : `${apagadas} contagens apagadas.`, 'success');
+      }
+      await this.aposApagar();
+    } finally {
+      this._apagandoLote = false;
+      if (botao) { botao.disabled = false; botao.removeAttribute('aria-busy'); }
+    }
+  },
 
   /**
    * Carrega histórico de contagens do backend
@@ -36,6 +156,8 @@ const Historico = {
       counterEl.textContent = this.contagens.length;
     }
 
+    await this.carregarEmAberto();
+
     if (this.contagens.length === 0) {
       if (listaEl) {
         listaEl.innerHTML = `
@@ -59,6 +181,7 @@ const Historico = {
     const listaEl = document.getElementById('lista-historico');
     if (!listaEl) return;
 
+    const podeApagar = this.podeApagar();
     listaEl.innerHTML = this.contagens.map(c => {
       const dataFormatada = formatarData(c.finalizado_em || c.iniciado_em);
       const pecas = c.tipo === 'pecas_queijo';
@@ -99,6 +222,13 @@ const Historico = {
                 <button class="btn btn-outline btn-sm" title="Baixar relatório Excel"
                         data-click="action-77" data-arg-0="${escapeHtml(c.id)}">
                   <i class="ti ti-file-spreadsheet"></i> Excel
+                </button>
+              ` : ''}
+              ${!finalizada && podeApagar ? `
+                <button type="button" class="btn btn-ghost btn-sm btn-trash" title="Apagar contagem"
+                        aria-label="Apagar contagem iniciada por ${escapeHtml(c.iniciado_por_nome || 'Usuário')} em ${escapeHtml(dataFormatada)}"
+                        data-click="historico-apagar" data-id="${escapeHtml(c.id)}">
+                  <i class="ti ti-trash" aria-hidden="true"></i> Apagar
                 </button>
               ` : ''}
             </div>

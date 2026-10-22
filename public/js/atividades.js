@@ -147,6 +147,7 @@ const Atividades = {
     contagem_progresso_salvo: 'Progresso da contagem salvo',
     contagem_finalizada: 'Contagem finalizada',
     contagem_reaberta: 'Contagem reaberta',
+    contagem_apagada: 'Contagem apagada',
     estoque_pdf_recebido: 'PDF de estoque recebido',
     estoque_atualizado: 'Estoque atualizado',
     empresa_criada: 'Empresa criada',

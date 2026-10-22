@@ -1,8 +1,171 @@
 const { query, getClient } = require('../config/db');
-const { AppError, NotFoundError } = require('../errors/AppError');
+const { AppError, NotFoundError, ConflictError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
 const { obterCoberturaSemanal } = require('../services/coberturaSemanalService');
 const { serializeContagemDetalhe } = require('../serializers/contagemSerializer');
+
+const MSG_CONTAGEM_APAGADA = 'Esta contagem foi apagada por um administrador. As quantidades não salvas foram perdidas.';
+
+/**
+ * Monta o erro 404 de contagem não encontrada. Uma única consulta extra (mesmas regras de tenant)
+ * descobre se a contagem foi apagada por um administrador, para avisar o funcionário com clareza.
+ * Qualquer falha na consulta mantém o erro genérico original.
+ */
+async function erroContagemNaoEncontrada(executor, id, empresaId, mensagem, codigo) {
+  try {
+    const apagada = await executor.query(
+      `SELECT 1 FROM audit_logs
+       WHERE acao = 'contagem_apagada' AND entidade_id = $1 AND empresa_id = $2
+       LIMIT 1`,
+      [id, empresaId]
+    );
+    if (apagada && apagada.rows && apagada.rows.length > 0) {
+      return new NotFoundError(MSG_CONTAGEM_APAGADA, 'CONTAGEM_APAGADA');
+    }
+  } catch {
+    // mantém o erro genérico
+  }
+  return new NotFoundError(mensagem, codigo);
+}
+
+const CAMPOS_AUDITORIA_APAGADA = [
+  'tipo', 'status', 'iniciado_por', 'iniciado_por_nome', 'iniciado_em',
+  'total_fornecedores', 'total_itens', 'itens_contados', 'total_vencidos'
+];
+
+/**
+ * Resume, audita (mesma transação, antes do DELETE) e apaga uma contagem já travada com FOR UPDATE.
+ * Se a auditoria falhar, o erro sobe e o chamador faz ROLLBACK: nada é apagado sem atestado.
+ */
+async function apagarContagemTravada(client, req, contagem, { lote, motivo }) {
+  const tipo = contagem.tipo || 'geral';
+  const resumoRes = await client.query(
+    `SELECT COUNT(DISTINCT cf.id) AS total_fornecedores,
+            COUNT(ci.id) AS total_itens,
+            COUNT(ci.id) FILTER (WHERE ci.quantidade_contada IS NOT NULL) AS itens_contados,
+            COALESCE(SUM(ci.quantidade_vencida) FILTER (WHERE ci.quantidade_contada IS NOT NULL), 0) AS total_vencidos
+     FROM contagem_fornecedores cf
+     LEFT JOIN contagem_itens ci ON ci.contagem_fornecedor_id = cf.id
+     WHERE cf.contagem_id = $1`,
+    [contagem.id]
+  );
+  const r = resumoRes.rows[0] || {};
+  const dadosAnteriores = {
+    tipo,
+    status: contagem.status,
+    iniciado_por: contagem.iniciado_por,
+    iniciado_por_nome: contagem.iniciado_por_nome,
+    // Date vira ISO: o sanitizador da auditoria descartaria o objeto Date
+    iniciado_em: contagem.iniciado_em ? new Date(contagem.iniciado_em).toISOString() : null,
+    total_fornecedores: Number(r.total_fornecedores || 0),
+    total_itens: Number(r.total_itens || 0),
+    itens_contados: Number(r.itens_contados || 0)
+  };
+  if (tipo === 'geral') dadosAnteriores.total_vencidos = Number(r.total_vencidos || 0);
+
+  await auditService.registrar(client, req.auditContext || {}, {
+    empresaId: req.empresaId,
+    atorId: req.usuario.id,
+    atorPapel: req.usuario.papel,
+    atorRotulo: req.usuario.email,
+    acao: 'contagem_apagada',
+    entidade: 'contagem',
+    entidadeId: contagem.id,
+    dadosAnteriores,
+    whitelistCampos: CAMPOS_AUDITORIA_APAGADA,
+    motivo: motivo || null,
+    metadados: { lote },
+    eventoChave: `contagem_apagada_${contagem.id}`
+  });
+
+  // Cascata remove fornecedores e itens. Não toca em estoque, vencidos nem cobertura semanal.
+  await client.query(
+    `DELETE FROM contagens WHERE id = $1 AND empresa_id = $2 AND status = 'em_andamento'`,
+    [contagem.id, req.empresaId]
+  );
+}
+
+/**
+ * DELETE /api/contagens/:id
+ * Administrador da empresa apaga uma contagem em aberto.
+ */
+async function apagar(req, res, next) {
+  const client = await getClient();
+  try {
+    const { id } = req.params;
+    await client.query('BEGIN');
+
+    const sel = await client.query(
+      `SELECT c.id, c.tipo, c.status, c.iniciado_por, c.iniciado_em, u.nome AS iniciado_por_nome
+       FROM contagens c
+       LEFT JOIN usuarios u ON u.id = c.iniciado_por
+       WHERE c.id = $1 AND c.empresa_id = $2
+       FOR UPDATE OF c`,
+      [id, req.empresaId]
+    );
+    if (sel.rows.length === 0) {
+      throw new NotFoundError('Contagem não encontrada.', 'CONTAGEM_NAO_ENCONTRADA');
+    }
+    const contagem = sel.rows[0];
+    if (contagem.status !== 'em_andamento') {
+      throw new ConflictError('Só é possível apagar contagens em andamento.', 'CONTAGEM_NAO_EM_ANDAMENTO');
+    }
+
+    await apagarContagemTravada(client, req, contagem, { lote: false, motivo: req.body?.motivo });
+    await client.query('COMMIT');
+
+    res.json({ success: true, message: 'Contagem apagada.', data: { id } });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * DELETE /api/contagens/em-andamento
+ * Apaga em lote contagens em aberto. Ids inexistentes, de outra empresa ou já finalizados
+ * voltam em "ignoradas" sem falhar o lote.
+ */
+async function apagarEmAberto(req, res, next) {
+  const client = await getClient();
+  try {
+    const ids = [...new Set(req.body.ids)];
+    await client.query('BEGIN');
+
+    // Ordem fixa evita deadlock entre lotes concorrentes
+    const sel = await client.query(
+      `SELECT c.id, c.tipo, c.status, c.iniciado_por, c.iniciado_em, u.nome AS iniciado_por_nome
+       FROM contagens c
+       LEFT JOIN usuarios u ON u.id = c.iniciado_por
+       WHERE c.empresa_id = $1 AND c.id = ANY($2::uuid[]) AND c.status = 'em_andamento'
+       ORDER BY c.id
+       FOR UPDATE OF c`,
+      [req.empresaId, ids]
+    );
+
+    const apagadas = [];
+    for (const contagem of sel.rows) {
+      await apagarContagemTravada(client, req, contagem, { lote: true, motivo: req.body.motivo });
+      apagadas.push(contagem.id);
+    }
+    await client.query('COMMIT');
+
+    const setApagadas = new Set(apagadas);
+    const ignoradas = ids.filter((id) => !setApagadas.has(id));
+    res.json({
+      success: true,
+      message: apagadas.length === 1 ? '1 contagem apagada.' : `${apagadas.length} contagens apagadas.`,
+      data: { apagadas: apagadas.length, ids: apagadas, ignoradas }
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+}
 
 /**
  * POST /api/contagens
@@ -149,7 +312,8 @@ async function salvarProgresso(req, res, next) {
     );
 
     if (contagemCheck.rows.length === 0) {
-      throw new NotFoundError(
+      throw await erroContagemNaoEncontrada(
+        client, id, req.empresaId,
         'Contagem não encontrada, já finalizada ou sem permissão.',
         'CONTAGEM_INVALIDA'
       );
@@ -273,7 +437,11 @@ async function adicionarFornecedor(req, res, next) {
       [id, req.empresaId]
     );
     if (contagemCheck.rows.length === 0) {
-      throw new NotFoundError('Contagem não encontrada, finalizada ou sem permissão de acesso.', 'CONTAGEM_INVALIDA');
+      throw await erroContagemNaoEncontrada(
+        client, id, req.empresaId,
+        'Contagem não encontrada, finalizada ou sem permissão de acesso.',
+        'CONTAGEM_INVALIDA'
+      );
     }
     const tipo = contagemCheck.rows[0].tipo || 'geral';
     const fornRes = await client.query(
@@ -328,7 +496,8 @@ async function finalizar(req, res, next) {
     );
 
     if (contagemCheck.rows.length === 0) {
-      throw new NotFoundError(
+      throw await erroContagemNaoEncontrada(
+        client, id, req.empresaId,
         'Contagem não encontrada ou já finalizada.',
         'CONTAGEM_NAO_ENCONTRADA'
       );
@@ -534,7 +703,11 @@ async function detalhe(req, res, next) {
     );
 
     if (contagemRes.rows.length === 0) {
-      throw new NotFoundError('Contagem não encontrada.', 'CONTAGEM_NAO_ENCONTRADA');
+      throw await erroContagemNaoEncontrada(
+        { query }, id, req.empresaId,
+        'Contagem não encontrada.',
+        'CONTAGEM_NAO_ENCONTRADA'
+      );
     }
 
     const contagem = contagemRes.rows[0];
@@ -605,5 +778,7 @@ module.exports = {
   adicionarFornecedor,
   finalizar,
   listar,
-  detalhe
+  detalhe,
+  apagar,
+  apagarEmAberto
 };

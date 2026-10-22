@@ -165,6 +165,20 @@ const iniciarContagemSchema = {
   body: z.object({ tipo: z.enum(['geral', 'pecas_queijo']).default('geral') }).strict().optional()
 };
 
+const apagarContagemSchema = {
+  params: z.object({
+    id: z.string().uuid('ID inválido')
+  }),
+  body: z.object({ motivo: z.string().trim().max(500).optional() }).optional()
+};
+
+const apagarContagensEmAbertoSchema = {
+  body: z.object({
+    ids: z.array(z.string().uuid('ID inválido')).min(1, 'Informe ao menos uma contagem.').max(100, 'Informe no máximo 100 contagens por vez.'),
+    motivo: z.string().trim().max(500).optional()
+  })
+};
+
 const listarContagensQuerySchema = {
   query: z.object({
     page: z.coerce.number().int().positive().default(1),
@@ -300,6 +314,8 @@ module.exports = {
   importarProdutosSchema,
   confirmarAtualizacaoEstoqueSchema,
   iniciarContagemSchema,
+  apagarContagemSchema,
+  apagarContagensEmAbertoSchema,
   listarContagensQuerySchema,
   salvarProgressoContagemSchema,
   adicionarFornecedorSchema,
