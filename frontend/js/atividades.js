@@ -25,6 +25,54 @@ const Atividades = {
     return filtros;
   },
 
+  filtrosIniciados: false,
+
+  /**
+   * Abre ou fecha o painel de filtros (fechado por padrão no celular, aberto no desktop)
+   */
+  definirFiltrosAbertos(aberto) {
+    const painel = document.getElementById('audit-filtros-painel');
+    const botao = document.getElementById('btn-audit-filtros');
+    if (painel) painel.hidden = !aberto;
+    if (botao) botao.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+  },
+
+  alternarFiltros() {
+    const botao = document.getElementById('btn-audit-filtros');
+    this.filtrosMexidos = true;
+    this.definirFiltrosAbertos(botao?.getAttribute('aria-expanded') !== 'true');
+  },
+
+  /** true quando o usuário abriu/fechou o painel à mão: o tamanho da tela deixa de decidir */
+  filtrosMexidos: false,
+
+  iniciarFiltros() {
+    if (this.filtrosIniciados) return;
+    this.filtrosIniciados = true;
+    const celular = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia('(max-width: 760px)').matches;
+    this.definirFiltrosAbertos(!celular);
+    // Girar o aparelho ou redimensionar a janela reajusta o painel, se o usuário não o mexeu
+    try {
+      const mq = typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia('(max-width: 760px)') : null;
+      const aoMudar = (ev) => { if (!this.filtrosMexidos) this.definirFiltrosAbertos(!ev.matches); };
+      if (mq && typeof mq.addEventListener === 'function') mq.addEventListener('change', aoMudar);
+      else if (mq && typeof mq.addListener === 'function') mq.addListener(aoMudar);
+    } catch (e) { /* sem matchMedia */ }
+  },
+
+  /**
+   * Resumo textual dos filtros ativos (campo de busca não conta: já está visível) e botão Limpar
+   */
+  atualizarResumoFiltros() {
+    const filtros = this.obterFiltros();
+    const ativos = Object.keys(filtros).filter(k => k !== 'search').length;
+    const resumo = document.getElementById('audit-filtros-resumo');
+    const limpar = document.getElementById('btn-audit-limpar');
+    if (resumo) resumo.textContent = ativos > 0 ? (ativos === 1 ? '1 filtro ativo' : `${ativos} filtros ativos`) : '';
+    if (limpar) limpar.hidden = Object.keys(filtros).length === 0;
+  },
+
   /**
    * Carrega lista paginada de logs de auditoria
    */
@@ -41,6 +89,8 @@ const Atividades = {
     container.setAttribute('aria-busy', 'true');
     container.innerHTML = '<div role="status" aria-live="polite" style="text-align:center; padding:30px"><span class="spinner" aria-hidden="true"></span> Carregando atividades...</div>';
 
+    this.iniciarFiltros();
+    this.atualizarResumoFiltros();
     const filtros = this.obterFiltros();
     const queryParams = new URLSearchParams({
       page: String(page),

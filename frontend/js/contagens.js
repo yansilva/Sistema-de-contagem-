@@ -833,6 +833,7 @@ const Contagens = {
       ? 'Contagem de peças finalizada. Confira as quantidades registradas.'
       : 'Contagem finalizada. Confira as diferenças encontradas.', 'success');
     const idFinalizada = this.contagemId;
+    this.naoContadosResultado = { id: idFinalizada, total: totalNaoContados };
     this.resultadoId = idFinalizada;
     this.contagemId = null;
     this.exibirResultado(idFinalizada);
@@ -868,8 +869,9 @@ const Contagens = {
 
     if (cardEl) {
       cardEl.className = `resultado-card ${temDif ? 'erro' : 'sucesso'}`;
-      cardEl.innerHTML = pecas ? '<i class="ti ti-package"></i><h2 tabindex="-1">Peças de queijo</h2><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
+      cardEl.innerHTML = pecas ? '<i class="ti ti-package"></i><span class="resultado-eyebrow">Contagem finalizada</span><h2 tabindex="-1">Peças de queijo</h2><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
         <i class="ti ${temDif ? 'ti-alert-triangle' : 'ti-circle-check'}"></i>
+        <span class="resultado-eyebrow">Contagem finalizada</span>
         <h2 tabindex="-1">${temDif ? 'Há diferenças para conferir' : temVencidos ? 'Contagem conferida com produtos vencidos' : 'Nenhuma diferença encontrada'}</h2>
         <p>${temDif
           ? 'Algumas quantidades físicas não correspondem ao saldo do sistema. Confira os produtos abaixo.'
@@ -888,6 +890,8 @@ const Contagens = {
     let totalFaltas = 0;
     let totalSobras = 0;
     let totalIguais = 0;
+    const naoContados = this.naoContadosResultado && this.naoContadosResultado.id === (c.id || targetId)
+      ? Number(this.naoContadosResultado.total || 0) : 0;
 
     (c.fornecedores || []).forEach((f) => {
       (f.produtos || []).forEach((p) => {
@@ -900,28 +904,29 @@ const Contagens = {
 
     if (metricasEl) {
       metricasEl.innerHTML = pecas ? `<div class="metrica"><div class="metrica-valor">${totalItens}</div><div class="metrica-label">Itens Contados</div></div><div class="metrica"><div class="metrica-valor">${(c.fornecedores || []).flatMap(f => f.produtos || []).reduce((n, p) => n + Number(p.quantidade_contada || 0), 0)}</div><div class="metrica-label">Quantidade de peças</div></div>` : `
-        <div class="metrica">
-          <div class="metrica-valor">${c.fornecedores?.length || 0}</div>
-          <div class="metrica-label">Produtores</div>
+        <div class="metrica metrica-destaque${totalFaltas > 0 ? ' metrica-falta' : ''}">
+          <div class="metrica-valor">${totalFaltas}</div>
+          <div class="metrica-label">Produtos em falta</div>
         </div>
-        <div class="metrica">
+        <div class="metrica metrica-destaque${totalSobras > 0 ? ' metrica-sobra' : ''}">
+          <div class="metrica-valor">${totalSobras}</div>
+          <div class="metrica-label">Produtos com sobra</div>
+        </div>
+        <div class="metrica metrica-secundaria">
+          <div class="metrica-valor">${totalIguais}</div>
+          <div class="metrica-label">Sem diferença</div>
+        </div>
+        <div class="metrica metrica-secundaria">
           <div class="metrica-valor">${totalItens}</div>
           <div class="metrica-label">Produtos contados</div>
         </div>
-        <div class="metrica">
-          <div class="metrica-valor" style="color:var(--cor-perigo)">${totalFaltas}</div>
-          <div class="metrica-label">Produtos em falta</div>
+        <div class="metrica metrica-secundaria">
+          <div class="metrica-valor">${c.fornecedores?.length || 0}</div>
+          <div class="metrica-label">Produtores</div>
         </div>
-        <div class="metrica">
-          <div class="metrica-valor" style="color:var(--cor-aviso)">${totalSobras}</div>
-          <div class="metrica-label">Produtos com sobra</div>
-        </div>
-        <div class="metrica">
-          <div class="metrica-valor" style="color:var(--cor-sucesso)">${totalIguais}</div>
-          <div class="metrica-label">Sem diferença</div>
-        </div>
-        <div class="metrica"><div class="metrica-valor">${totalVencidos}</div><div class="metrica-label">Unidades vencidas</div></div>
-        ${totalVencidos > totalBaixado ? `<div class="metrica"><div class="metrica-valor">${totalBaixado}</div><div class="metrica-label">Baixa efetiva</div></div><div class="metrica"><div class="metrica-valor">${totalVencidos - totalBaixado}</div><div class="metrica-label">Não descontadas</div></div>` : ''}
+        <div class="metrica metrica-secundaria"><div class="metrica-valor">${totalVencidos}</div><div class="metrica-label">Unidades vencidas</div></div>
+        ${totalVencidos > totalBaixado ? `<div class="metrica metrica-secundaria"><div class="metrica-valor">${totalBaixado}</div><div class="metrica-label">Baixa efetiva</div></div><div class="metrica metrica-secundaria"><div class="metrica-valor">${totalVencidos - totalBaixado}</div><div class="metrica-label">Não descontadas</div></div>` : ''}
+        ${naoContados > 0 ? `<p class="metricas-resumo">${naoContados === 1 ? '1 produto não contado' : `${naoContados} produtos não contados`}, fora deste resultado.</p>` : ''}
       `;
     }
 

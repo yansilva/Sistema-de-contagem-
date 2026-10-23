@@ -1783,3 +1783,47 @@ button.kpi-card .kpi-value { display: block; }
 .contagem-vencidos-dica { color: var(--cor-texto-secundario); font-size: .75rem; }
 .dica-finalizar { color: var(--cor-texto-secundario); font-size: .8rem; }
 .dica-finalizar[hidden] { display: none; }
+
+
+/* ===== Rodada 9: filtros recolhiveis de Atividades ===== */
+.audit-filters { flex-direction: column; align-items: stretch; gap: 10px; }
+.audit-linha-topo { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.audit-campo { display: flex; flex-direction: column; gap: 4px; margin: 0; }
+.audit-campo label { font-size: .75rem; font-weight: 600; color: var(--cor-texto-secundario); }
+.audit-campo-busca { flex: 1 1 220px; min-width: 0; }
+.audit-campo-busca input { width: 100%; }
+.audit-filtros-toggle, .audit-linha-topo .btn { min-height: 44px; }
+.audit-filtros-resumo { align-self: center; font-size: .8125rem; font-weight: 600; color: var(--cor-primaria); }
+.audit-filtros-painel { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.audit-filtros-painel[hidden], .audit-linha-topo [hidden] { display: none; }
+.audit-filtros-painel > .btn { min-height: 44px; }
+@media (max-width: 760px) {
+  .audit-filtros-painel > .btn { flex: 1 1 100%; }
+  .audit-filtros-toggle { flex: 0 0 auto; }
+}
+
+/* ===== Rodada 9: resultado da contagem (hierarquia das metricas) ===== */
+.resultado-eyebrow { display: block; font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--cor-texto-secundario); margin: 4px 0; }
+.metrica-destaque { padding: 22px 12px; }
+.metrica-destaque .metrica-valor { font-size: 2rem; }
+.metrica-destaque.metrica-falta { background: var(--cor-perigo-bg); border-color: var(--cor-perigo-border); }
+.metrica-destaque.metrica-falta .metrica-valor, .metrica-destaque.metrica-falta .metrica-label { color: var(--cor-perigo-texto); }
+.metrica-destaque.metrica-sobra { background: var(--cor-aviso-bg); border-color: var(--cor-aviso-border); }
+.metrica-destaque.metrica-sobra .metrica-valor, .metrica-destaque.metrica-sobra .metrica-label { color: var(--cor-aviso-texto); }
+.metrica-secundaria { padding: 10px 8px; background: var(--cor-superficie2); box-shadow: none; }
+.metrica-secundaria .metrica-valor { font-size: 1.125rem; font-weight: 700; color: var(--cor-texto-secundario); }
+.metrica-secundaria .metrica-label { font-size: .6875rem; }
+.metricas-grid .metricas-resumo { grid-column: 1 / -1; margin: 0; font-size: .875rem; color: var(--cor-texto-secundario); text-align: center; }
+@media (min-width: 761px) {
+  .metricas-grid { grid-template-columns: repeat(4, 1fr); }
+  .metricas-grid .metrica-destaque { grid-column: span 2; }
+}
+
+/* ===== Rodada 9: filtro do historico do funcionario ===== */
+.historico-filtro-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 4px 0 12px; }
+.historico-filtro { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.historico-chip { min-height: 44px; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--cor-borda); background: var(--cor-superficie); color: var(--cor-texto); font: inherit; font-size: .875rem; font-weight: 600; cursor: pointer; }
+.historico-chip:hover { background: var(--cor-superficie2); }
+.historico-chip[aria-pressed="true"] { background: var(--cor-primaria-bg); color: var(--cor-primaria); border-color: var(--cor-borda-forte); }
+.historico-chip:focus-visible { outline: 2px solid var(--cor-primaria); outline-offset: 2px; }
+.historico-contagem { font-size: .875rem; color: var(--cor-texto-secundario); }

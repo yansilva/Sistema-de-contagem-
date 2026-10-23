@@ -95,6 +95,23 @@ describe('rodada 7: rotas por aba, ajuda contextual e atalho', () => {
     expect(context.telaDoHash('#backoffice/lixo')).toBe('screen-backoffice');
   });
 
+  it('detalhe da empresa tem rota propria #inicio/empresas/<id> restaurada pelo hash', () => {
+    const id = '3f2a9c1e-7b4d-4c8a-9e11-0a5d6b7c8d90';
+    context.Auth = { usuario: { papel: 'super_admin' }, isAdmin: () => true };
+    expect(context.idEmpresaDoHash(`#inicio/empresas/${id}`)).toBe(id);
+    expect(`#inicio/empresas/${id}`).toMatch(/^#[a-z0-9/-]+$/);
+    expect(context.idEmpresaDoHash('#inicio/empresas/')).toBeNull();
+    expect(context.idEmpresaDoHash('#inicio/empresas/AB_C')).toBeNull();
+    expect(context.telaDoHash(`#inicio/empresas/${id}`)).toBe('screen-home');
+    expect(context.abaDoHash('screen-home', `#inicio/empresas/${id}`)).toBe('tenants');
+    context.registrarRotaDetalheEmpresa(id, true);
+    expect(context.rotaDaTela('screen-home', 'tenants')).toEqual({
+      hash: `#inicio/empresas/${id}`, titulo: 'Detalhes da empresa · Início'
+    });
+    context.limparRotaDetalheEmpresa();
+    expect(context.rotaDaTela('screen-home', 'tenants').hash).toBe('#inicio/empresas');
+  });
+
   it('popstate de aba invalida abre a primeira aba sem nova entrada de historico', () => {
     context.Auth = { usuario: { papel: 'admin' }, isAdmin: () => true };
     context.window.location.hash = '#backoffice/nao-existe';

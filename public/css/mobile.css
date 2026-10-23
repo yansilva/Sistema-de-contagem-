@@ -65,11 +65,10 @@
   .kpi-card, .quick-card { padding: 18px; }
   .kpi-value { font-size: 1.65rem; }
   .metricas-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
-  .metricas-grid .metrica { padding: 10px 8px; }
-  .metricas-grid .metrica-valor { font-size: 1.25rem; }
+  .metricas-grid .metrica:not(.metrica-destaque) { padding: 10px 8px; }
+  .metricas-grid .metrica:not(.metrica-destaque) .metrica-valor { font-size: 1.25rem; }
   .metricas-grid .metrica-label { font-size: .75rem; line-height: 1.25; }
-  /* Sobra e falta primeiro: o que importa na conferência */
-  .metricas-grid .metrica:nth-child(3), .metricas-grid .metrica:nth-child(4) { order: -1; }
+  /* Falta e sobra (destaque) já vêm primeiro no DOM */
   /* KPIs do Super Admin: regras movidas para superadmin.css (carrega depois e vencia a cascata) */
   .panel-title { min-width: 0; gap: 10px; }
   .panel-title > i { font-size: 1.5rem; padding: 8px; }

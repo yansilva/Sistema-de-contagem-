@@ -987,6 +987,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 /* KPIs da plataforma no celular: 2 colunas compactas */
 @media (max-width: 760px) {
   .empresa-detail-tab { min-height: 44px; }
+  .saas-nav-btn, .empresa-detail-header .btn-sm, .saas-table .btn-sm, .saas-pagination .btn { min-height: 44px; }
   #modal-status-empresa .btn-close { min-width: 44px; min-height: 44px; }
   .saas-kpis-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; }
   .saas-kpi-card { padding: 12px; gap: 6px; }

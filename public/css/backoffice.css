@@ -403,12 +403,22 @@
     bottom: 0;
     height: 100vh;
     z-index: 999;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    /* Fechada: fora da ordem de Tab e sem sombra vazando pela borda */
+    box-shadow: none;
+    visibility: hidden;
     transform: translateX(-100%);
+    transition: transform var(--transicao), visibility 0s linear 0.16s;
   }
 
   .bo-sidebar.open {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    visibility: visible;
     transform: translateX(0);
+    transition: transform var(--transicao), visibility 0s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bo-sidebar, .bo-sidebar.open { transition: none; }
   }
 
   .bo-sidebar-close {

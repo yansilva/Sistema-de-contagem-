@@ -9,7 +9,7 @@ const EmpresaDetalhes = {
   focoAntesSenhaTemporaria: null,
   salvandoSenhaTemporaria: false,
 
-  async abrir(id, aba = 'visao-geral') {
+  async abrir(id, aba = 'visao-geral', opcoes = {}) {
     // A tela /#empresas não contém a área de detalhes: leva ao console, onde ela é visível, e lembra de onde veio.
     if (document.getElementById('screen-empresas')?.classList?.contains('active')) {
       this.origem = 'compat';
@@ -19,6 +19,8 @@ const EmpresaDetalhes = {
     }
     this.empresaId = id;
     this.abaAtual = aba;
+    // Rota própria #inicio/empresas/<id>: F5, Voltar e Avançar restauram o detalhe
+    if (typeof registrarRotaDetalheEmpresa === 'function') registrarRotaDetalheEmpresa(id, !!(opcoes && opcoes.semHistorico));
     const requestId = ++this.requestId;
     document.querySelectorAll('.saas-tab-section').forEach((sec) => { sec.style.display = 'none'; });
     const section = document.getElementById('saas-tab-detalhes');
@@ -27,6 +29,13 @@ const EmpresaDetalhes = {
     if (title) title.innerHTML = '<i class="ti ti-building" style="color:var(--cor-primaria)"></i> Detalhes da empresa';
     const desc = document.getElementById('saas-page-desc');
     if (desc) desc.textContent = 'Dados administrativos e auditoria segura';
+    if (title) title.hidden = false;
+    if (desc) desc.hidden = false;
+    // Foco no título do detalhe em toda abertura (o botão que abriu some da tela)
+    if (title && title.focus) {
+      if (!title.hasAttribute('tabindex')) title.setAttribute('tabindex', '-1');
+      try { title.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+    }
     const container = document.getElementById('empresa-detalhes');
     if (container) container.innerHTML = '<div class="loading-state"><span class="spinner"></span><p>Carregando empresa…</p></div>';
 
@@ -37,7 +46,17 @@ const EmpresaDetalhes = {
       : await API.get('/empresas/' + id + '?page=1&limit=20');
     if (requestId !== this.requestId || id !== this.empresaId) return;
     if (!res?.success) {
+      // Id desconhecido ou sem acesso: o endereço volta para #inicio/empresas
+      if (typeof limparRotaDetalheEmpresa === 'function') limparRotaDetalheEmpresa();
+      // Estado de erro: título coerente e sem o cabeçalho "Detalhes da empresa"
+      document.title = 'Empresa não encontrada · Início · Sistema de Estoque';
+      const anuncioErro = document.getElementById('anuncio-tela');
+      if (anuncioErro) anuncioErro.textContent = 'Empresa não encontrada · Início';
+      if (title) title.hidden = true;
+      if (desc) desc.hidden = true;
       if (container) container.innerHTML = '<div class="empty-state" role="alert"><p>Não foi possível abrir esta empresa.</p><button class="btn btn-outline" data-click="action-113">Voltar</button></div>';
+      const botaoVoltar = container && container.querySelector ? container.querySelector('button') : null;
+      if (botaoVoltar && botaoVoltar.focus) { try { botaoVoltar.focus({ preventScroll: true }); } catch (e) { /* sem foco */ } }
       return;
     }
     this.empresa = res.data.empresa;

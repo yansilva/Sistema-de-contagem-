@@ -71,6 +71,6 @@ describe('app.js: rotas e ajuda contextual', () => {
     const texto = context.ajuda['screen-contagem'].join(' ').toLowerCase();
     expect(texto).not.toContain('saldo de referência');
     expect(texto).not.toMatch(/saldo|consult/);
-    expect(texto).toContain('salvar e continuar');
+    expect(texto).toContain('salvar contagem do produtor');
   });
 });

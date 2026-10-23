@@ -125,8 +125,33 @@ const Consulta = {
     document.getElementById('consulta-historico-proxima').disabled = !this.historicoTemProxima;
     document.getElementById('consulta-historico-pagina').textContent = `Página ${this.paginaHistorico}`;
     document.getElementById('consulta-historico-pagina').parentElement.hidden = !contagens.length && this.paginaHistorico <= 1;
-    if (!contagens.length) {
+    this.contagensHistorico = contagens;
+    this.renderizarHistorico();
+  },
+
+  filtroHistorico: 'todas',
+  contagensHistorico: [],
+
+  filtrarHistorico(filtro) {
+    this.filtroHistorico = ['em_andamento', 'finalizada'].includes(filtro) ? filtro : 'todas';
+    this.renderizarHistorico();
+  },
+
+  renderizarHistorico() {
+    const todas = this.contagensHistorico || [];
+    const filtro = this.filtroHistorico || 'todas';
+    document.querySelectorAll?.('#consulta-historico-filtro-barra .historico-chip').forEach(chip => {
+      chip.setAttribute('aria-pressed', chip.dataset.filtro === filtro ? 'true' : 'false');
+    });
+    const contagens = filtro === 'todas' ? todas : todas.filter(c => c.status === filtro);
+    const total = document.getElementById('consulta-historico-total');
+    if (total) total.textContent = todas.length ? `${contagens.length} ${contagens.length === 1 ? 'contagem' : 'contagens'}` : '';
+    if (!todas.length) {
       this.mensagem('consulta-historico-lista', 'Nenhuma contagem nesta página.');
+      return;
+    }
+    if (!contagens.length) {
+      document.getElementById('consulta-historico-lista').innerHTML = '<div class="consulta-vazio"><p>Nenhuma contagem com este filtro.</p><button type="button" class="btn btn-outline btn-sm btn-alvo-44" data-click="historico-filtro" data-filtro="todas">Limpar filtro</button></div>';
       return;
     }
     document.getElementById('consulta-historico-lista').innerHTML = contagens.map(c => `

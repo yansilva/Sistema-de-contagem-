@@ -3,6 +3,8 @@ const UIActions = {
   'estoque-voltar': () => { showScreen(StockImport.origem === 'backoffice' ? 'screen-backoffice' : 'screen-home'); },
   'estoque-abrir': () => { StockImport.abrir(); },
   'semana-abrir': () => { showScreen('screen-semana-contagem'); },
+  'historico-filtro': element => { Consulta.filtrarHistorico(element.dataset.filtro); },
+  'audit-filtros-alternar': () => { Atividades.alternarFiltros(); },
   'semana-recarregar': () => { Semana.carregar(); },
   'semana-produtor': element => { Semana.abrirProdutor(element.dataset.produtor); },
   'semana-filtro': element => { Semana.filtrar(element.dataset.status); },

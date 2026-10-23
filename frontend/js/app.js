@@ -17,7 +17,8 @@ function modalAberto() {
 const AJUDA_CONTEXTUAL = {
   'screen-contagem': [
     '"Digitado, falta salvar" quer dizer que você digitou a quantidade, mas ela ainda não foi gravada.',
-    'Use Salvar e continuar para gravar. Dá para parar e retomar depois, do ponto em que ficou.',
+    'Use Salvar contagem do produtor para gravar. Dá para parar e retomar depois, do ponto em que ficou.',
+    'Escolha o produtor ou use a busca, conte o físico e digite a quantidade. Ao finalizar, você vê as sobras e faltas.',
     'Informar vencidos (só na contagem geral, não na de peças de queijo): o vencido já está incluído na quantidade física contada.'
   ],
   'screen-resultado': [
@@ -129,7 +130,8 @@ function preencherAjudaContextual() {
   // Super Admin não faz contagem: mostra só "Nesta tela" e os atalhos
   const superAdmin = typeof Auth !== 'undefined' && Auth.usuario?.papel === 'super_admin';
   const blocoContagem = document.getElementById('ajuda-contagem');
-  if (blocoContagem) blocoContagem.hidden = superAdmin;
+  // Na tela de contagem o bloco "Nesta tela" já traz os passos: o resumo repetiria a informação
+  if (blocoContagem) blocoContagem.hidden = superAdmin || tela === 'screen-contagem';
   const atalhoContagem = document.getElementById('ajuda-atalho-contagem');
   if (atalhoContagem) atalhoContagem.hidden = superAdmin;
   const titulo = document.getElementById('modal-ajuda-titulo');
@@ -368,6 +370,58 @@ let _telaAtualId = null;
 let _primeiraTela = true;
 let _pushRecente = false;
 let _abaPedida = null;
+// Empresa aberta no detalhe do console do Super Admin (rota #inicio/empresas/<id>), ou null
+let _detalheEmpresaRota = null;
+
+/** Id da empresa em um hash #inicio/empresas/<id> (UUID: minúsculas, dígitos e hífen), ou null */
+function idEmpresaDoHash(hash) {
+  const m = typeof hash === 'string' ? /^#inicio\/empresas\/([a-z0-9-]+)$/.exec(hash) : null;
+  return m ? m[1] : null;
+}
+
+/** Registra a rota do detalhe da empresa (título "Detalhes da empresa · Início") */
+function registrarRotaDetalheEmpresa(id, semHistorico) {
+  if (!/^[a-z0-9-]+$/.test(String(id || '')) || !abasDaTela('screen-home')) return;
+  _detalheEmpresaRota = String(id);
+  atualizarRota('screen-home', semHistorico, 'tenants');
+  const anuncio = document.getElementById('anuncio-tela');
+  const rota = rotaDaTela('screen-home', 'tenants');
+  if (anuncio && rota) anuncio.textContent = rota.titulo;
+}
+
+/** Empresa desconhecida ou sem acesso: volta o endereço para a lista de empresas, sem nova entrada */
+function limparRotaDetalheEmpresa() {
+  if (!_detalheEmpresaRota) return;
+  _detalheEmpresaRota = null;
+  atualizarRota('screen-home', true, 'tenants');
+}
+
+/**
+ * Voltar/Avançar dentro do console do Super Admin entre a lista e o detalhe de uma empresa.
+ * Devolve true quando tratou a mudança.
+ */
+function sincronizarDetalheEmpresa(aba, detalheId) {
+  if (typeof EmpresaDetalhes === 'undefined' || !abasDaTela('screen-home')) return false;
+  const aberto = EmpresaDetalhes.empresaId;
+  if (detalheId) {
+    _detalheEmpresaRota = detalheId;
+    const secao = document.getElementById('saas-tab-detalhes');
+    const detalheVisivel = !!secao && !!secao.style && secao.style.display === 'block';
+    // Detalhe já na tela: só reafirma a rota. Se a aba Auditoria o escondeu (Voltar), reabre o detalhe.
+    if (aberto === detalheId && detalheVisivel) { rotearAba('screen-home', 'tenants', { semHistorico: true }); return true; }
+    switchSaasTab('tenants', { semHistorico: true, manterDetalhe: true });
+    EmpresaDetalhes.abrir(detalheId, 'visao-geral', { semHistorico: true });
+    return true;
+  }
+  if (aberto && aba) {
+    EmpresaDetalhes.requestId++;
+    EmpresaDetalhes.empresaId = null;
+    EmpresaDetalhes.empresa = null;
+    switchSaasTab(aba, { semHistorico: true, focar: true });
+    return true;
+  }
+  return false;
+}
 
 function hashAtual() {
   try { return (typeof window !== 'undefined' && window.location && window.location.hash) || ''; } catch (e) { return ''; }
@@ -392,6 +446,7 @@ function telaDoHash(hash) {
 function abaDoHash(screenId, hash) {
   const abas = abasDaTela(screenId);
   if (!abas) return null;
+  if (screenId === 'screen-home' && idEmpresaDoHash(hash)) return 'tenants';
   return Object.keys(abas).find(id => abas[id][0] === hash) || Object.keys(abas)[0];
 }
 
@@ -411,6 +466,9 @@ function rotaDaTela(screenId, aba) {
   const abas = abasDaTela(screenId);
   const rotaAba = abas && abas[aba];
   if (!rotaAba) return { hash: rota[0], titulo: rota[1] };
+  if (screenId === 'screen-home' && aba === 'tenants' && _detalheEmpresaRota) {
+    return { hash: `${rotaAba[0]}/${_detalheEmpresaRota}`, titulo: `Detalhes da empresa · ${rota[1]}` };
+  }
   return { hash: rotaAba[0], titulo: `${rotaAba[1]} · ${rota[1]}` };
 }
 
@@ -499,7 +557,8 @@ function aoMudarHistorico() {
   const aba = abaDoHash(id, hashAtual());
   if (id === _telaAtualId) {
     // Mesma tela: só a aba mudou (Voltar/Avançar entre abas), sem nova entrada no histórico
-    if (aba && aba !== abaAtivaDe(id)) trocarAbaDaTela(id, aba, { semHistorico: true, focar: true });
+    if (id === 'screen-home' && sincronizarDetalheEmpresa(aba, idEmpresaDoHash(hashAtual()))) return;
+    if (aba && aba !== abaAtivaDe(id))trocarAbaDaTela(id, aba, { semHistorico: true, focar: true });
     else if (aba) rotearAba(id, aba, { semHistorico: true });
     else normalizarHash(id);
     return;
@@ -534,6 +593,8 @@ function showScreen(screenId, opcoes) {
   if (screenId !== 'screen-importar-estoque' && document.getElementById('screen-importar-estoque')?.classList.contains('active')) {
     if (typeof StockImport !== 'undefined' && StockImport.cancelarPrevia && !StockImport._confirmando) StockImport.cancelarPrevia(true);
   }
+  // Qualquer saída do back-office fecha a gaveta (sem devolver o foco: a tela vai trocar)
+  if (screenId !== 'screen-backoffice') fecharBoSidebar(true);
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   // Ajuda da barra no celular: só com sessão (sem login existe o link "Como funciona?")
   const ajudaRapida = document.getElementById('btn-ajuda-topbar-rapido');
@@ -550,6 +611,8 @@ function showScreen(screenId, opcoes) {
     // Aba pedida só vale se a tela (já corrigida pelo perfil) tem essa aba
     const abas = abasDaTela(screenId);
     _abaPedida = abas && opcoes && opcoes.aba && abas[opcoes.aba] ? opcoes.aba : null;
+    // F5/Voltar/Avançar com #inicio/empresas/<id>: o detalhe é aberto depois, em carregarDashboard
+    _detalheEmpresaRota = screenId === 'screen-home' && _abaPedida === 'tenants' ? idEmpresaDoHash(hashAtual()) : null;
     atualizarRota(screenId, opcoes && opcoes.semHistorico, _abaPedida || abaAtivaDe(screenId));
     moverFocoParaTela(target, screenId);
     _telaAtualId = screenId;
@@ -664,8 +727,12 @@ async function carregarDashboard() {
     const sessaoAuditoria = typeof Auditoria !== 'undefined' ? Auditoria.restaurarLocal() : null;
     const abaInicial = _abaPedida;
     _abaPedida = null;
+    const detalheDaUrl = _detalheEmpresaRota;
     if (sessaoAuditoria) {
       EmpresaDetalhes.abrir(sessaoAuditoria.empresaId, 'auditoria');
+    } else if (detalheDaUrl && typeof EmpresaDetalhes !== 'undefined') {
+      switchSaasTab('tenants', { semHistorico: true, manterDetalhe: true });
+      EmpresaDetalhes.abrir(detalheDaUrl, 'visao-geral', { semHistorico: true });
     } else {
       // A rota já foi registrada pelo showScreen: não cria outra entrada no histórico
       switchSaasTab(abaInicial || 'visao-geral', { semHistorico: true });
@@ -735,9 +802,9 @@ async function carregarDashboard() {
           garantirRolesDeTabela(document.getElementById('admin-recent-table'));
           tbody.innerHTML = contagens.slice(0, 5).map(c => {
             const dataStr = c.iniciado_em ? new Date(c.iniciado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-            const difBadge = c.tipo === 'pecas_queijo' ? `<span class="badge ${c.status === 'finalizada' ? 'badge-success' : 'badge-warning'}">Peças de queijo · ${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span>` : c.status !== 'finalizada' ? '<span class="badge badge-warning">Geral · Em andamento</span>' : c.tem_diferenca
-              ? '<span class="badge badge-danger"><i class="ti ti-alert-triangle"></i> Com divergência</span>'
-              : '<span class="badge badge-success"><i class="ti ti-check"></i> Sem diferença</span>';
+            const difBadge = c.tipo === 'pecas_queijo' ? `<span class="badge ${c.status === 'finalizada' ? 'badge-success' : 'badge-warning'}">Peças de queijo · ${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}</span>` : c.status !== 'finalizada' ? '<span class="badge badge-neutral"><i class="ti ti-clock" aria-hidden="true"></i> Geral · Em andamento</span>' : c.tem_diferenca
+              ? '<span class="badge badge-warning"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Com divergência</span>'
+              : '<span class="badge badge-success"><i class="ti ti-check" aria-hidden="true"></i> Sem divergência</span>';
             return `
               <tr role="row">
                 <td role="cell" class="cartao-principal" data-label="Data e hora"><strong>${dataStr}</strong></td>
@@ -836,18 +903,27 @@ function toggleBoSidebar() {
   if (menuBtn) menuBtn.setAttribute('aria-expanded', String(isOpen));
   if (isOpen) {
     const primeiro = sidebar.querySelector('.bo-nav-item, .bo-sidebar-nav button, button:not(.bo-sidebar-close)') || sidebar.querySelector('button');
-    if (primeiro && primeiro.focus) primeiro.focus();
+    // Foco no quadro seguinte: o item só deixa de ser visibility:hidden depois do estilo recalculado
+    const focarPrimeiro = (tentativa) => {
+      if (!sidebar.classList.contains('open') || !primeiro || !primeiro.focus) return;
+      try { primeiro.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+      if (tentativa < 1 && document.activeElement !== primeiro && typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => focarPrimeiro(tentativa + 1));
+      }
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => focarPrimeiro(0));
+    else focarPrimeiro(1);
   } else if (menuBtn && menuBtn.focus) {
     menuBtn.focus({ preventScroll: true });
   }
 }
 
-function fecharBoSidebar() {
+function fecharBoSidebar(semFoco) {
   const sidebar = document.getElementById('bo-sidebar');
   const backdrop = document.getElementById('bo-sidebar-backdrop');
   const menuBtn = document.getElementById('bo-menu-btn');
   // Devolve o foco ao botão "Seções" só se o foco estava dentro da gaveta aberta
-  if (sidebar && sidebar.classList.contains('open') && menuBtn && menuBtn.focus && sidebar.contains(document.activeElement)) {
+  if (!semFoco && sidebar &&sidebar.classList.contains('open') && menuBtn && menuBtn.focus && sidebar.contains(document.activeElement)) {
     menuBtn.focus({ preventScroll: true });
   }
   if (sidebar) sidebar.classList.remove('open');
@@ -930,6 +1006,8 @@ function abrirHistoricoContagens() {
 function switchSaasTab(tabId, opcoes) {
   const tabs = ['visao-geral', 'tenants', 'auditoria-global'];
   if (!tabs.includes(tabId)) tabId = 'visao-geral';
+  // Trocar de aba encerra a rota do detalhe da empresa (exceto ao restaurá-lo pela URL)
+  if (!(opcoes && opcoes.manterDetalhe)) _detalheEmpresaRota = null;
 
   // 1. Alternar classes dos botões da sidebar
   document.querySelectorAll('.saas-nav-btn[data-saas-tab]').forEach(btn => {
@@ -953,6 +1031,9 @@ function switchSaasTab(tabId, opcoes) {
   // 3. Atualizar Título e Descrição da página
   const titleEl = document.getElementById('saas-page-title');
   const descEl = document.getElementById('saas-page-desc');
+  // O estado de erro do detalhe esconde o cabeçalho; qualquer troca de aba o devolve
+  if (titleEl) titleEl.hidden = false;
+  if (descEl) descEl.hidden = false;
 
   if (tabId === 'visao-geral') {
     if (titleEl) titleEl.innerHTML = '<i class="ti ti-dashboard" style="color:var(--cor-primaria)"></i> Visão Geral da Plataforma';

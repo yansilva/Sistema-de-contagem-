@@ -1,3 +1,6 @@
+/* Foco programático em títulos (troca de tela): sem anel; quem navega por teclado mantém o anel */
+[tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
+
 /* ===== TOPBAR ===== */
 .topbar {
   background: rgba(255, 255, 255, 0.82);

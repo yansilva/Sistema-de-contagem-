@@ -74,8 +74,8 @@ const Usuarios = {
 
       const btnStatus = isEu
         ? ''
-        : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}" aria-label="${u.ativo ? 'Desativar usuário' : 'Ativar usuário'}" style="min-width:44px;min-height:44px">
-            <i class="ti ti-${u.ativo ? 'user-x' : 'user-check'}" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">${u.ativo ? 'Desativar' : 'Ativar'}</span>
+        : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Reativar usuário'}" aria-label="${u.ativo ? 'Desativar usuário' : 'Reativar usuário'}" style="min-width:44px;min-height:44px">
+            <i class="ti ti-${u.ativo ? 'user-x' : 'user-check'}" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">${u.ativo ? 'Desativar' : 'Reativar'}</span>
           </button>`;
 
       const btnReset = `<button class="btn btn-ghost btn-sm" data-click="action-84" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(u.nome)}" title="Redefinir Senha Temporária" aria-label="Redefinir Senha Temporária" style="min-width:44px;min-height:44px">
