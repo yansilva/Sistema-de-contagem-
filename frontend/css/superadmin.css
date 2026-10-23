@@ -1004,3 +1004,30 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   @keyframes slideDownBar { from { opacity: 0; } to { opacity: 1; } }
   @keyframes pulseDot { 0%, 50%, 100% { opacity: 1; } }
 }
+
+/* ===== Rodada 10 · super admin ===== */
+/* Nome da empresa na tabela: área clicável de 32px (antes 22px); a aparência do texto não muda */
+.saas-company-link { display: flex; align-items: center; min-height: 32px; }
+/* E-mails em texto pequeno: contraste >= 4.5:1 (o muted global dava 4.42:1 sobre o fundo claro) */
+.saas-table td small { color: var(--cor-texto-secundario); }
+
+/* "Nova empresa" do cabeçalho só aparece em Visão geral e Empresas */
+.saas-main:has(#saas-tab-detalhes:not([style*="display: none"]):not([style*="display:none"])) .saas-header-actions,
+.saas-main:has(#saas-tab-auditoria-global:not([style*="display: none"]):not([style*="display:none"])) .saas-header-actions { display: none; }
+
+/* Auditoria global: busca e filtros no mesmo padrão de Atividades */
+.saas-audit-toolbar .audit-filtros-painel .audit-campo { flex: 1 1 150px; min-width: 130px; }
+.saas-audit-toolbar .audit-campo input,
+.saas-audit-toolbar .audit-campo select { width: 100%; }
+.saas-audit-toolbar { align-items: flex-start; }
+
+@media (max-width: 760px) {
+  /* Abas do detalhe da empresa em uma linha, com rolagem horizontal contida */
+  .empresa-detail-tabs { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; gap: 4px; }
+  .empresa-detail-tab { flex: 0 0 auto; white-space: nowrap; }
+  .saas-audit-toolbar > .btn { width: 100%; min-height: 44px; justify-content: center; }
+  .saas-audit-toolbar { padding: 12px; }
+  .saas-audit-toolbar .audit-filtros-painel .audit-campo { flex: 1 1 100%; }
+  /* Estado vazio com ação: botão com alvo de toque de 44px */
+  .empty-state .btn { min-height: 44px; }
+}

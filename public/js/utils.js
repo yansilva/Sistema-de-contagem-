@@ -83,6 +83,96 @@ function showToast(msg, tipo = 'info') {
   setTimeout(() => toast.remove(), 3000);
 }
 
+/**
+ * Rótulos únicos (vocabulário do sistema) para estado da contagem, papel, ação de auditoria e resultado.
+ * Funções puras: não dependem do DOM.
+ */
+const Rotulos = {
+  _capitalizar(cod) {
+    const texto = String(cod || '').replace(/_/g, ' ').trim();
+    return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : '';
+  },
+
+  /**
+   * @param {string} status - em_andamento | finalizada | apagada (aceita variações)
+   * @param {{divergencias?:number, total_divergencias?:number, com_divergencia?:boolean}|number|boolean} [resumo]
+   *   quando informado e a contagem está finalizada, acrescenta " · Com divergência" / " · Sem divergência"
+   */
+  statusContagem(status, resumo) {
+    const s = String(status || '').toLowerCase();
+    if (s === 'apagada' || s === 'excluida' || s === 'excluída') return 'Apagada';
+    if (s === 'em_andamento' || s === 'andamento' || s === 'aberta') return 'Em andamento';
+    if (s === 'finalizada' || s === 'concluida' || s === 'concluída') {
+      let div = null;
+      if (typeof resumo === 'number') div = resumo > 0;
+      else if (typeof resumo === 'boolean') div = resumo;
+      else if (resumo && typeof resumo === 'object') {
+        if (typeof resumo.com_divergencia === 'boolean') div = resumo.com_divergencia;
+        else {
+          const n = resumo.divergencias ?? resumo.total_divergencias;
+          if (n !== undefined && n !== null) div = Number(n) > 0;
+        }
+      }
+      if (div === null) return 'Finalizada';
+      return div ? 'Finalizada · Com divergência' : 'Finalizada · Sem divergência';
+    }
+    return Rotulos._capitalizar(s);
+  },
+
+  papel(p) {
+    const mapa = { funcionario: 'Funcionário', administrador: 'Administrador', admin: 'Administrador', gestor: 'Administrador', super_admin: 'Super Admin' };
+    const cod = String(p || '');
+    return mapa[cod] || Rotulos._capitalizar(cod);
+  },
+
+  ACOES_AUDITORIA: {
+    login_sucesso: 'Login realizado',
+    login_falha: 'Falha no login',
+    logout: 'Saída do sistema',
+    sessao_comprometida: 'Sessão comprometida',
+    senha_alterada: 'Senha alterada',
+    senha_redefinida: 'Senha redefinida',
+    senha_temporaria_definida_superadmin: 'Senha temporária definida pelo Super Admin',
+    recuperacao_solicitada: 'Recuperação de senha solicitada',
+    recuperacao_entrega_aceita: 'E-mail de recuperação enviado',
+    recuperacao_entrega_falhou: 'Falha no envio do e-mail de recuperação',
+    recuperacao_concluida: 'Recuperação de senha concluída',
+    usuario_criado: 'Usuário criado',
+    usuario_editado: 'Usuário editado',
+    produto_criado: 'Produto criado',
+    produto_editado: 'Produto editado',
+    produto_desativado: 'Produto desativado',
+    catalogo_importado: 'Catálogo importado',
+    contagem_criada: 'Contagem criada',
+    contagem_progresso_salvo: 'Progresso da contagem salvo',
+    contagem_finalizada: 'Contagem finalizada',
+    contagem_reaberta: 'Contagem reaberta',
+    contagem_apagada: 'Contagem apagada',
+    estoque_pdf_recebido: 'PDF de estoque recebido',
+    estoque_atualizado: 'Estoque atualizado',
+    empresa_criada: 'Empresa criada',
+    empresa_atualizada: 'Empresa atualizada',
+    empresa_excluida: 'Empresa excluída',
+    empresa_exclusao_negada: 'Exclusão de empresa negada',
+    auditoria_iniciada: 'Auditoria assistida iniciada',
+    auditoria_encerrada: 'Auditoria assistida encerrada',
+    auditoria_expirada: 'Auditoria assistida expirada'
+  },
+
+  acaoAuditoria(a) {
+    const cod = String(a || '');
+    if (Rotulos.ACOES_AUDITORIA[cod]) return Rotulos.ACOES_AUDITORIA[cod];
+    return Rotulos._capitalizar(cod.includes('.') ? cod.split('.').pop() : cod);
+  },
+
+  resultado(r) {
+    const cod = String(r || '').toLowerCase();
+    if (cod === 'sucesso') return 'Sucesso';
+    if (cod === 'falha') return 'Falha';
+    return Rotulos._capitalizar(cod);
+  }
+};
+
 /** Concorda número e substantivo: pluralizar(1, 'produto') = "1 produto"; pluralizar(2, 'item', 'itens') = "2 itens". */
 function pluralizar(n, singular, plural = `${singular}s`) {
   return `${n} ${Number(n) === 1 ? singular : plural}`;
@@ -228,17 +318,25 @@ function validarCampos(regras) {
 /**
  * Liga botões "mostrar senha" (.btn-ver-senha[data-alvo]).
  */
+function nomeBotaoSenha(btn, mostrar) {
+  const verbo = mostrar ? 'Mostrar' : 'Ocultar';
+  const rotulo = document.querySelector?.(`label[for="${btn.dataset.alvo}"]`)?.textContent?.replace(/[:*]/g, '').trim().toLocaleLowerCase('pt-BR') || '';
+  if (!rotulo) return `${verbo} senha`;
+  return /senha/.test(rotulo) ? `${verbo} ${rotulo}` : `${verbo} senha: ${rotulo}`;
+}
+
 function iniciarMostrarSenha() {
   document.querySelectorAll('.btn-ver-senha').forEach((btn) => {
     if (btn.dataset.ligado) return;
     btn.dataset.ligado = '1';
+    btn.setAttribute('aria-label', nomeBotaoSenha(btn, true));
     btn.addEventListener('click', () => {
       const campo = document.getElementById(btn.dataset.alvo);
       if (!campo) return;
       const mostrar = campo.type === 'password';
       campo.type = mostrar ? 'text' : 'password';
       btn.setAttribute('aria-pressed', String(mostrar));
-      btn.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+      btn.setAttribute('aria-label', nomeBotaoSenha(btn, !mostrar));
       const icone = btn.querySelector('i');
       if (icone) icone.className = `ti ${mostrar ? 'ti-eye-off' : 'ti-eye'}`;
     });

@@ -98,8 +98,9 @@ describe('Modalidade de peças', () => {
     for (const id of ['screen-semana-contagem', 'screen-importar-estoque']) {
       expect(html).toMatch(new RegExp(`id="${id}"[^>]*>\\s*<div class="container consulta-container">`));
     }
-    expect(html).toContain('Sessões recentes');
-    expect(html.includes('Sessões disponíveis no painel')).toBe(true);
+    // Rodada 10: KPIs em faixa compacta (Produtos/Produtores/Contagens), sem selos redundantes
+    expect(html).toMatch(/<span class="kpi-title">Contagens<\/span>\s*<span class="kpi-value" id="kpi-total-contagens">/);
+    expect(html.includes('Sessões disponíveis no painel')).toBe(false);
     expect(html).toContain('Última contagem');
     expect(html).toContain('Sessões exibidas:');
     expect(html).not.toContain('Total de contagens finalizadas:');

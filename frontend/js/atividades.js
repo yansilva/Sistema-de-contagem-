@@ -140,11 +140,7 @@ const Atividades = {
    * Rótulo legível para o código da ação (o filtro continua usando o código original)
    */
   rotuloAcao(codigo) {
-    const cod = String(codigo || '');
-    if (this.ROTULOS_ACAO[cod]) return this.ROTULOS_ACAO[cod];
-    const semPrefixo = cod.includes('.') ? cod.split('.').pop() : cod;
-    const texto = semPrefixo.replace(/_/g, ' ').trim();
-    return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : '';
+    return Rotulos.acaoAuditoria(codigo);
   },
 
   ROTULOS_ENTIDADE: {
@@ -173,7 +169,7 @@ const Atividades = {
   },
 
   rotuloEntidade(codigo) { return this.rotuloDe(this.ROTULOS_ENTIDADE, codigo); },
-  rotuloPapel(codigo) { return this.rotuloDe(this.ROTULOS_PAPEL, codigo); },
+  rotuloPapel(codigo) { return Rotulos.papel(codigo); },
 
   ROTULOS_ACAO: {
     login_sucesso: 'Login realizado',
@@ -235,14 +231,14 @@ const Atividades = {
     }
 
     let rowsHtml = '';
-    for (const log of atividades) {
+    for (const [idx, log] of atividades.entries()) {
       const dataFormatada = log.criado_em
         ? new Date(log.criado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' })
         : '—';
 
       const statusBadge = log.resultado === 'sucesso'
-        ? '<span class="badge-audit sucesso"><i class="ti ti-check"></i> Sucesso</span>'
-        : '<span class="badge-audit falha"><i class="ti ti-x"></i> Falha</span>';
+        ? '<span class="badge-audit sucesso"><i class="ti ti-check" aria-hidden="true"></i> ' + Rotulos.resultado('sucesso') + '</span>'
+        : '<span class="badge-audit falha"><i class="ti ti-x" aria-hidden="true"></i> ' + Rotulos.resultado('falha') + '</span>';
 
       const acaoBadge = `<span class="badge-audit acao" title="${escapeHtml(log.acao || '')}">${escapeHtml(this.rotuloAcao(log.acao))}</span>`;
       const atorLabel = escapeHtml(log.ator?.rotulo || 'Sistema');
@@ -265,7 +261,7 @@ const Atividades = {
           <td role="cell" class="au-entidade" data-label="Entidade"><span class="au-entidade-valor">${entidade}</span></td>
           <td role="cell" class="au-res">${statusBadge}</td>
           <td role="cell" class="au-det">
-            <button class="btn btn-ghost btn-sm" title="Ver detalhes e diff" data-click="action-70" data-arg-0="${escapeHtml(String(logId))}">
+            <button class="btn btn-ghost btn-sm" title="Ver detalhes e diff" aria-label="${escapeHtml(`Detalhes: ${this.rotuloAcao(log.acao)} de ${log.ator?.rotulo || 'Sistema'} em ${dataFormatada} (registro ${idx + 1} de ${atividades.length})`)}" data-click="action-70" data-arg-0="${escapeHtml(String(logId))}">
               <i class="ti ti-eye"></i> Detalhes
             </button>
           </td>
@@ -413,6 +409,46 @@ const Atividades = {
   },
 
   /**
+   * Rodada 10: acabamento do CSV vindo do servidor (separador ";", aspas duplas escapadas).
+   * Data e hora em ISO real, cabeçalho "Ação" e ação com rótulo legível; a ordem das colunas não muda.
+   */
+  ajustarCsv(texto) {
+    // res.text() descarta o BOM; ele é reposto para o Excel ler os acentos
+    const bom = '﻿';
+    const linhas = [];
+    let linha = [], campo = '', aspas = false;
+    const corpo = texto.charAt(0) === bom ? texto.slice(1) : texto;
+    for (let i = 0; i < corpo.length; i++) {
+      const ch = corpo[i];
+      if (aspas) {
+        if (ch === '"' && corpo[i + 1] === '"') { campo += '"'; i++; }
+        else if (ch === '"') aspas = false;
+        else campo += ch;
+      } else if (ch === '"') aspas = true;
+      else if (ch === ';') { linha.push(campo); campo = ''; }
+      else if (ch === '\r' || ch === '\n') {
+        if (ch === '\r' && corpo[i + 1] === '\n') i++;
+        linha.push(campo); campo = ''; linhas.push(linha); linha = [];
+      } else campo += ch;
+    }
+    if (campo !== '' || linha.length) { linha.push(campo); linhas.push(linha); }
+    const rotuloAcao = typeof Rotulos !== 'undefined' && Rotulos.acaoAuditoria ? Rotulos.acaoAuditoria : (a) => a;
+    linhas.forEach((cols, indice) => {
+      if (indice === 0) {
+        cols.forEach((nome, i) => { if (nome === 'Acao') cols[i] = 'Ação'; });
+        return;
+      }
+      if (cols.length > 3) {
+        const data = new Date(cols[1]);
+        if (cols[1] && !isNaN(data.getTime())) cols[1] = data.toISOString();
+        if (cols[3]) cols[3] = rotuloAcao(cols[3]);
+      }
+    });
+    const saida = (v) => (/[",;\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    return bom + linhas.map(cols => cols.map(saida).join(';')).join('\r\n');
+  },
+
+  /**
    * Exporta os registros filtrados em arquivo CSV sanitizado
    */
   async exportarCsv() {
@@ -438,7 +474,7 @@ const Atividades = {
         throw new Error('Falha ao exportar relatório.');
       }
 
-      const blob = await res.blob();
+      const blob = new Blob([this.ajustarCsv(await res.text())], { type: 'text/csv;charset=utf-8' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

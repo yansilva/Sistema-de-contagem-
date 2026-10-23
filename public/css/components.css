@@ -15,6 +15,7 @@
   white-space: nowrap;
   user-select: none;
   letter-spacing: -0.01em;
+  min-height: 40px; /* alvo de clique confortável no desktop (WCAG 2.5.8) */
 }
 
 .btn:active:not(:disabled) {
@@ -33,6 +34,7 @@ button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 .table-scroll:focus-visible,
 .saas-table-scroll:focus-visible,
 .audit-table-wrapper:focus-visible,
@@ -88,16 +90,29 @@ select:focus-visible,
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
+/* Perigo discreto: contorno e texto vermelhos, sem preenchimento */
+.btn-outline-danger {
+  background: var(--cor-superficie);
+  color: var(--cor-perigo);
+  border: 1px solid var(--cor-perigo);
+  box-shadow: none;
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+  background: var(--cor-botao-perigo);
+  color: #fff;
+}
+
 .btn-outline {
   background: var(--cor-superficie);
   color: var(--cor-texto);
-  border: 1px solid var(--cor-borda);
+  border: 1px solid var(--cor-borda-campo);
   box-shadow: var(--sombra);
 }
 
 .btn-outline:hover:not(:disabled) {
   background: var(--cor-superficie2);
-  border-color: var(--cor-borda-forte);
+  border-color: var(--cor-primaria);
   color: var(--cor-primaria);
   box-shadow: var(--sombra-md);
 }
@@ -116,10 +131,12 @@ select:focus-visible,
 .btn-theme {
   padding: 8px 11px;
   border-radius: var(--raio-sm);
-  border: 1px solid var(--cor-borda);
+  border: 1px solid var(--cor-borda-campo);
   background: var(--cor-superficie);
   color: var(--cor-texto-secundario);
   cursor: pointer;
+  min-width: 40px;
+  min-height: 40px;
   font-size: 15px;
   line-height: 1;
   transition: all var(--transicao);
@@ -131,7 +148,7 @@ select:focus-visible,
 .btn-theme:hover {
   background: var(--cor-superficie2);
   color: var(--cor-primaria);
-  border-color: var(--cor-borda-forte);
+  border-color: var(--cor-primaria);
   box-shadow: var(--sombra);
 }
 
@@ -144,6 +161,7 @@ select:focus-visible,
 .btn-sm {
   padding: 6px 12px;
   font-size: .8125rem;
+  min-height: 36px;
 }
 
 .btn-block {
@@ -189,7 +207,7 @@ select,
 textarea {
   width: 100%;
   padding: 10px 14px;
-  border: 1px solid var(--cor-borda);
+  border: 1px solid var(--cor-borda-campo);
   border-radius: var(--raio-sm);
   font-size: .9375rem;
   font-family: inherit;
@@ -207,6 +225,14 @@ textarea:focus {
   border-color: var(--cor-primaria);
   box-shadow: 0 0 0 3px var(--cor-foco);
   background: var(--cor-superficie);
+}
+
+/* Anel de foco dos campos: contorno sólido (>= 3:1 nos dois temas), além do halo suave */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--cor-primaria);
+  outline-offset: 2px;
 }
 
 input::placeholder {
@@ -519,7 +545,7 @@ select {
   padding: 7px 12px;
   font-size: 0.85rem;
   border-radius: var(--raio-sm);
-  border: 1px solid var(--cor-borda);
+  border: 1px solid var(--cor-borda-campo);
   background: var(--cor-superficie);
   color: var(--cor-texto);
 }
@@ -714,4 +740,25 @@ small.text-muted {
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--cor-texto-secundario);
+}
+
+/* ===== Rodada 10: alvos de toque no desktop e nome acessível do h1 ===== */
+@media (min-width: 1101px) {
+  :is(button, a).bo-nav-item { min-height: 44px; }
+  button.saas-tab-btn { min-height: 36px; }
+  .topbar .btn-theme { min-width: 40px; min-height: 40px; }
+}
+/* Em telas estreitas o nome da empresa sai do desenho (mobile.css), mas continua no h1 para leitores de tela */
+@media (max-width: 1100px) {
+  .topbar h1 #topbar-company-title {
+    display: block;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 }

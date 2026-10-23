@@ -60,7 +60,7 @@
 .auth-story-brand img { width: 32px; height: 32px; }
 .auth-story-copy { max-width: 490px; }
 .auth-story-footnote {
-  font-size: .7rem;
+  font-size: .75rem;
   font-weight: 800;
   letter-spacing: .16em;
   color: #9bbcff;
@@ -898,6 +898,9 @@ button.kpi-card .kpi-value { display: block; }
   color: var(--cor-texto-secundario);
 }
 
+/* O separador "•" acompanha o selo na quebra de linha, nunca fica pendurado no fim */
+.hist-resumo-status { display: inline-flex; align-items: baseline; gap: 4px; max-width: 100%; }
+
 .hist-chips {
   display: flex;
   flex-wrap: wrap;
@@ -1653,7 +1656,7 @@ button.kpi-card .kpi-value { display: block; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  max-height: min(760px, calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+  max-height: min(760px, calc(var(--vv-altura, 100dvh) - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
 }
 #bloco-produtos-contagem .contagem-dialog-header,
 #bloco-produtos-contagem .contagem-dialog-instruction { flex: none; }
@@ -1718,7 +1721,7 @@ button.kpi-card .kpi-value { display: block; }
 .semana-busca input::placeholder { color:var(--cor-texto-mudo); }
 .semana-resultado { margin:12px 0; color:var(--cor-texto-secundario); font-size:.82rem; }
 .semana-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; gap:14px; }
-.semana-card { --semana-acento:var(--cor-primaria); min-width:0; overflow:hidden; overflow-wrap:anywhere; border:1px solid var(--cor-borda); border-top:3px solid var(--semana-acento); border-radius:15px; background:var(--gradiente-cartao); box-shadow:var(--sombra); transition:transform var(--transicao),box-shadow var(--transicao); }
+.semana-card { --semana-acento:var(--cor-primaria); min-width:0; overflow:hidden; overflow-wrap:anywhere; border:1px solid var(--cor-borda); border-radius:15px; background:linear-gradient(180deg, color-mix(in srgb, var(--semana-acento) 12%, transparent) 0, transparent 72px), var(--gradiente-cartao); box-shadow:var(--sombra); transition:transform var(--transicao),box-shadow var(--transicao); }
 .semana-card--contado { --semana-acento:var(--cor-sucesso); }
 .semana-card--parcial { --semana-acento:var(--cor-aviso); }
 .semana-card--pendente { --semana-acento:var(--cor-texto-mudo); }
@@ -1761,12 +1764,46 @@ button.kpi-card .kpi-value { display: block; }
 #stock-pdf-file { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 #stock-upload-area:focus-within { outline: 2px solid var(--cor-primaria); outline-offset: 2px; }
 .upload-area-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 12px; padding: 10px 16px; font-weight: 600; border: 1px solid var(--cor-borda-forte); border-radius: var(--raio); background: var(--cor-superficie); color: var(--cor-texto); }
-.contagem-vencidos { display: grid; gap: 4px; min-width: 150px; }
+.contagem-vencidos { display: grid; gap: 4px; width: 210px; min-width: 150px; }
 .contagem-vencidos label { display: block; font-size: .75rem; color: var(--cor-texto-mudo); }
 .contagem-vencidos input { width: 100%; min-height: 38px; }
 .contagem-vencidos-erro { color: var(--cor-perigo); font-size: .75rem; }
 .contagem-vencidos button:focus-visible, .contagem-vencidos input:focus-visible { outline: 2px solid var(--cor-primaria); outline-offset: 2px; }
-@media (max-width: 640px) { .contagem-item { flex-wrap: wrap; gap: 10px; } .contagem-item-controls { flex-wrap: wrap; width: 100%; } }
+
+/* ===== Rodada 10: item de contagem (desktop; o celular compacta em mobile.css) ===== */
+.contagem-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid var(--cor-borda); }
+.contagem-item-info { flex: 1; }
+.contagem-item-nome { font-weight: 700; font-size: 1rem; color: var(--cor-texto); }
+.contagem-item-sku { font-size: .8rem; color: var(--cor-texto-mutado); }
+.contagem-item-controls { display: flex; align-items: center; gap: 12px; }
+.contagem-item-campo { width: 130px; }
+.contagem-item-rotulo { display: block; margin-bottom: 2px; font-size: .75rem; color: var(--cor-texto-secundario); }
+.contagem-vencidos-toggle i { margin-right: 4px; }
+.contagem-vencidos-campo[hidden] { display: none; }
+.contagem-vencidos-erro:empty { display: none; }
+.contagem-finalizar-barra { display: flex; align-items: center; gap: 12px; }
+.eyebrow-curto { display: none; }
+.contagem-dialog-acoes { display: flex; align-items: center; gap: 2px; flex: none; }
+.modalidade-ajuda { margin: 8px 0 0; color: var(--cor-texto-secundario); font-size: .9rem; max-width: 70ch; }
+.contagem-vazio-acao { display: grid; justify-items: center; gap: 12px; }
+.contagem-vazio-acao p { margin: 0; }
+.quick-cards-grid > .contagem-vazio-acao { grid-column: 1 / -1; }
+
+/* ===== Rodada 10: resultado neutro, acoes e filtro de diferencas ===== */
+.resultado-card.neutro { background: var(--cor-superficie); border: 1px solid var(--cor-borda); }
+.resultado-card.neutro i { color: var(--cor-primaria); }
+.resultado-card.neutro h2 { color: var(--cor-texto); }
+.resultado-acoes { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+.resultado-acoes .btn { margin-top: 0; }
+.resultado-card .btn i { font-size: 1.15rem; margin: 0; color: inherit; }
+.resultado-lista-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 8px 0 12px; }
+.resultado-lista-barra h3 { margin: 0; font-size: 1.05rem; }
+.resultado-lista-barra h3:focus-visible { outline: 2px solid var(--cor-primaria); outline-offset: 4px; }
+.resultado-filtro { display: inline-flex; flex-wrap: wrap; gap: 8px; }
+.resultado-fornecedor[hidden], .resultado-produto[hidden] { display: none; }
+.resultado-fornecedor-header { background: var(--cor-fundo-cartao, var(--cor-superficie2)); }
+.resultado-fornecedor-header i { color: var(--cor-primaria); }
+.resultado-produto-sku { font-size: .8rem; color: var(--cor-texto-mutado); }
 
 /* ===== HOME DO FUNCIONARIO: CONTAGEM EM ANDAMENTO ===== */
 .btn-alvo-44 { min-height: 44px; }

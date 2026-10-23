@@ -641,6 +641,7 @@ async function listar(req, res, next) {
     const sql = `
       SELECT c.id, c.tipo, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status,
              u.nome AS iniciado_por_nome,
+             COUNT(*) OVER() AS total_geral,
              (SELECT COALESCE(SUM(ci.quantidade_vencida), 0) FROM contagem_itens ci JOIN contagem_fornecedores cfv ON cfv.id = ci.contagem_fornecedor_id WHERE cfv.contagem_id = c.id AND ci.quantidade_contada IS NOT NULL) AS total_vencidos,
              COALESCE(
                json_agg(
@@ -673,7 +674,8 @@ async function listar(req, res, next) {
     res.json({
       success: true,
       data: {
-        contagens: result.rows.map(contagem => serializeContagemDetalhe(contagem, contagem.fornecedores || [], req.usuario))
+        contagens: result.rows.map(contagem => serializeContagemDetalhe(contagem, contagem.fornecedores || [], req.usuario)),
+        total: result.rows.length ? Number(result.rows[0].total_geral ?? result.rows.length) : 0
       }
     });
   } catch (err) {

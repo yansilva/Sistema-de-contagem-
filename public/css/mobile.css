@@ -89,11 +89,48 @@
   .produto-header > div:first-child { flex: 1 1 100%; }
   .produto-header > div:last-child { margin-left: auto; }
   .produto-campos { grid-template-columns: minmax(0, 1fr); }
-  .contagem-item { flex-wrap: wrap; gap: 16px; }
-  .contagem-item-info { flex-basis: 100% !important; }
-  .contagem-item-controls { width: 100%; justify-content: space-between; }
-  .contagem-item-controls input { text-align: center; }
-  .contagem-item-controls label { font-size: .875rem !important; }
+  /* Rodada 10: item de contagem em linha única (nome e SKU | status | campo | vencidos) */
+  .contagem-item { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 2px 8px; padding: 6px 2px; }
+  .contagem-item-controls, .contagem-item-campo, .contagem-vencidos { display: contents; }
+  .contagem-item-nome { font-size: .95rem; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .contagem-item-sku { font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contagem-item-produtor { display: none; }
+  .contagem-item-status .badge { box-sizing: border-box; width: 14px; height: 14px; min-width: 14px; padding: 0; gap: 0; font-size: 0; line-height: 0; overflow: hidden; }
+  .contagem-item-status .badge i { display: none; }
+  .contagem-item-status .badge-neutral { background: transparent; border: 2px solid var(--cor-texto-mudo); }
+  .contagem-item-status .badge-success { background: var(--cor-sucesso); border-color: var(--cor-sucesso); }
+  .contagem-item-status .badge-warning { background: var(--cor-aviso); border-color: var(--cor-aviso); }
+  .contagem-item-status .badge-danger { background: var(--cor-perigo); border-color: var(--cor-perigo); }
+  .contagem-item-rotulo { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+  .contagem-item .input-qtd-fisica { width: 108px; min-height: 44px; padding-left: 6px; padding-right: 6px; text-align: center; }
+  #bloco-produtos-contagem .eyebrow-curto { display: inline; }
+  #bloco-produtos-contagem .eyebrow-longo { display: none; }
+  .contagem-item .contagem-vencidos-erro { grid-column: 1 / -1; }
+  .contagem-vencidos-toggle { min-width: 44px; padding: 0; justify-content: center; }
+  .contagem-vencidos-toggle i { margin: 0; font-size: 1.2rem; }
+  .contagem-vencidos-toggle-texto { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .contagem-vencidos-qtd { grid-column: 1 / -1; justify-self: start; }
+  .contagem-vencidos-campo:not([hidden]) { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) 96px; align-items: center; gap: 2px 8px; padding: 4px 8px 6px; }
+  .contagem-vencidos-campo label { font-size: .875rem; margin: 0; }
+  .contagem-vencidos-campo input { text-align: center; }
+  .contagem-vencidos-campo small { grid-column: 1 / -1; }
+  /* Diálogo do produtor enxuto: cabeçalho de uma linha, instrução recolhível, Salvar sempre à vista */
+  .contagem-dialog { padding: 10px 10px 12px; }
+  #bloco-produtos-contagem[open] { width: calc(100% - 12px); margin: 6px auto auto; top: var(--vv-topo, 0px); }
+  #bloco-produtos-contagem .contagem-dialog-header { padding-bottom: 6px; gap: 6px; align-items: center; }
+  #bloco-produtos-contagem .contagem-dialog-header h3 { margin: 0; font-size: 1.05rem; line-height: 1.2; }
+  #bloco-produtos-contagem .contagem-dialog-eyebrow { display: block; font-size: .72rem; line-height: 1.2; }
+  #bloco-produtos-contagem .contagem-dialog-instruction { margin: 8px 0 4px; font-size: .8125rem; }
+  #bloco-produtos-contagem #btn-salvar-progresso-produtor { margin-top: 8px; min-height: 48px; }
+  /* Finalizar e comparar: barra fixa na zona do polegar */
+  #screen-contagem > .container { padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px)); }
+  .contagem-finalizar-barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 14px calc(8px + env(safe-area-inset-bottom, 0px)); background: var(--cor-superficie); border-top: 1px solid var(--cor-borda-forte); box-shadow: 0 -6px 16px rgba(0, 0, 0, .12); }
+  .contagem-finalizar-barra .dica-finalizar { text-align: center; }
+  #btn-finalizar-contagem { width: 100%; min-height: 48px; justify-content: center; }
+  #btn-finalizar-contagem:disabled { opacity: 1; background: var(--cor-superficie2); color: var(--cor-texto-secundario); border: 1px dashed var(--cor-texto-mudo); }
+  .resultado-acoes .btn { flex: 1 1 100%; }
+  .resultado-filtro { width: 100%; }
+  .resultado-filtro .historico-chip { flex: 1 1 auto; }
   .audit-toolbar, .audit-filters { min-width: 0; }
   .audit-filters { flex: 1 1 100%; }
   .audit-filters > input, .audit-filters > select { flex: 1 1 100%; width: 100%; }
@@ -128,7 +165,7 @@
 
 @media (pointer: coarse) {
   .btn, .btn-sm, .btn-theme, .tab { min-height: 44px; }
-  .btn-ghost, .btn-danger.btn-sm { min-width: 44px; }
+  .btn-ghost, .btn-danger.btn-sm, .btn-outline-danger.btn-sm { min-width: 44px; }
 }
 @media (max-width: 600px) {
   .modalidade-abas > button { flex: 1; min-height: 48px; }
@@ -351,4 +388,69 @@ label.btn:focus-within { outline: 2px solid var(--cor-primaria); outline-offset:
   .topbar .btn-theme, .topbar .topbar-ajuda, .topbar .topbar-sair, .mobile-nav-toggle { min-width: 44px; padding-left: 8px; padding-right: 8px; }
   .user-badge { padding: 4px 6px; gap: 6px; }
   #topbar-user-name { max-width: 56px; }
+}
+
+
+/* Rodada 10 · início */
+/* Faixa compacta de KPIs do admin (uma linha, cartões baixos) */
+.kpi-faixa { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.kpi-faixa .kpi-card { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; padding: 10px 16px; min-height: 56px; }
+.kpi-faixa .kpi-icon { width: 34px; height: 34px; font-size: 1.1rem; border-radius: 10px; }
+.kpi-faixa .kpi-icon-ambar { background: rgba(217, 119, 6, 0.12); color: #d97706; }
+.kpi-faixa .kpi-title { font-size: .75rem; overflow-wrap: anywhere; }
+.kpi-faixa .kpi-value { margin: 0; font-size: 1.5rem; }
+.kpi-faixa .kpi-card:hover { transform: none; }
+
+/* Barra de ações do admin: botões secundários alinhados, um único primário */
+.dash-action-bar .action-bloco-botoes .btn { min-height: 40px; }
+.dash-action-bar { gap: 16px 20px; }
+.dash-action-bar .action-bloco + .action-bloco { padding-left: 20px; border-left: 1px solid var(--cor-borda); }
+
+/* Cartões do início do funcionário: rótulo, valor ou ação, descrição */
+.consulta-home-card .kpi-value,
+.consulta-home-card .consulta-home-action { display: flex; align-items: center; gap: 6px; min-height: 2.2rem; margin: 0 0 8px; }
+.consulta-home-card .consulta-home-action { font-size: 1.1rem; }
+
+/* Voltar sempre acima do título */
+.consulta-container > .btn-voltar { display: inline-flex; margin: 0 0 6px -8px; }
+.consulta-container > .btn-voltar + h2 { margin-top: 0; }
+
+@media (max-width: 760px) {
+  .kpi-faixa { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .kpi-faixa .kpi-card { grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 10px 12px; min-height: 0; }
+  .kpi-faixa .kpi-icon { display: none; }
+  .kpi-faixa .kpi-title { font-size: .75rem; letter-spacing: .02em; }
+  .kpi-faixa .kpi-value { font-size: 1.4rem; }
+  .dash-action-bar { padding: 14px; gap: 14px; }
+  .dash-action-bar .action-bloco + .action-bloco { padding-left: 0; border-left: 0; padding-top: 12px; border-top: 1px solid var(--cor-borda); }
+  .divergencia-alert-card { flex-wrap: wrap; padding: 14px; margin-bottom: 14px; }
+  .divergencia-alert-card .btn { width: 100%; justify-content: center; }
+  .dash-header { margin-bottom: 12px !important; }
+  /* Login: sem faixa de marca duplicada (a barra superior já mostra a logo) */
+  .login-layout .auth-story { min-height: 0; gap: 0; padding: 16px 20px; }
+  .login-layout .auth-story-brand { display: none; }
+  .login-layout .auth-story-copy h2 { margin: 0; font-size: 1.25rem; line-height: 1.2; }
+  .login-layout .auth-logo { display: none; }
+  .login-layout .auth-card { padding: 20px 20px 24px; }
+}
+@media (max-width: 760px) {
+  /* Topo: avatar + nome da empresa (com reticências) em vez do nome do usuário truncado */
+  .topbar h1 { flex: 1 1 auto; min-width: 0; gap: 8px; }
+  .topbar h1 span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+  .topbar-right { flex: 0 0 auto; }
+  #topbar-user-name { display: none; }
+  .user-badge { padding: 3px; }
+  /* Painel do admin: cabeçalho enxuto e botões secundários em duas colunas */
+  .dash-welcome h2 { font-size: 1.15rem; }
+  .dash-action-bar .action-bloco-botoes .btn { flex: 1 1 calc(50% - 4px); font-size: .85rem; padding-left: 8px; padding-right: 8px; }
+  .dash-action-bar .action-bloco-botoes .btn-main { flex-basis: 100%; font-size: .95rem; }
+  .dash-action-bar .action-bloco { gap: 8px; }
+  .dash-action-bar .action-bloco + .action-bloco { padding-top: 10px; }
+}
+@media (max-width: 760px) {
+  .topbar h1 span#topbar-company-title { position: static; width: auto; height: auto; margin: 0; clip: auto; display: block; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+  .dash-header, #home-administrador .dash-header { padding: 14px 16px; }
+  /* Rótulos de Contagem e Gestão ficam só para leitor de tela: o botão já diz o que faz */
+  .dash-action-bar #grupo-contagem, .dash-action-bar #grupo-gestao { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+  .dash-action-bar .action-bloco + .action-bloco { padding-top: 10px; }
 }

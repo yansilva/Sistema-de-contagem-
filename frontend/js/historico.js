@@ -92,7 +92,7 @@ const Historico = {
     if (total === 0) return;
     const confirmado = await confirmarAcao({
       titulo: `Apagar ${pluralizar(total, 'contagem', 'contagens')} em andamento?`,
-      mensagem: 'O progresso registrado pelos funcionários nessas contagens será perdido. Esta ação não pode ser desfeita. Contagens com progresso salvo recentemente também serão apagadas.',
+      mensagem: 'O progresso registrado nessas contagens será perdido. Esta ação não pode ser desfeita. Contagens com progresso salvo recentemente também serão apagadas.',
       confirmar: 'Apagar contagens',
       cancelar: 'Cancelar',
       perigo: true
@@ -155,6 +155,8 @@ const Historico = {
     if (counterEl) {
       counterEl.textContent = this.contagens.length;
     }
+    const barra = document.getElementById('historico-filtro-barra');
+    if (barra) barra.hidden = this.contagens.length === 0;
 
     await this.carregarEmAberto();
 
@@ -177,12 +179,36 @@ const Historico = {
   /**
    * Renderiza os cards expansíveis do histórico com proteção XSS
    */
+  filtro: 'todas',
+
+  /** Filtra a lista já carregada (Todas / Em andamento / Finalizadas), sem nova requisição */
+  filtrar(filtro) {
+    this.filtro = ['em_andamento', 'finalizada'].includes(filtro) ? filtro : 'todas';
+    this.renderizar();
+  },
+
   renderizar() {
     const listaEl = document.getElementById('lista-historico');
     if (!listaEl) return;
 
+    const filtro = this.filtro || 'todas';
+    document.querySelectorAll?.('#historico-filtro-barra .historico-chip').forEach(chip => {
+      chip.setAttribute('aria-pressed', chip.dataset.histFiltro === filtro ? 'true' : 'false');
+    });
+    const visiveis = filtro === 'todas' ? this.contagens : this.contagens.filter(c => c.status === filtro);
+    const counterEl = document.getElementById('historico-counter-total');
+    if (counterEl) counterEl.textContent = visiveis.length;
+    if (!visiveis.length) {
+      listaEl.innerHTML = `
+        <div style="text-align:center; padding:30px 20px; color:var(--cor-texto-secundario)">
+          <p style="margin:0 0 12px">Nenhuma contagem com este filtro.</p>
+          <button type="button" class="btn btn-outline btn-sm btn-alvo-44" data-hist-filtro="todas">Limpar filtro</button>
+        </div>`;
+      return;
+    }
+
     const podeApagar = this.podeApagar();
-    listaEl.innerHTML = this.contagens.map(c => {
+    listaEl.innerHTML = visiveis.map(c => {
       const dataFormatada = formatarData(c.finalizado_em || c.iniciado_em);
       const pecas = c.tipo === 'pecas_queijo';
       const finalizada = c.status === 'finalizada';
@@ -190,7 +216,7 @@ const Historico = {
       const totalVencidos = !pecas && finalizada ? Number(c.total_vencidos || 0) : 0;
       const statusIcon = !finalizada ? 'ti-clock' : temDif ? 'ti-alert-triangle' : 'ti-circle-check';
       const statusColor = !finalizada ? 'var(--cor-aviso)' : temDif ? 'var(--cor-perigo)' : 'var(--cor-sucesso)';
-      const statusTexto = pecas ? `Peças de queijo · ${finalizada ? 'Finalizada' : 'Em andamento'}` : !finalizada ? 'Geral · Em andamento' : temDif ? 'Divergências Encontradas' : totalVencidos ? 'Contagem conferida com produtos vencidos' : 'Conciliado 100%';
+      const statusTexto = pecas ? `Peças de queijo · ${Rotulos.statusContagem(c.status)}` : !finalizada ? `Geral · ${Rotulos.statusContagem(c.status)}` : Rotulos.statusContagem(c.status, temDif);
       const badgeClass = !finalizada ? 'badge-warning' : temDif ? 'badge-danger' : 'badge-success';
 
       const fornecedores = Array.isArray(c.fornecedores) ? c.fornecedores : [];
@@ -203,8 +229,8 @@ const Historico = {
               <span class="hist-card-info">
               <span class="data">${dataFormatada}</span>
               <span class="resumo">
-                Iniciado por: <strong>${escapeHtml(c.iniciado_por_nome || 'Usuário')}</strong> • 
-                <span class="badge ${badgeClass}">${statusTexto}</span>
+                Iniciado por: <strong>${escapeHtml(c.iniciado_por_nome || 'Usuário')}</strong>
+                <span class="hist-resumo-status"><span aria-hidden="true">•</span> <span class="badge ${badgeClass}">${statusTexto}</span></span>
                 ${totalVencidos ? `<span class="badge badge-warning">${totalVencidos} unidades vencidas</span>` : ''}
               </span>
               <span class="hist-chips">
@@ -220,8 +246,9 @@ const Historico = {
             <div class="hist-actions">
               ${temDif || totalVencidos ? `
                 <button class="btn btn-outline btn-sm" title="Baixar relatório Excel"
+                        aria-label="${escapeHtml(`Baixar relatório Excel da contagem de ${dataFormatada} iniciada por ${c.iniciado_por_nome || 'Usuário'}`)}"
                         data-click="action-77" data-arg-0="${escapeHtml(c.id)}">
-                  <i class="ti ti-file-spreadsheet"></i> Excel
+                  <i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Excel
                 </button>
               ` : ''}
               ${!finalizada && podeApagar ? `
@@ -285,7 +312,7 @@ const Historico = {
           <div class="grupo-header">
             <span><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</span>
             <span class="badge ${c.status !== 'finalizada' ? 'badge-warning' : !pecas && f.tem_diferenca ? 'badge-danger' : 'badge-success'}">
-              ${pecas ? `Peças de queijo · ${c.status === 'finalizada' ? 'Finalizada' : 'Em andamento'}` : c.status !== 'finalizada' ? 'Em andamento' : f.tem_diferenca ? 'Com Divergência' : 'Sem Divergência'}
+              ${pecas ? `Peças de queijo · ${Rotulos.statusContagem(c.status)}` : Rotulos.statusContagem(c.status, !!f.tem_diferenca)}
             </span>
           </div>
           <div class="grupo-body">
@@ -321,3 +348,15 @@ const Historico = {
     API.download(`/relatorios/contagens/${id}/excel`, `relatorio_divergencias_${dataAtual}.xlsx`);
   }
 };
+
+// Filtros Todas / Em andamento / Finalizadas do histórico do administrador
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('click', (e) => {
+    const alvo = e.target && e.target.closest ? e.target.closest('[data-hist-filtro]') : null;
+    if (!alvo) return;
+    const veioDaLista = !!alvo.closest('#lista-historico');
+    Historico.filtrar(alvo.dataset.histFiltro);
+    const chip = document.querySelector?.('#historico-filtro-barra .historico-chip[aria-pressed="true"]');
+    if (chip && veioDaLista) chip.focus();
+  });
+}

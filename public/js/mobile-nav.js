@@ -24,4 +24,14 @@
     if (!toggle.contains(event.target) && !menu.contains(event.target)) setOpen(false);
   });
   mobile.addEventListener('change', () => setOpen(false));
+  // "Pular para o conteúdo": foca o landmark sem mudar o hash (o hash é a rota da tela)
+  const skip = document.querySelector && document.querySelector('.skip-link');
+  if (skip) {
+    skip.addEventListener('click', event => {
+      const alvo = document.getElementById('conteudo-principal');
+      if (!alvo) return;
+      event.preventDefault();
+      alvo.focus();
+    });
+  }
 })();

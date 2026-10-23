@@ -96,7 +96,7 @@ const Consulta = {
     document.getElementById('consulta-produtores-lista').innerHTML = produtores.map(nome => `
       <article class="consulta-item table-toolbar">
         <strong>${escapeHtml(nome)}</strong>
-        <button class="btn btn-outline btn-sm" data-produtor="${escapeHtml(nome)}" data-click="action-71">Ver produtos</button>
+        <button class="btn btn-outline btn-sm" data-produtor="${escapeHtml(nome)}" data-click="action-71" aria-label="Ver produtos de ${escapeHtml(nome)}">Ver produtos</button>
       </article>`).join('');
   },
 
@@ -124,7 +124,7 @@ const Consulta = {
     document.getElementById('consulta-historico-anterior').disabled = this.paginaHistorico <= 1;
     document.getElementById('consulta-historico-proxima').disabled = !this.historicoTemProxima;
     document.getElementById('consulta-historico-pagina').textContent = `Página ${this.paginaHistorico}`;
-    document.getElementById('consulta-historico-pagina').parentElement.hidden = !contagens.length && this.paginaHistorico <= 1;
+    document.getElementById('consulta-historico-pagina').parentElement.hidden = this.paginaHistorico <= 1 && !this.historicoTemProxima;
     this.contagensHistorico = contagens;
     this.renderizarHistorico();
   },
@@ -163,9 +163,9 @@ const Consulta = {
         ${c.status === 'finalizada' && c.finalizado_em ? `<p>Finalizada em ${escapeHtml(formatarData(c.finalizado_em))}</p>` : ''}
         ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && Number(c.total_vencidos || 0) > 0 ? `<p>Unidades vencidas: <strong>${Number(c.total_vencidos)}</strong></p>` : ''}
         <div class="table-toolbar">
-          <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-72">Ver contagem</button>
+          <button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-72" aria-label="${escapeHtml(`Ver contagem de ${formatarData(c.iniciado_em)}`)}">Ver contagem</button>
           ${c.status === 'em_andamento' ? `<button class="btn btn-primary btn-sm btn-alvo-44" data-id="${escapeHtml(c.id)}" data-click="contagem-continuar" aria-label="Retomar contagem de ${escapeHtml(formatarData(c.iniciado_em))}">Retomar contagem</button>` : ''}
-          ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && (c.tem_diferenca || Number(c.total_vencidos || 0) > 0) ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123"><i class="ti ti-file-spreadsheet"></i> Baixar relatório</button>` : ''}
+          ${c.tipo !== 'pecas_queijo' && c.status === 'finalizada' && (c.tem_diferenca || Number(c.total_vencidos || 0) > 0) ? `<button class="btn btn-outline btn-sm" data-id="${escapeHtml(c.id)}" data-click="action-123" aria-label="${escapeHtml(`Baixar relatório da contagem de ${formatarData(c.iniciado_em)}`)}"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i> Baixar relatório</button>` : ''}
         </div>
       </article>`).join('');
   },

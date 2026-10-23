@@ -126,9 +126,27 @@ const Empresas = {
     const atual = this.filtroDe(this.resolverContainer());
     atual.status = status || 'todas';
     document.querySelectorAll('.saas-tab-btn[data-status]').forEach((btn) => {
-      btn.classList.toggle('active', btn.getAttribute('data-status') === atual.status);
+      const ativo = btn.getAttribute('data-status') === atual.status;
+      btn.classList.toggle('active', ativo);
+      btn.setAttribute('aria-pressed', ativo ? 'true' : 'false');
     });
     this.carregar({ page: 1 });
+  },
+
+  /** Rodada 10: zera busca e situação da lista do console e recarrega. */
+  limparFiltros() {
+    const atual = this.filtroDe('empresas-lista');
+    atual.texto = '';
+    atual.status = 'todas';
+    const busca = document.getElementById('empresas-busca');
+    if (busca) busca.value = '';
+    document.querySelectorAll('.saas-tab-btn[data-status]').forEach((btn) => {
+      const ativo = btn.getAttribute('data-status') === 'todas';
+      btn.classList.toggle('active', ativo);
+      btn.setAttribute('aria-pressed', ativo ? 'true' : 'false');
+    });
+    this.carregar({ containerId: 'empresas-lista', page: 1 });
+    if (busca && busca.focus) busca.focus();
   },
 
   mudarPagina(page) {
@@ -141,7 +159,11 @@ const Empresas = {
     const container = document.getElementById(containerId);
     if (!container) return;
     if (!empresas.length) {
-      container.innerHTML = '<div class="empty-state"><i class="ti ti-building-off"></i><p>Nenhuma empresa encontrada para estes filtros.</p></div>';
+      const filtro = this.filtroDe(containerId);
+      const comFiltro = !resumo && this.containersComFiltro.includes(containerId) && (filtro.texto || filtro.status !== 'todas');
+      container.innerHTML = comFiltro
+        ? '<div class="empty-state"><i class="ti ti-building-off" aria-hidden="true"></i><p>Nenhuma empresa encontrada para estes filtros.</p><button type="button" class="btn btn-outline btn-sm" data-empresas-limpar="1"><i class="ti ti-refresh" aria-hidden="true"></i> Limpar filtros</button></div>'
+        : '<div class="empty-state"><i class="ti ti-building-off" aria-hidden="true"></i><p>Nenhuma empresa cadastrada ainda.</p></div>';
       return;
     }
     const linhas = empresas.map((empresa) => {
@@ -149,6 +171,7 @@ const Empresas = {
       const status = excluida ? 'excluida' : (empresa.status || 'ativa');
       const label = status === 'ativa' ? 'Ativa' : status === 'inativa' ? 'Inativa' : 'Excluída';
       const principal = empresa.administrador_principal;
+      const nomeAttr = this.escapeHtml(empresa.nome).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       return `<tr role="row">
         <td role="cell" class="cartao-principal"><button class="saas-company-link" data-click="action-90" data-id="${empresa.id}">${this.escapeHtml(empresa.nome)}</button><small>${this.escapeHtml(empresa.email_contato || '')}</small></td>
         <td role="cell" data-label="Acesso"><span class="status-pill ${status}"><span class="status-dot"></span>${label}</span></td>
@@ -156,10 +179,10 @@ const Empresas = {
         <td role="cell" data-label="Usuários">${Number(empresa.total_usuarios || 0)}</td>
         <td role="cell" data-label="Última atividade">${empresa.ultima_atividade ? new Date(empresa.ultima_atividade).toLocaleString('pt-BR') : '—'}</td>
         <td role="cell" class="saas-actions-cell cartao-acoes">
-          <button class="btn btn-outline btn-sm" data-click="action-90" data-id="${empresa.id}">Detalhes</button>
-          ${excluida ? '' : '<button class="btn btn-outline btn-sm" data-click="action-120" data-id="' + empresa.id + '"><i class="ti ti-key"></i> Gerenciar senhas</button>'}
-          ${excluida ? '' : '<button class="btn btn-ghost btn-sm" data-click="action-98" data-id="' + empresa.id + '"><i class="ti ti-shield-search"></i> Auditar</button>'}
-          ${resumo || excluida ? '' : '<button class="btn btn-ghost btn-sm" data-click="action-103" data-id="' + empresa.id + '" data-status="' + status + '">' + (status === 'ativa' ? 'Inativar' : 'Reativar') + '</button>'}
+          <button class="btn btn-outline btn-sm" data-click="action-90" data-id="${empresa.id}" aria-label="Detalhes de ${nomeAttr}">Detalhes</button>
+          ${excluida ? '' : '<button class="btn btn-outline btn-sm" data-click="action-120" data-id="' + empresa.id + '" aria-label="Gerenciar senhas de ' + nomeAttr + '"><i class="ti ti-key" aria-hidden="true"></i> Gerenciar senhas</button>'}
+          ${excluida ? '' : '<button class="btn btn-ghost btn-sm" data-click="action-98" data-id="' + empresa.id + '" aria-label="Auditar ' + nomeAttr + '"><i class="ti ti-shield-search" aria-hidden="true"></i> Auditar</button>'}
+          ${resumo || excluida ? '' : '<button class="btn btn-ghost btn-sm" data-click="action-103" data-id="' + empresa.id + '" data-status="' + status + '" aria-label="' + (status === 'ativa' ? 'Inativar ' : 'Reativar ') + nomeAttr + '">' + (status === 'ativa' ? 'Inativar' : 'Reativar') + '</button>'}
         </td>
       </tr>`;
     }).join('');
@@ -329,3 +352,9 @@ const Empresas = {
     return div.innerHTML;
   }
 };
+
+// Rodada 10: "Limpar filtros" do estado vazio da lista de empresas
+document.addEventListener('click', (event) => {
+  const botao = event.target && event.target.closest ? event.target.closest('[data-empresas-limpar]') : null;
+  if (botao) Empresas.limparFiltros();
+});

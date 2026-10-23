@@ -564,6 +564,14 @@ function aoMudarHistorico() {
     return;
   }
   showScreen(id, { semHistorico: true, aba });
+  carregarModalidadeDaRota(id);
+}
+
+/** F5, link direto ou Voltar em #nova-contagem: carrega orientação e sessões abertas (a rota já está no hash) */
+function carregarModalidadeDaRota(id) {
+  if (id === 'screen-modalidade-contagem' && typeof Contagens !== 'undefined' && Contagens.abrirModalidade) {
+    Contagens.abrirModalidade(Contagens.tipoSelecao);
+  }
 }
 
 /** Troca a aba de uma tela com abas (back-office ou console do Super Admin) */
@@ -707,7 +715,7 @@ async function carregarDashboard() {
                     <tr>
                       <td><strong>${dataStr}</strong></td>
                       <td>${statusBadge}<br>${c.tipo === 'pecas_queijo' ? 'Peças de queijo' : 'Geral'}</td>
-                      <td><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72">Ver Detalhes</button></td>
+                      <td><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72" aria-label="Ver contagem de ${dataStr}">Ver contagem</button></td>
                     </tr>
                   `;
                 }).join('')}
@@ -810,7 +818,7 @@ async function carregarDashboard() {
                 <td role="cell" class="cartao-principal" data-label="Data e hora"><strong>${dataStr}</strong></td>
                 <td role="cell" data-label="Operador">${escapeHtml(c.iniciado_por_nome || 'Operador')}</td>
                 <td role="cell" data-label="Estoque">${difBadge}</td>
-                <td role="cell" class="cartao-acoes"><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72" aria-label="Conferir contagem de ${dataStr}">Conferir</button></td>
+                <td role="cell" class="cartao-acoes"><button class="btn btn-outline btn-sm" data-id="${c.id}" data-click="action-72" aria-label="Ver contagem de ${dataStr}">Ver contagem</button></td>
               </tr>
             `;
           }).join('');
@@ -946,7 +954,7 @@ async function carregarBackofficeKPIs(forcar = false) {
     const [resProd, resForn, resHist, resUsers] = await Promise.allSettled([
       API.get('/produtos?limit=1'),
       API.get('/produtos/fornecedores'),
-      API.get('/contagens?limit=1'),
+      API.get('/contagens?limit=1&status=finalizada'),
       API.get('/usuarios')
     ]);
 
@@ -962,7 +970,8 @@ async function carregarBackofficeKPIs(forcar = false) {
 
     const kpiCont = document.getElementById('bo-kpi-contagens');
     if (kpiCont && resHist.status === 'fulfilled' && resHist.value.data) {
-      const ultima = resHist.value.data.contagens?.[0];
+      const contagensHist = resHist.value.data.contagens || [];
+      const ultima = contagensHist.find((c) => c.status === 'finalizada') || contagensHist[0];
       const dataUltima = ultima ? new Date(ultima.finalizado_em || ultima.iniciado_em) : null;
       if (dataUltima && !Number.isNaN(dataUltima.getTime())) {
         kpiCont.textContent = dataUltima.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
@@ -1013,8 +1022,10 @@ function switchSaasTab(tabId, opcoes) {
   document.querySelectorAll('.saas-nav-btn[data-saas-tab]').forEach(btn => {
     if (btn.getAttribute('data-saas-tab') === tabId) {
       btn.classList.add('active');
+      btn.setAttribute('aria-current', 'page');
     } else {
       btn.classList.remove('active');
+      btn.removeAttribute('aria-current');
     }
   });
 
@@ -1044,7 +1055,7 @@ function switchSaasTab(tabId, opcoes) {
     }
   } else if (tabId === 'tenants') {
     if (titleEl) titleEl.innerHTML = '<i class="ti ti-buildings" style="color:var(--cor-primaria)"></i> Gestão de empresas';
-    if (descEl) descEl.textContent = 'Administração de status, planos, auditoria de dados e suporte assistido';
+    if (descEl) descEl.textContent = 'Administração de situação, senhas, auditoria de dados e suporte assistido';
     if (typeof Empresas !== 'undefined' && Empresas.carregar) {
       Empresas.carregar({ containerId: 'empresas-lista', page: 1 });
     }
@@ -1185,8 +1196,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!inicial || telaExigeContagem(inicial) || inicial === 'screen-login' || inicial === 'screen-troca-senha-obrigatoria') inicial = 'screen-home';
       // F5 mantém a aba da URL; o showScreen descarta a aba que o perfil não tem
       showScreen(inicial, { aba: abaDoHash(inicial, hashAtual()) });
+      carregarModalidadeDaRota(inicial);
     }
   } else {
     showScreen('screen-login');
+    Auth.anunciarSaidaPendente();
   }
 });

@@ -1,6 +1,30 @@
 /* Foco programático em títulos (troca de tela): sem anel; quem navega por teclado mantém o anel */
 [tabindex="-1"]:focus:not(:focus-visible) { outline: none; }
 
+/* Link "Pular para o conteúdo": invisível até receber foco por teclado */
+.skip-link {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 2000;
+  padding: 10px 16px;
+  border-radius: var(--raio-sm);
+  background: var(--cor-botao-primario);
+  color: #fff;
+  font-weight: 700;
+  font-size: .875rem;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid var(--cor-texto);
+  outline-offset: 2px;
+}
+/* Alvo do skip-link (landmark principal): foco programático sem anel */
+#conteudo-principal:focus { outline: none; }
+
 /* ===== TOPBAR ===== */
 .topbar {
   background: rgba(255, 255, 255, 0.82);
@@ -77,7 +101,7 @@ html { scroll-padding-top: 72px; }
   align-items: center;
   justify-content: center;
   color: #fff;
-  font-size: .7rem;
+  font-size: .75rem;
   font-weight: 700;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
 }

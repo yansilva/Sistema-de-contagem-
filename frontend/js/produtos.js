@@ -77,8 +77,8 @@ const Produtos = {
       listaEl.innerHTML = comFiltro ? `
         <div style="text-align:center; padding:40px 20px; color:var(--cor-texto-secundario)">
           <i class="ti ti-package-off" style="font-size:2.5rem; margin-bottom:8px; display:block"></i>
-          <p style="margin:0 0 12px">Nenhum resultado para os filtros atuais.</p>
-          <button type="button" class="btn btn-outline btn-sm" id="produtos-limpar-filtros">Limpar filtros</button>
+          <p style="margin:0 0 12px">${(this.termoBusca && !this.fornecedorFiltro && this.pecasFiltro === '') ? 'Nenhum produto encontrado.' : 'Nenhum resultado para os filtros atuais.'}</p>
+          <button type="button" class="btn btn-outline btn-sm" id="produtos-limpar-filtros">${(this.termoBusca && !this.fornecedorFiltro && this.pecasFiltro === '') ? 'Limpar busca' : 'Limpar filtros'}</button>
         </div>
       ` : `
         <div style="text-align:center; padding:40px 20px; color:var(--cor-texto-secundario)">
@@ -111,10 +111,10 @@ const Produtos = {
             </div>
           </div>
           <div style="display:flex; gap:6px">
-            <button class="btn btn-outline btn-sm" data-click="action-78" data-arg-0="${escapeHtml(p.id)}">
-              <i class="ti ti-edit"></i> Editar
+            <button class="btn btn-outline btn-sm" data-click="action-78" data-arg-0="${escapeHtml(p.id)}" aria-label="${escapeHtml(`Editar produto ${p.nome} (SKU ${p.codigo})`)}">
+              <i class="ti ti-edit" aria-hidden="true"></i> Editar
             </button>
-            <button class="btn btn-ghost btn-sm btn-trash" data-click="action-79" data-arg-0="${escapeHtml(p.id)}" aria-label="Desativar produto" title="Desativar produto">
+            <button class="btn btn-ghost btn-sm btn-trash" data-click="action-79" data-arg-0="${escapeHtml(p.id)}" aria-label="${escapeHtml(`Desativar produto ${p.nome} (SKU ${p.codigo})`)}" title="Desativar produto">
               <i class="ti ti-trash"></i>
             </button>
           </div>
@@ -124,7 +124,7 @@ const Produtos = {
 
     // Atualizar barra de paginação
     if (paginationEl) {
-      paginationEl.style.display = 'flex';
+      paginationEl.style.display = pagination.totalPages > 1 ? 'flex' : 'none';
       const infoEl = document.getElementById('paginacao-info');
       const btnAnt = document.getElementById('btn-pag-anterior');
       const btnProx = document.getElementById('btn-pag-proxima');

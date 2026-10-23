@@ -234,18 +234,22 @@ const Auth = {
         const campo = document.getElementById(id);
         if (campo) campo.value = '';
       }
+      const emailAcesso = this.usuario?.email || document.getElementById('login-email')?.value || '';
       sessionStorage.removeItem('accessToken');
       sessionStorage.removeItem('refreshToken');
       this.usuario = null;
       this.empresa = null;
       this.atualizarInterface();
       showScreen('screen-login');
-      showToast('Senha definida. Entre novamente para continuar.', 'success');
+      const campoEmail = document.getElementById('login-email');
+      if (campoEmail && emailAcesso) campoEmail.value = emailAcesso;
+      showToast('Senha definida. Entre novamente com a nova senha.', 'success');
+      document.getElementById('login-senha')?.focus();
     } catch (err) {
       feedback.textContent = 'Erro ao conectar com o servidor.';
     } finally {
       btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-check"></i> Definir Nova Senha';
+      btn.innerHTML = '<i class="ti ti-check"></i> Definir nova senha';
     }
   },
 
@@ -293,6 +297,7 @@ const Auth = {
     this.atualizarInterface();
     showScreen('screen-login');
     showToast('Senha alterada. Entre novamente para continuar.', 'success');
+    this.recarregarSemDadosDoUsuario('Senha alterada. Entre novamente para continuar.');
   },
 
   /**
@@ -323,6 +328,34 @@ const Auth = {
 
     showScreen('screen-login');
     showToast('Você saiu da sua conta.', 'info');
+    const emailLogin = document.getElementById('login-email');
+    if (emailLogin) emailLogin.focus();
+    this.recarregarSemDadosDoUsuario();
+  },
+
+  /**
+   * Recarrega a página limpa (sem hash) para descartar todo DOM e estado em memória do usuário anterior:
+   * back-office, tabelas, KPIs, sessões de contagem e saldos nunca chegam ao próximo perfil.
+   * O aviso de saída é refeito no boot (sessionStorage) porque o toast some com a recarga.
+   */
+  recarregarSemDadosDoUsuario(mensagem = 'Você saiu da sua conta.') {
+    try {
+      sessionStorage.setItem('avisoSaida', mensagem);
+      window.location.replace(window.location.pathname + window.location.search);
+    } catch (e) {
+      sessionStorage.removeItem('avisoSaida');
+    }
+  },
+
+  /** Depois da recarga de saída: confirma o logout e foca o e-mail */
+  anunciarSaidaPendente() {
+    let pendente = '';
+    try {
+      pendente = sessionStorage.getItem('avisoSaida') || '';
+      sessionStorage.removeItem('avisoSaida');
+    } catch (e) { /* sem sessionStorage */ }
+    if (!pendente) return;
+    showToast(pendente, 'info');
     const emailLogin = document.getElementById('login-email');
     if (emailLogin) emailLogin.focus();
   },
@@ -392,7 +425,14 @@ const Auth = {
       if (nomeEl) {
         nomeEl.textContent = `${this.usuario.nome} (${this.empresa?.nome || 'Empresa'})`;
       }
-      if (badgeEl) badgeEl.style.display = 'flex';
+      if (badgeEl) {
+        badgeEl.style.display = 'flex';
+        // No celular só o avatar aparece: o nome completo fica disponível por título e leitor de tela
+        const identificacao = `${this.usuario.nome} (${this.empresa?.nome || 'Empresa'})`;
+        badgeEl.setAttribute('role', 'group');
+        badgeEl.setAttribute('aria-label', `Usuário: ${identificacao}`);
+        badgeEl.title = identificacao;
+      }
 
       // Mostra botão de back-office para administrador, gestor ou admin
       if (btnBackoffice) {

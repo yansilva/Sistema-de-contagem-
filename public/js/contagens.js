@@ -49,7 +49,7 @@ const Contagens = {
       if (!res?.success) throw new Error('carregamento');
       const sessoes = res.data.contagens || [];
       const temProxima = res.data.pagination?.totalPages ? this.paginaSessoes < res.data.pagination.totalPages : sessoes.length === 20;
-      lista.innerHTML = sessoes.map(c => `<article class="consulta-item table-toolbar"><div><strong>${escapeHtml(formatarData(c.iniciado_em))}</strong><p>${escapeHtml(c.iniciado_por_nome || 'Usuário')} · Em andamento</p></div><button class="btn btn-outline" data-click="contagem-continuar" data-id="${escapeHtml(c.id)}">Retomar contagem</button></article>`).join('') || '<p class="consulta-vazio">Nenhuma sessão aberta nesta modalidade. Você pode iniciar uma nova contagem.</p>';
+      lista.innerHTML = sessoes.map(c => `<article class="consulta-item table-toolbar"><div><strong>${escapeHtml(formatarData(c.iniciado_em))}</strong><p>${escapeHtml(c.iniciado_por_nome || 'Usuário')} · Em andamento</p></div><button class="btn btn-outline" data-click="contagem-continuar" data-id="${escapeHtml(c.id)}">Retomar contagem</button></article>`).join('') || '<div class="consulta-vazio contagem-vazio-acao"><p>Nenhuma sessão aberta nesta modalidade. Use o botão acima para iniciar uma nova contagem.</p></div>';
       if (sessoes.length || this.paginaSessoes > 1) lista.innerHTML += `<div class="pagination-controls"><button class="btn btn-outline btn-sm" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes - 1}" ${this.paginaSessoes <= 1 ? 'disabled' : ''}>Anterior</button><span>Página ${this.paginaSessoes}</span><button class="btn btn-outline btn-sm" data-click="contagem-sessoes-pagina" data-page="${this.paginaSessoes + 1}" ${!temProxima ? 'disabled' : ''}>Próxima</button></div>`;
     } catch (err) {
       if (requisicao !== this.requisicaoSessoes) return;
@@ -333,7 +333,9 @@ const Contagens = {
       `;
     }).join('');
 
-    container.innerHTML = cards || '<p class="consulta-vazio">Nenhum produtor encontrado nesta contagem.</p>';
+    container.innerHTML = cards || (this.filtroProdutores
+      ? '<div class="consulta-vazio contagem-vazio-acao"><p role="status">Nenhum produtor encontrado para essa busca.</p><button type="button" class="btn btn-outline" data-click="contagem-limpar-busca"><i class="ti ti-x" aria-hidden="true"></i> Limpar busca</button></div>'
+      : '<p class="consulta-vazio">Nenhum produtor encontrado nesta contagem.</p>');
   },
 
   filtrarProdutores(termo) {
@@ -378,8 +380,65 @@ const Contagens = {
 
     this.renderizarItensContagem();
     this.renderizarListaProdutores();
+    this.aplicarInstrucao();
     if (bloco && !bloco.open) bloco.showModal();
+    this.ajustarAlturaVisual();
     this.zerarRolagemProdutor(bloco);
+  },
+
+  /** A instrução do diálogo é recolhível; a escolha fica salva (sem armazenamento, vale só para esta abertura). */
+  instrucaoRecolhida() {
+    try {
+      const salvo = globalThis.localStorage?.getItem('contagem-instrucao-recolhida');
+      if (salvo === '1') return true;
+      if (salvo === '0') return false;
+    } catch (err) { /* sem armazenamento */ }
+    // Sem escolha salva: no celular começa recolhida para sobrar espaço para os itens.
+    try { return Boolean(globalThis.matchMedia?.('(max-width: 760px)')?.matches); } catch (err) { return false; }
+  },
+
+  aplicarInstrucao() {
+    const recolhida = this.instrucaoRecolhida();
+    const texto = document.getElementById('contagem-quantidade-ajuda');
+    const botao = document.getElementById('contagem-instrucao-toggle');
+    if (texto) texto.hidden = recolhida;
+    const dicaVencidos = document.getElementById('contagem-instrucao-vencidos');
+    if (dicaVencidos) dicaVencidos.hidden = this.tipoAtual !== 'geral';
+    botao?.setAttribute?.('aria-expanded', String(!recolhida));
+    botao?.setAttribute?.('title', recolhida ? 'Mostrar como contar' : 'Ocultar como contar');
+  },
+
+  alternarInstrucao() {
+    const recolher = !this.instrucaoRecolhida();
+    try { globalThis.localStorage?.setItem('contagem-instrucao-recolhida', recolher ? '1' : '0'); } catch (err) { /* sem armazenamento */ }
+    this.aplicarInstrucao();
+  },
+
+  /**
+   * Com o teclado aberto o navegador pode não encolher a janela (iOS, Chrome com resizes-visual):
+   * limita o diálogo à área realmente visível para o botão Salvar nunca ficar atrás do teclado.
+   */
+  ajustarAlturaVisual() {
+    const bloco = document.getElementById('bloco-produtos-contagem');
+    const vv = globalThis.visualViewport;
+    if (!bloco?.style?.setProperty || !vv) return;
+    const aplicar = () => {
+      bloco.style.setProperty('--vv-altura', `${Math.round(vv.height)}px`);
+      bloco.style.setProperty('--vv-topo', `${Math.round(vv.offsetTop)}px`);
+    };
+    aplicar();
+    if (this._vvOuvindo) return;
+    this._vvOuvindo = true;
+    vv.addEventListener?.('resize', aplicar);
+    vv.addEventListener?.('scroll', aplicar);
+  },
+
+  limparBuscaProdutores() {
+    const busca = document.getElementById('busca-fornecedor');
+    if (busca) busca.value = '';
+    this.filtroProdutores = '';
+    this.renderizarListaProdutores();
+    busca?.focus?.();
   },
 
   /** A lista do produtor abre sempre no topo, com foco no primeiro campo sem rolar de volta. */
@@ -521,9 +580,9 @@ const Contagens = {
       const statusItem = this.htmlStatusItem(p, fisicoInvalido);
       const vencidos = this.tipoAtual === 'geral' ? `
         <div class="contagem-vencidos">
-          <button type="button" class="btn btn-ghost btn-sm" data-click="contagem-vencidos-abrir" data-index="${index}" aria-expanded="${Boolean(p.vencidosAbertos)}" aria-controls="contagem-vencidos-campo-${index}">${p.vencidosAbertos ? 'Ocultar vencidos' : 'Informar vencidos'}</button>
-          ${p.quantidade_vencida > 0 ? `<span class="badge badge-warning">${p.quantidade_vencida} vencidas</span>` : ''}
-          <div id="contagem-vencidos-campo-${index}" ${p.vencidosAbertos ? '' : 'hidden'}>
+          <button type="button" class="btn btn-ghost btn-sm contagem-vencidos-toggle" data-click="contagem-vencidos-abrir" data-index="${index}" aria-expanded="${Boolean(p.vencidosAbertos)}" aria-controls="contagem-vencidos-campo-${index}" title="${p.vencidosAbertos ? 'Ocultar vencidos' : 'Informar vencidos'}"><i class="ti ti-calendar-x" aria-hidden="true"></i><span class="contagem-vencidos-toggle-texto">${p.vencidosAbertos ? 'Ocultar vencidos' : 'Informar vencidos'}</span><span class="sr-only"> de ${escapeHtml(p.nome)}</span></button>
+          ${p.quantidade_vencida > 0 ? `<span class="badge badge-warning contagem-vencidos-qtd">${p.quantidade_vencida} vencidas</span>` : ''}
+          <div id="contagem-vencidos-campo-${index}" class="contagem-vencidos-campo" ${p.vencidosAbertos ? '' : 'hidden'}>
             <label for="qtd-vencida-${index}">Quantidade vencida</label>
             <input id="qtd-vencida-${index}" class="input-qtd-vencida" type="number" inputmode="numeric" min="0" step="1" max="${p.quantidade_contada ?? 0}" value="${escapeHtml(p.vencidosTexto ?? p.quantidade_vencida)}" ${this._salvando ? 'disabled' : ''} aria-label="Quantidade vencida, ${escapeHtml(p.nome)}" aria-describedby="dica-vencidos-${index} erro-vencidos-${index}" aria-invalid="${this.entradasInvalidas.has(`vencidos-${index}`)}" data-input="contagem-vencidos-alterar" data-index="${index}">
             <small id="dica-vencidos-${index}" class="contagem-vencidos-dica">${MSG_VENCIDOS_INCLUIDOS}</small>
@@ -532,19 +591,19 @@ const Contagens = {
         </div>` : '';
 
       return `
-        <div class="produto-item contagem-item" id="item-contagem-${index}" style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid var(--cor-borda)">
-          <div class="contagem-item-info" style="flex:1">
-            <div style="font-weight:700; font-size:1rem; color:var(--cor-texto)">${escapeHtml(p.nome)}</div>
-            <div style="font-size:0.8rem; color:var(--cor-texto-mutado)">SKU: <code>${escapeHtml(p.codigo)}</code> &bull; Produtor: <strong>${escapeHtml(this.fornecedorAtual)}</strong></div>
+        <div class="produto-item contagem-item" id="item-contagem-${index}">
+          <div class="contagem-item-info">
+            <div class="contagem-item-nome">${escapeHtml(p.nome)}</div>
+            <div class="contagem-item-sku">SKU: <code>${escapeHtml(p.codigo)}</code><span class="contagem-item-produtor"> &bull; Produtor: <strong>${escapeHtml(this.fornecedorAtual)}</strong></span></div>
           </div>
 
-          <div class="contagem-item-controls" style="display:flex; align-items:center; gap:12px">
-            <div id="status-item-${index}">${statusItem}</div>
-            <div style="width:130px">
-              <label for="qtd-fisica-${index}" style="font-size:0.75rem; display:block; margin-bottom:2px; color:var(--cor-texto-mudo)">${this.tipoAtual === 'pecas_queijo' ? 'Peças encontradas' : 'Quantidade física'}</label>
+          <div class="contagem-item-controls">
+            <div id="status-item-${index}" class="contagem-item-status">${statusItem}</div>
+            <div class="contagem-item-campo">
+              <label for="qtd-fisica-${index}" class="contagem-item-rotulo">${this.tipoAtual === 'pecas_queijo' ? 'Peças encontradas' : 'Quantidade física'}</label>
               <input id="qtd-fisica-${index}" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${index === this.itensFornecedor.length - 1 ? 'done' : 'next'}"
                      ${this._salvando ? 'disabled' : ''}
-                     placeholder="Não contado"
+                     placeholder="Contar"
                      value="${escapeHtml(valorInput)}"
                      class="input-qtd-fisica"
                      aria-label="${this.tipoAtual === 'pecas_queijo' ? 'Peças encontradas' : 'Quantidade física'}, ${escapeHtml(p.nome)}"
@@ -783,21 +842,29 @@ const Contagens = {
 
     // Verificar se há itens não contados
     let totalNaoContados = 0;
+    let totalVencidosInformados = 0;
     (this.dadosSessao?.fornecedores || []).forEach((f) => {
       (f.produtos || []).forEach((p) => {
         if (p.quantidade_contada === null || p.quantidade_contada === undefined) {
           totalNaoContados++;
         }
+        if (this.tipoAtual !== 'pecas_queijo') totalVencidosInformados += Number(p.quantidade_vencida || 0);
       });
     });
 
+    const pecas = this.tipoAtual === 'pecas_queijo';
     let confirmTitulo = 'Finalizar contagem?';
-    let confirmMsg = 'Depois de finalizar, as quantidades não poderão ser alteradas e a comparação com o saldo do sistema será exibida.';
+    let confirmMsg = pecas
+      ? 'Depois de finalizar, as quantidades não poderão ser alteradas.'
+      : 'Depois de finalizar, as quantidades não poderão ser alteradas e a comparação com o saldo do sistema será exibida.';
     if (totalNaoContados > 0) {
       confirmTitulo = totalNaoContados === 1
         ? 'Finalizar com 1 produto sem contar?'
         : `Finalizar com ${totalNaoContados} produtos sem contar?`;
       confirmMsg = `${totalNaoContados === 1 ? 'Ele não entrará' : 'Eles não entrarão'} no resultado desta contagem. Depois de finalizar, as quantidades não poderão ser alteradas.`;
+    }
+    if (totalVencidosInformados > 0) {
+      confirmMsg += ` Você informou ${pluralizar(totalVencidosInformados, 'unidade vencida', 'unidades vencidas')}: elas viram baixa no saldo do sistema e isso não pode ser desfeito.`;
     }
 
     const confirmado = await confirmarAcao({
@@ -805,7 +872,7 @@ const Contagens = {
       mensagem: confirmMsg,
       confirmar: 'Finalizar contagem',
       cancelar: 'Continuar contando',
-      perigo: totalNaoContados > 0
+      perigo: totalNaoContados > 0 || totalVencidosInformados > 0
     });
     if (!confirmado) return;
 
@@ -861,27 +928,34 @@ const Contagens = {
     const listaDivergenciasEl = document.getElementById('resultado-divergencias');
 
     const pecas = c.tipo === 'pecas_queijo';
-    const temDif = !pecas && c.tem_diferenca;
     const produtos = (c.fornecedores || []).flatMap(f => f.produtos || []);
+    const temDiferenca = (p) => !pecas && (p.situacao === 'falta' || p.situacao === 'sobra' || Number(p.diferenca) < 0 || Number(p.diferenca) > 0);
+    const totalDivergentes = produtos.filter(temDiferenca).length;
+    const temDif = !pecas && (c.tem_diferenca || totalDivergentes > 0);
     const totalVencidos = pecas ? 0 : produtos.reduce((n, p) => n + Number(p.quantidade_vencida || 0), 0);
     const totalBaixado = pecas ? 0 : produtos.reduce((n, p) => n + Number(p.quantidade_vencida_baixada || 0), 0);
     const temVencidos = totalVencidos > 0;
+    // Filtro "Só diferenças" começa ligado quando há o que revisar.
+    this.resultadoSoDiferencas = totalDivergentes > 0;
 
     if (cardEl) {
-      cardEl.className = `resultado-card ${temDif ? 'erro' : 'sucesso'}`;
-      cardEl.innerHTML = pecas ? '<i class="ti ti-package"></i><span class="resultado-eyebrow">Contagem finalizada</span><h2 tabindex="-1">Peças de queijo</h2><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
-        <i class="ti ${temDif ? 'ti-alert-triangle' : 'ti-circle-check'}"></i>
-        <span class="resultado-eyebrow">Contagem finalizada</span>
-        <h2 tabindex="-1">${temDif ? 'Há diferenças para conferir' : temVencidos ? 'Contagem conferida com produtos vencidos' : 'Nenhuma diferença encontrada'}</h2>
+      cardEl.className = 'resultado-card neutro';
+      const tituloDif = totalDivergentes === 1 ? 'Contagem finalizada: 1 item com diferença' : `Contagem finalizada: ${totalDivergentes} itens com diferença`;
+      const botaoRelatorio = (primario) => `
+          <button class="btn ${primario ? 'btn-primary' : 'btn-outline'}" data-click="action-75" data-arg-0="${escapeHtml(c.id)}">
+            <i class="ti ti-file-spreadsheet" aria-hidden="true"></i> ${temDif ? 'Baixar relatório de diferenças' : 'Baixar relatório da contagem'} (.xlsx)
+          </button>`;
+      cardEl.innerHTML = pecas ? '<i class="ti ti-package" aria-hidden="true"></i><span class="resultado-eyebrow">Contagem finalizada</span><div role="status" aria-live="polite"><h2 tabindex="-1">Peças de queijo</h2></div><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
+        <i class="ti ${temDif ? 'ti-list-search' : 'ti-circle-check'}" aria-hidden="true"></i>
+        <div role="status" aria-live="polite"><h2 tabindex="-1">${temDif ? tituloDif : 'Contagem finalizada: sem diferenças'}</h2></div>
         <p>${temDif
-          ? 'Algumas quantidades físicas não correspondem ao saldo do sistema. Confira os produtos abaixo.'
-          : temVencidos ? 'As quantidades conferem e as unidades vencidas registradas serão detalhadas abaixo.' : 'Todas as quantidades registradas correspondem ao saldo do sistema.'}
+          ? 'Algumas quantidades físicas não correspondem ao saldo do sistema. Revise as diferenças abaixo.'
+          : temVencidos ? 'Contagem conferida com produtos vencidos: as quantidades conferem e as unidades vencidas registradas são detalhadas abaixo.' : 'Todas as quantidades registradas correspondem ao saldo do sistema.'}
         </p>
-        ${temDif || temVencidos ? `
-          <button class="btn btn-primary" data-click="action-75" data-arg-0="${escapeHtml(c.id)}">
-            <i class="ti ti-file-spreadsheet"></i> ${temDif ? 'Baixar relatório de diferenças' : 'Baixar relatório da contagem'} (.xlsx)
-          </button>
-        ` : ''}
+        ${temDif || temVencidos ? `<div class="resultado-acoes">
+          ${temDif ? `<button class="btn btn-primary" data-click="resultado-revisar"><i class="ti ti-arrow-down" aria-hidden="true"></i> Revisar diferenças</button>` : ''}
+          ${botaoRelatorio(!temDif)}
+        </div>` : ''}
       `;
     }
 
@@ -906,11 +980,11 @@ const Contagens = {
       metricasEl.innerHTML = pecas ? `<div class="metrica"><div class="metrica-valor">${totalItens}</div><div class="metrica-label">Itens Contados</div></div><div class="metrica"><div class="metrica-valor">${(c.fornecedores || []).flatMap(f => f.produtos || []).reduce((n, p) => n + Number(p.quantidade_contada || 0), 0)}</div><div class="metrica-label">Quantidade de peças</div></div>` : `
         <div class="metrica metrica-destaque${totalFaltas > 0 ? ' metrica-falta' : ''}">
           <div class="metrica-valor">${totalFaltas}</div>
-          <div class="metrica-label">Produtos em falta</div>
+          <div class="metrica-label">${totalFaltas === 1 ? 'Produto em falta' : 'Produtos em falta'}</div>
         </div>
         <div class="metrica metrica-destaque${totalSobras > 0 ? ' metrica-sobra' : ''}">
           <div class="metrica-valor">${totalSobras}</div>
-          <div class="metrica-label">Produtos com sobra</div>
+          <div class="metrica-label">${totalSobras === 1 ? 'Produto com sobra' : 'Produtos com sobra'}</div>
         </div>
         <div class="metrica metrica-secundaria">
           <div class="metrica-valor">${totalIguais}</div>
@@ -922,7 +996,7 @@ const Contagens = {
         </div>
         <div class="metrica metrica-secundaria">
           <div class="metrica-valor">${c.fornecedores?.length || 0}</div>
-          <div class="metrica-label">Produtores</div>
+          <div class="metrica-label">${(c.fornecedores?.length || 0) === 1 ? 'Produtor' : 'Produtores'}</div>
         </div>
         <div class="metrica metrica-secundaria"><div class="metrica-valor">${totalVencidos}</div><div class="metrica-label">Unidades vencidas</div></div>
         ${totalVencidos > totalBaixado ? `<div class="metrica metrica-secundaria"><div class="metrica-valor">${totalBaixado}</div><div class="metrica-label">Baixa efetiva</div></div><div class="metrica metrica-secundaria"><div class="metrica-valor">${totalVencidos - totalBaixado}</div><div class="metrica-label">Não descontadas</div></div>` : ''}
@@ -932,8 +1006,14 @@ const Contagens = {
 
     // Renderização dos Itens (RESPEITANDO RBAC)
     if (listaDivergenciasEl) {
-      const secoes = (c.fornecedores || []).map((f) => {
-        const produtosHtml = (f.produtos || []).map((p) => {
+      // Divergentes primeiro, dentro de cada produtor e entre produtores (ordem original como desempate).
+      const ordenados = (c.fornecedores || []).map((f, i) => ({
+        f,
+        i,
+        produtos: (f.produtos || []).map((p, j) => ({ p, j })).sort((a, b) => (Number(temDiferenca(b.p)) - Number(temDiferenca(a.p))) || (a.j - b.j)).map((x) => x.p)
+      })).sort((a, b) => (Number(b.produtos.some(temDiferenca)) - Number(a.produtos.some(temDiferenca))) || (a.i - b.i));
+      const secoes = ordenados.map(({ f, produtos: listaOrdenada }) => {
+        const produtosHtml = listaOrdenada.map((p) => {
           let badgeSituacao;
           if (pecas) { badgeSituacao = ''; } else if (p.diferenca === 0 || p.situacao === 'sem_diferenca') {
             badgeSituacao = '<span class="badge badge-success"><i class="ti ti-check"></i> Sem diferença</span>';
@@ -952,14 +1032,15 @@ const Contagens = {
           const colunaVencidos = !pecas && c.status === 'finalizada' && vencidas > 0
             ? `<span>Vencidas: <strong>${vencidas}</strong></span><span>Baixa efetiva: <strong>${baixadas}</strong></span><span>Saldo após a baixa: <strong>${saldoApos ?? '—'}</strong></span>${vencidas > baixadas ? `<span class="badge badge-warning">Baixa limitada: ${vencidas - baixadas} não descontadas</span>` : ''}` : '';
 
+          const divergente = temDiferenca(p);
           return `
-            <div class="resultado-produto" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-bottom:1px solid var(--cor-borda)">
+            <div class="resultado-produto${divergente ? ' is-divergente' : ''}" data-divergente="${divergente ? '1' : '0'}"${this.resultadoSoDiferencas && !divergente ? ' hidden' : ''}>
               <div class="info">
                 <strong>${escapeHtml(p.nome)}</strong>
-                <div style="font-size:0.8rem; color:var(--cor-texto-mutado)">SKU: <code>${escapeHtml(p.codigo)}</code></div>
+                <div class="resultado-produto-sku">SKU: <code>${escapeHtml(p.codigo)}</code></div>
               </div>
 
-              <div class="valores" style="display:flex; align-items:center; gap:16px; font-size:0.875rem">
+              <div class="valores">
                 ${colunaReferencia}
                 <span>${pecas ? 'Quantidade de peças' : 'Quantidade física'}: <strong>${p.quantidade_contada !== null ? p.quantidade_contada : 0}</strong></span>
                 ${colunaVencidos}
@@ -969,10 +1050,11 @@ const Contagens = {
           `;
         }).join('');
 
+        const semDivergencia = this.resultadoSoDiferencas && !listaOrdenada.some(temDiferenca);
         return `
-          <div class="resultado-fornecedor" style="margin-bottom:16px; border:1px solid var(--cor-borda); border-radius:8px; overflow:hidden">
-            <div class="resultado-fornecedor-header" style="background:var(--cor-fundo-cartao); padding:10px 14px; font-weight:700; display:flex; align-items:center; gap:8px">
-              <i class="ti ti-truck" style="color:var(--cor-primaria)"></i>
+          <div class="resultado-fornecedor"${semDivergencia ? ' hidden' : ''}>
+            <div class="resultado-fornecedor-header">
+              <i class="ti ti-truck" aria-hidden="true"></i>
               <span>${escapeHtml(f.fornecedor)}</span>
             </div>
             ${produtosHtml}
@@ -980,12 +1062,49 @@ const Contagens = {
         `;
       }).join('');
 
-      listaDivergenciasEl.innerHTML = secoes;
+      const barra = !pecas && totalDivergentes > 0 ? `
+        <div class="resultado-lista-barra">
+          <h3 id="resultado-lista-titulo" tabindex="-1">Itens contados</h3>
+          <div class="resultado-filtro" role="group" aria-label="Filtrar itens do resultado">
+            <button type="button" class="historico-chip" data-click="resultado-filtro" data-modo="diferencas" aria-pressed="true">Só diferenças (${totalDivergentes})</button>
+            <button type="button" class="historico-chip" data-click="resultado-filtro" data-modo="todos" aria-pressed="false">Ver tudo (${produtos.length})</button>
+          </div>
+          <span id="resultado-filtro-contador" class="historico-contagem" role="status" aria-live="polite">Mostrando ${totalDivergentes} de ${produtos.length} itens</span>
+        </div>` : '';
+      listaDivergenciasEl.innerHTML = barra + secoes;
+      this._resultadoTotais = { divergentes: totalDivergentes, total: produtos.length };
     }
 
     showScreen('screen-resultado');
     // Foco no título do resultado (o botão de finalizar saiu da tela)
     cardEl?.querySelector('h2')?.focus({ preventScroll: true });
+  },
+
+  /** Alterna "Só diferenças" / "Ver tudo" sem nova consulta: os itens já estão na tela. */
+  filtrarResultado(modo) {
+    const lista = document.getElementById('resultado-divergencias');
+    if (!lista?.querySelectorAll) return;
+    const soDiferencas = modo !== 'todos';
+    this.resultadoSoDiferencas = soDiferencas;
+    lista.querySelectorAll('.resultado-produto').forEach((linha) => {
+      linha.hidden = soDiferencas && linha.dataset.divergente !== '1';
+    });
+    lista.querySelectorAll('.resultado-fornecedor').forEach((secao) => {
+      secao.hidden = soDiferencas && !secao.querySelector('.resultado-produto[data-divergente="1"]');
+    });
+    lista.querySelectorAll('[data-click="resultado-filtro"]').forEach((botao) => {
+      botao.setAttribute('aria-pressed', String((botao.dataset.modo === 'diferencas') === soDiferencas));
+    });
+    const totais = this._resultadoTotais || { divergentes: 0, total: 0 };
+    const contador = document.getElementById('resultado-filtro-contador');
+    if (contador) contador.textContent = `Mostrando ${soDiferencas ? totais.divergentes : totais.total} de ${totais.total} itens`;
+  },
+
+  /** "Revisar diferenças": rola até a lista e leva o foco ao título dela. */
+  revisarDiferencas() {
+    const alvo = document.getElementById('resultado-lista-titulo') || document.getElementById('resultado-divergencias');
+    alvo?.scrollIntoView?.({ block: 'start' });
+    try { alvo?.focus?.({ preventScroll: true }); } catch (err) { alvo?.focus?.(); }
   },
 
   async baixarExcelDiferencas(id) {

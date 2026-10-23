@@ -59,10 +59,10 @@ const Usuarios = {
     const rows = this.lista.map((u) => {
       const isEu = Auth.usuario && Auth.usuario.id === u.id;
       const papelLabel = u.papel === 'super_admin'
-        ? '<span class="badge badge-admin"><i class="ti ti-shield-lock"></i> Super Admin</span>'
+        ? '<span class="badge badge-admin"><i class="ti ti-shield-lock"></i> ' + Rotulos.papel('super_admin') + '</span>'
         : u.papel === 'administrador' || u.papel === 'gestor' || u.papel === 'admin'
-        ? '<span class="badge badge-admin"><i class="ti ti-shield"></i> Administrador</span>'
-        : '<span class="badge badge-funcionario"><i class="ti ti-user"></i> Funcionário</span>';
+        ? '<span class="badge badge-admin"><i class="ti ti-shield"></i> ' + Rotulos.papel('administrador') + '</span>'
+        : '<span class="badge badge-funcionario"><i class="ti ti-user"></i> ' + Rotulos.papel('funcionario') + '</span>';
 
       const statusBadge = u.ativo
         ? '<span class="badge badge-success"><i class="ti ti-check"></i> Ativo</span>'
@@ -74,11 +74,11 @@ const Usuarios = {
 
       const btnStatus = isEu
         ? ''
-        : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Reativar usuário'}" aria-label="${u.ativo ? 'Desativar usuário' : 'Reativar usuário'}" style="min-width:44px;min-height:44px">
+        : `<button class="btn btn-ghost btn-sm" data-click="action-83" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(String(u.ativo))}" title="${u.ativo ? 'Desativar usuário' : 'Reativar usuário'}" aria-label="${escapeHtml(`${u.ativo ? 'Desativar' : 'Reativar'} usuário ${u.nome}`)}" style="min-width:44px;min-height:44px">
             <i class="ti ti-${u.ativo ? 'user-x' : 'user-check'}" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">${u.ativo ? 'Desativar' : 'Reativar'}</span>
           </button>`;
 
-      const btnReset = `<button class="btn btn-ghost btn-sm" data-click="action-84" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(u.nome)}" title="Redefinir Senha Temporária" aria-label="Redefinir Senha Temporária" style="min-width:44px;min-height:44px">
+      const btnReset = `<button class="btn btn-ghost btn-sm" data-click="action-84" data-arg-0="${escapeHtml(String(u.id))}" data-arg-1="${escapeHtml(u.nome)}" title="Redefinir Senha Temporária" aria-label="${escapeHtml(`Redefinir senha de ${u.nome}`)}" style="min-width:44px;min-height:44px">
         <i class="ti ti-rotate-2" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">Redefinir senha</span>
       </button>`;
 
@@ -92,7 +92,7 @@ const Usuarios = {
           <td role="cell" data-label="Situação">${statusBadge} ${trocaPendente}</td>
           <td role="cell" class="cartao-acoes" style="text-align:right">
             <div class="cartao-acoes-grupo" style="display:inline-flex; gap:4px">
-              <button class="btn btn-ghost btn-sm" data-click="action-85" data-arg-0="${escapeHtml(String(u.id))}" title="Editar dados" aria-label="Editar dados" style="min-width:44px;min-height:44px">
+              <button class="btn btn-ghost btn-sm" data-click="action-85" data-arg-0="${escapeHtml(String(u.id))}" title="Editar dados" aria-label="${escapeHtml(`Editar dados de ${u.nome}`)}" style="min-width:44px;min-height:44px">
                 <i class="ti ti-edit" aria-hidden="true"></i><span class="rotulo-cartao" aria-hidden="true">Editar</span>
               </button>
               ${btnReset}
@@ -276,6 +276,7 @@ const Usuarios = {
     document.getElementById('reset-user-nome').textContent = nome;
     const senha = document.getElementById('reset-nova-senha');
     senha.value = '';
+    limparErroCampo(senha);
     document.getElementById('modal-reset-error').textContent = '';
     const modal = document.getElementById('modal-reset-senha');
     modal.style.display = 'flex';
@@ -300,8 +301,11 @@ const Usuarios = {
     const botao = document.getElementById('btn-confirmar-reset-senha');
     erroEl.textContent = '';
 
-    if (!novaSenhaTemporaria || novaSenhaTemporaria.length < 6) {
-      erroEl.textContent = 'A senha temporária deve ter no mínimo 6 caracteres.';
+    limparErroCampo(senhaInput);
+    const faltando = !novaSenhaTemporaria ? 'Informe a nova senha temporária. ' + DICA_SENHA_FORTE : mensagemSenhaFraca(novaSenhaTemporaria);
+    if (faltando) {
+      marcarErroCampo(senhaInput, faltando);
+      senhaInput.focus();
       return;
     }
 

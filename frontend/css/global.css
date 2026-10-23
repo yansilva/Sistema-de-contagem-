@@ -40,6 +40,7 @@
   --cor-superficie2: #eef3fc;
   --cor-borda: #dce5f2;
   --cor-borda-forte: #b8c9de;
+  --cor-borda-campo: #7a8ca6; /* WCAG 1.4.11: 3,4:1 contra #fff e 3,1:1 contra superficie2; só campos e botões de contorno */
 
   --cor-texto: #101827;
   --cor-texto-secundario: #4c5d75;
@@ -62,7 +63,7 @@
   --sombra-glow: 0 0 0 1px rgba(36, 87, 214, 0.14);
 
   --transicao: 0.16s cubic-bezier(0.16, 1, 0.3, 1);
-  --transicao-bounce: 0.24s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transicao-bounce: 0.24s cubic-bezier(0.22, 1, 0.36, 1);
 
   color-scheme: light;
 }
@@ -102,6 +103,7 @@
   --cor-superficie2: #1f2b3f;
   --cor-borda: #2e405b;
   --cor-borda-forte: #405675;
+  --cor-borda-campo: #657a99; /* 3,6:1 contra a superfície #172234 e 3,2:1 contra superficie2 */
 
   --cor-texto: #f5f8ff;
   --cor-texto-secundario: #b8c9de;

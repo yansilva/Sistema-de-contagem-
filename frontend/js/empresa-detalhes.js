@@ -77,27 +77,61 @@ const EmpresaDetalhes = {
         <div class="empresa-detail-actions">
           ${excluida ? '' : `<button class="btn btn-outline btn-sm" data-click="action-94" data-id="${empresa.id}"><i class="ti ti-edit"></i> Editar</button>
           <button class="btn btn-outline btn-sm" data-click="action-103" data-id="${empresa.id}" data-status="${empresa.status}">${empresa.status === 'ativa' ? 'Inativar' : 'Reativar'}</button>
-          <button class="btn btn-danger btn-sm" data-click="action-92" data-id="${empresa.id}" data-nome="${this.escape(empresa.nome)}"><i class="ti ti-archive"></i> Retirar da operação</button>`}
+          <button class="btn btn-outline-danger btn-sm" data-click="action-92" data-id="${empresa.id}" data-nome="${this.escape(empresa.nome)}"><i class="ti ti-archive"></i> Retirar da operação</button>`}
         </div>
       </div>
-      <div class="empresa-detail-tabs" role="tablist">
+      <div class="empresa-detail-tabs" role="tablist" aria-label="Seções da empresa">
         ${this.botaoAba('visao-geral', 'Visão geral')}
         ${this.botaoAba('usuarios', 'Usuários')}
         ${this.botaoAba('contagens', 'Contagens')}
         ${this.botaoAba('auditoria', 'Auditoria')}
         ${this.botaoAba('logs', 'Logs')}
       </div>
-      <div id="empresa-detalhes-conteudo" class="empresa-detail-content" aria-live="polite"></div>`;
+      <div id="empresa-detalhes-conteudo" class="empresa-detail-content" role="tabpanel" aria-live="polite"></div>`;
   },
 
   botaoAba(id, label) {
-    return `<button class="empresa-detail-tab" role="tab" data-click="action-112" data-tab="${id}">${label}</button>`;
+    const rotuloAcessivel = id === 'visao-geral' ? ' aria-label="Visão geral da empresa"' : '';
+    return `<button type="button" class="empresa-detail-tab" role="tab" aria-selected="false" data-click="action-112" data-tab="${id}"${rotuloAcessivel}>${label}</button>`;
+  },
+
+  /** Rótulos legíveis: usa Rotulos (utils.js) quando existir; o fallback é equivalente. */
+  capitalizar(cod) {
+    const texto = String(cod || '').replace(/_/g, ' ').trim();
+    return texto ? texto.charAt(0).toUpperCase() + texto.slice(1) : '';
+  },
+  rotuloPapel(papel) {
+    if (typeof Rotulos !== 'undefined' && Rotulos.papel) return Rotulos.papel(papel);
+    const mapa = { funcionario: 'Funcionário', administrador: 'Administrador', admin: 'Administrador', gestor: 'Administrador', super_admin: 'Super Admin' };
+    return mapa[papel] || this.capitalizar(papel);
+  },
+  rotuloAcao(acao) {
+    if (typeof Rotulos !== 'undefined' && Rotulos.acaoAuditoria) return Rotulos.acaoAuditoria(acao);
+    if (typeof Atividades !== 'undefined' && Atividades.rotuloAcao) return Atividades.rotuloAcao(acao);
+    return this.capitalizar(acao);
+  },
+  rotuloResultado(resultado) {
+    if (typeof Rotulos !== 'undefined' && Rotulos.resultado) return Rotulos.resultado(resultado);
+    const mapa = { sucesso: 'Sucesso', falha: 'Falha' };
+    return mapa[String(resultado || '').toLowerCase()] || this.capitalizar(resultado);
+  },
+  rotuloStatusContagem(status) {
+    if (typeof Rotulos !== 'undefined' && Rotulos.statusContagem) return Rotulos.statusContagem(status);
+    const mapa = { finalizada: 'Finalizada', em_andamento: 'Em andamento', apagada: 'Apagada' };
+    return mapa[status] || this.capitalizar(status);
   },
 
   async mudarAba(aba, { dadosIniciais = null } = {}) {
     if (!this.empresaId) return;
     this.abaAtual = aba;
-    document.querySelectorAll('.empresa-detail-tab').forEach((button) => button.classList.toggle('active', button.dataset.tab === aba));
+    document.querySelectorAll('.empresa-detail-tab[data-tab]').forEach((button) => {
+      const ativa = button.dataset.tab === aba;
+      button.classList.toggle('active', ativa);
+      button.setAttribute('aria-selected', ativa ? 'true' : 'false');
+      // Celular: as abas rolam na horizontal; a ativa fica sempre visível
+      const faixa = button.parentElement;
+      if (ativa && faixa && faixa.scrollWidth > faixa.clientWidth) faixa.scrollLeft = button.offsetLeft - (faixa.clientWidth - button.offsetWidth) / 2;
+    });
     const content = document.getElementById('empresa-detalhes-conteudo');
     if (!content) return;
     const requestId = ++this.requestId;
@@ -132,9 +166,12 @@ const EmpresaDetalhes = {
 
   renderizarResumo(content) {
     const e = this.empresa;
+    const situacao = e.excluida_em ? 'Excluída' : e.status === 'inativa' ? 'Inativa' : 'Ativa';
+    // "Plano: ativo" repetia a Situação; o plano só aparece quando traz informação própria (teste)
+    const plano = e.plano === 'trial' ? '<article><span>Plano</span><strong>Período de teste</strong></article>' : '';
     content.innerHTML = `<div class="detail-stat-grid">
-      <article><span>Situação</span><strong>${e.status === 'inativa' ? 'Inativa' : 'Ativa'}</strong></article>
-      <article><span>Plano</span><strong>${this.escape(e.plano || '—')}</strong></article>
+      <article><span>Situação</span><strong>${situacao}</strong></article>
+      ${plano}
       <article><span>Usuários</span><strong>${Number(e.total_usuarios || 0)}</strong></article>
       <article><span>Produtos ativos</span><strong>${Number(e.total_produtos || 0)}</strong></article>
       <article><span>Contagens</span><strong>${Number(e.total_contagens || 0)}</strong></article>
@@ -143,23 +180,27 @@ const EmpresaDetalhes = {
 
   renderizarUsuarios(content, usuarios) {
     if (!usuarios.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhum usuário cadastrado.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de usuários da empresa"><table class="saas-table"><thead><tr><th scope="col">Usuário</th><th scope="col">Papel</th><th scope="col">Status</th><th scope="col">Recuperação</th></tr></thead><tbody>${usuarios.map((u) => {
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de usuários da empresa"><table class="saas-table tabela-acoes-fixas"><thead><tr><th scope="col">Usuário</th><th scope="col">Papel</th><th scope="col">Situação</th><th scope="col">Recuperação de senha</th></tr></thead><tbody>${usuarios.map((u) => {
       const administrativo = ['administrador', 'gestor', 'admin'].includes(u.papel);
       const acao = administrativo && u.ativo
         ? `<button class="btn btn-outline btn-sm" data-click="action-116" data-user-id="${u.id}" data-user-name="${this.escape(u.nome)}" data-user-email="${this.escape(u.email)}">Definir senha temporária</button>`
         : administrativo ? 'Administrador inativo' : '—';
-      return `<tr><td><strong>${this.escape(u.nome)}</strong><small>${this.escape(u.email)}</small></td><td>${this.escape(u.papel)}</td><td>${u.ativo ? 'Ativo' : 'Inativo'}</td><td>${acao}</td></tr>`;
+      return `<tr><td class="cartao-principal"><strong>${this.escape(u.nome)}</strong><small>${this.escape(u.email)}</small></td><td data-label="Papel">${this.escape(this.rotuloPapel(u.papel))}</td><td data-label="Situação">${u.ativo ? 'Ativo' : 'Inativo'}</td><td data-label="Recuperação de senha" class="${administrativo && u.ativo ? 'cartao-acoes' : ''}">${acao}</td></tr>`;
     }).join('')}</tbody></table></div></div>`;
   },
 
   renderizarContagens(content, contagens) {
     if (!contagens.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhuma contagem registrada.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de contagens da empresa"><table class="saas-table"><thead><tr><th scope="col">Início</th><th scope="col">Status</th><th scope="col">Finalização</th><th scope="col">Divergência</th></tr></thead><tbody>${contagens.map((c) => `<tr><td>${this.data(c.iniciado_em)}</td><td>${this.escape(c.status)}</td><td>${this.data(c.finalizado_em)}</td><td>${c.tem_diferenca ? 'Sim' : 'Não'}</td></tr>`).join('')}</tbody></table></div></div>`;
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de contagens da empresa"><table class="saas-table tabela-acoes-fixas"><thead><tr><th scope="col">Início</th><th scope="col">Situação</th><th scope="col">Finalização</th><th scope="col">Com divergência?</th></tr></thead><tbody>${contagens.map((c) => {
+      const finalizada = String(c.status || '').toLowerCase() === 'finalizada';
+      const divergencia = finalizada ? (c.tem_diferenca ? 'Sim' : 'Não') : '—';
+      return `<tr><td class="cartao-principal">${this.data(c.iniciado_em)}</td><td data-label="Situação">${this.escape(this.rotuloStatusContagem(c.status))}</td><td data-label="Finalização">${this.data(c.finalizado_em)}</td><td data-label="Com divergência">${divergencia}</td></tr>`;
+    }).join('')}</tbody></table></div></div>`;
   },
 
   renderizarLogs(content, logs) {
     if (!logs.length) return void (content.innerHTML = '<div class="empty-state"><p>Nenhum evento encontrado.</p></div>');
-    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de registros de atividade da empresa"><table class="saas-table"><thead><tr><th scope="col">Data</th><th scope="col">Ação</th><th scope="col">Ator</th><th scope="col">Resultado</th></tr></thead><tbody>${logs.map((log) => `<tr><td>${this.data(log.criado_em)}</td><td>${this.escape(log.acao)}</td><td>${this.escape(log.ator?.rotulo || 'Sistema')}</td><td>${this.escape(log.resultado)}</td></tr>`).join('')}</tbody></table></div></div>`;
+    content.innerHTML = `<div class="saas-table-card"><div class="saas-table-scroll" tabindex="0" role="region" aria-label="Tabela de registros de atividade da empresa"><table class="saas-table tabela-acoes-fixas"><thead><tr><th scope="col">Data</th><th scope="col">Ação</th><th scope="col">Ator</th><th scope="col">Resultado</th></tr></thead><tbody>${logs.map((log) => `<tr><td class="cartao-principal">${this.data(log.criado_em)}</td><td data-label="Ação" title="${this.escape(log.acao)}">${this.escape(this.rotuloAcao(log.acao))}</td><td data-label="Ator">${this.escape(log.ator?.rotulo || 'Sistema')}</td><td data-label="Resultado">${this.escape(this.rotuloResultado(log.resultado))}</td></tr>`).join('')}</tbody></table></div></div>`;
   },
 
   voltar() {

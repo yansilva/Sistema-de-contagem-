@@ -57,6 +57,9 @@ describe('Formulário de funcionários no frontend', () => {
       },
       Auth: { usuario: { id: 'admin-atual' }, isAdmin: () => true },
       escapeHtml: (value) => String(value),
+      Rotulos: { papel: (p) => ({ funcionario: 'Funcionário', administrador: 'Administrador', super_admin: 'Super Admin' }[p] || p) },
+      mensagemSenhaFraca: (s) => (/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(s) ? '' : 'senha fraca'),
+      DICA_SENHA_FORTE: 'dica',
       API: api,
       showToast: jest.fn()
     });
