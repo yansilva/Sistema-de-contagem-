@@ -1,6 +1,7 @@
 {
   "version": 2,
   "outputDirectory": "public",
+  "regions": ["gru1"],
   "functions": {
     "api/index.js": {
       "includeFiles": "backend/**"
