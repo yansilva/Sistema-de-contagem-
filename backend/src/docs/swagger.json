@@ -296,7 +296,7 @@
         "summary": "Histórico de Contagens Finalizadas (Gestor)",
         "security": [{ "bearerAuth": [] }],
         "responses": {
-          "200": { "description": "Lista de contagens com fornecedores" }
+          "200": { "description": "Lista de contagens com produtores" }
         }
       },
       "post": {
@@ -309,7 +309,7 @@
     },
     "/api/contagens/{id}/fornecedor": {
       "post": {
-        "summary": "Registrar Contagem de Fornecedor",
+        "summary": "Registrar Contagem de Produtor",
         "security": [{ "bearerAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
@@ -331,8 +331,8 @@
           }
         },
         "responses": {
-          "201": { "description": "Fornecedor registrado" },
-          "409": { "description": "Fornecedor já registrado nesta sessão" }
+          "201": { "description": "Produtor registrado" },
+          "409": { "description": "Produtor já registrado nesta sessão" }
         }
       }
     },

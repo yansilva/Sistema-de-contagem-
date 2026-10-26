@@ -30,7 +30,7 @@ describe('Rodada 10: achados da verificação independente', () => {
 
   it('Voltar vem antes do título em Semana e Importar estoque', () => {
     const html = ler('index.html');
-    expect(html).toMatch(/btn-voltar" data-click="action-8">[\s\S]{0,160}<\/button>\s*<h2>Semana de contagem<\/h2>/);
+    expect(html).toMatch(/btn-voltar" data-click="action-8">[\s\S]{0,160}<\/button>\s*<h2[^>]*>Semana de contagem<\/h2>/);
     expect(html).toMatch(/id="estoque-voltar-rotulo">Voltar ao painel<\/span><\/button>\s*<h2>Importar estoque<\/h2>/);
   });
 });

@@ -7,50 +7,56 @@
   <meta name="description" content="Sistema SaaS profissional para controle, contagem e conciliação de inventário com exportação Excel e back-office para gestores.">
   <link rel="icon" type="image/svg+xml" href="/assets/logo-sistema-estoque.svg">
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+  <!-- Fontes auto-hospedadas (Plus Jakarta Sans + subset do Tabler Icons): sem CDN, sem Google Fonts -->
+  <link rel="preload" href="/assets/fonts/plus-jakarta-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/tabler-icons-subset.woff2?v3.46.0" as="font" type="font/woff2" crossorigin>
 
-  <!-- Ícones Tabler com SRI -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.46.0/dist/tabler-icons.min.css" integrity="sha384-ND+q1IVc0KDElX60dZaqKc7Xl9cdxd2PpU2JfVUHcurCkFVtVLFdt9vJfxtHSL3p" crossorigin="anonymous">
-
-  <!-- CSS Modularizado -->
+  <!-- CSS Modularizado. backoffice.css e superadmin.css são carregados sob demanda por js/module-loader.js -->
+  <link rel="stylesheet" href="/css/fonts.css">
   <link rel="stylesheet" href="/css/global.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/layout.css">
   <link rel="stylesheet" href="/css/pages.css">
   <link rel="stylesheet" href="/css/mobile.css">
-  <link rel="stylesheet" href="/css/backoffice.css">
-  <link rel="stylesheet" href="/css/superadmin.css">
+  <link rel="stylesheet" href="/css/modais.css">
 
+  <!-- Scripts do shell: defer baixa em paralelo e executa na ordem, depois do HTML -->
+  <script src="/js/utils.js" defer></script>
+  <script src="/js/api.js" defer></script>
+  <script src="/js/module-loader.js" defer></script>
+  <script src="/js/auth.js" defer></script>
+  <script src="/js/events.js" defer></script>
+  <script src="/js/mobile-nav.js" defer></script>
+  <script src="/js/app.js" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a>
-  <div id="anuncio-tela" role="status" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0"></div>
+  <div id="anuncio-tela" role="status" aria-live="polite" aria-atomic="true" class="sr-only"></div>
 
   <!-- Barra de auditoria: mantém a identidade real do Super Admin -->
-  <div id="audit-session-bar" class="impersonation-bar" style="display:none">
+  <div id="audit-session-bar" class="impersonation-bar" role="region" aria-label="Auditoria somente leitura" style="display:none">
     <div class="impersonation-content">
       <div class="impersonation-badge">
-        <span class="impersonation-pulse"></span>
-        <i class="ti ti-shield-check"></i>
+        <span class="impersonation-pulse" aria-hidden="true"></span>
+        <i class="ti ti-shield-check" aria-hidden="true"></i>
         <span>AUDITORIA SOMENTE LEITURA</span>
       </div>
       <div class="impersonation-tenant">
         Empresa em análise: <strong id="audit-session-tenant-nome">…</strong>
       </div>
-      <button class="btn-impersonation-exit" data-click="action-99">
-        <i class="ti ti-arrow-back-up"></i> Encerrar auditoria
+      <button type="button" class="btn-impersonation-exit" data-click="action-99">
+        <i class="ti ti-arrow-back-up" aria-hidden="true"></i> Encerrar auditoria
       </button>
     </div>
   </div>
 
   <!-- ==================== TOPBAR ==================== -->
   <header class="topbar">
-    <h1>
+    <!-- Marca e nome da empresa: não é título (o h1 é o título de cada tela) -->
+    <div class="topbar-marca">
       <img class="brand-mark" src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="30" height="30">
       <span id="topbar-company-title">Sistema de Estoque</span>
-    </h1>
+    </div>
     <div class="topbar-right">
       <!-- Indicador de Usuário Autenticado -->
       <div class="user-badge" id="topbar-user-badge" style="display:none">
@@ -71,19 +77,19 @@
       <nav class="topbar-menu" id="topbar-menu" aria-label="Menu principal" hidden>
       <!-- Ações da Barra Superior -->
       <button class="btn btn-ghost btn-sm" id="btn-listar-empresas" style="display:none" data-click="action-86">
-        <i class="ti ti-building-community"></i> Empresas
+        <i class="ti ti-building-community" aria-hidden="true"></i> Empresas
       </button>
       <button class="btn btn-ghost btn-sm" id="btn-nova-empresa" style="display:none" data-click="action-0">
-        <i class="ti ti-building-store"></i> Nova empresa
+        <i class="ti ti-building-store" aria-hidden="true"></i> Nova empresa
       </button>
       <button class="btn btn-ghost btn-sm" id="btn-nav-backoffice" style="display:none" data-click="action-1">
-        <i class="ti ti-layout-dashboard"></i> Back-office
+        <i class="ti ti-layout-dashboard" aria-hidden="true"></i> Back-office
       </button>
       <button class="btn btn-ghost btn-sm" id="btn-ajuda-topbar" type="button" data-click="action-127" aria-label="Abrir ajuda: como funciona a contagem" title="Ajuda (atalho: ?)">
         <i class="ti ti-help-circle" aria-hidden="true"></i> Ajuda
       </button>
       <button class="btn btn-ghost btn-sm topbar-menu-sair" data-click="action-3" title="Sair da conta">
-        <i class="ti ti-logout"></i> Sair
+        <i class="ti ti-logout" aria-hidden="true"></i> Sair
       </button>
       </nav>
     </div>
@@ -100,14 +106,14 @@
           <span>Sistema de Estoque</span>
         </div>
         <div class="auth-story-copy">
-          <h2>Precisão que <br>move o estoque.</h2>
+          <h2 role="presentation">Precisão que <br>move o estoque.</h2>
           <p>Da primeira contagem à decisão final, cada número no seu lugar.</p>
         </div>
         <span class="auth-story-footnote">CONTAGEM · CONCILIAÇÃO · CONTROLE</span>
       </div>
       <div class="auth-card">
         <div class="auth-logo"><img src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="42" height="42"></div>
-        <h2>Bem-vindo de volta</h2>
+        <h2 aria-level="1">Bem-vindo de volta</h2>
         <p class="subtitle">Entre com seu e-mail e senha para continuar.</p>
 
         <div class="form-group">
@@ -127,7 +133,7 @@
         <div class="auth-error" id="login-error" role="alert"></div>
 
         <button class="btn btn-primary btn-block btn-lg" data-click="action-5" id="btn-login" style="margin-top:12px">
-          <i class="ti ti-login"></i> Entrar
+          <i class="ti ti-login" aria-hidden="true"></i> Entrar
         </button>
 
         <div class="auth-link">
@@ -148,7 +154,7 @@
     <div class="auth-wrapper">
       <div class="auth-card">
         <div class="auth-logo"><img src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="42" height="42"></div>
-        <h2>Cadastrar empresa</h2>
+        <h2 aria-level="1">Cadastrar empresa</h2>
         <p class="subtitle">Crie a empresa e o acesso do primeiro administrador. Ele deverá trocar a senha no primeiro login.</p>
 
         <div class="form-group">
@@ -187,7 +193,7 @@
         <div class="auth-error" id="reg-error" role="alert"></div>
 
         <button class="btn btn-primary btn-block btn-lg" data-click="action-7" id="btn-registro" style="margin-top:12px">
-          <i class="ti ti-building-store"></i> Cadastrar empresa
+          <i class="ti ti-building-store" aria-hidden="true"></i> Cadastrar empresa
         </button>
 
         <div class="auth-link">
@@ -202,11 +208,12 @@
     <div class="auth-wrapper">
       <div class="auth-card">
         <div class="auth-logo"><img src="/assets/logo-sistema-estoque.svg" alt="Marca do Sistema de Estoque" width="42" height="42"></div>
-        <h2>Defina sua nova senha</h2>
+        <h2 aria-level="1">Defina sua nova senha</h2>
         <p class="subtitle">Sua senha atual é temporária. Para sua segurança, defina uma nova senha pessoal antes de continuar.</p>
 
+        <p class="campo-obrigatorio-legenda"><span aria-hidden="true">*</span> Campo obrigatório</p>
         <div class="form-group">
-          <label for="troca-senha-atual">Senha temporária atual</label>
+          <label for="troca-senha-atual">Senha temporária atual <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
           <div class="input-senha-wrap">
             <input type="password" id="troca-senha-atual" autocomplete="current-password" required>
             <button type="button" class="btn-ver-senha" data-alvo="troca-senha-atual" aria-pressed="false" aria-label="Mostrar senha"><i class="ti ti-eye" aria-hidden="true"></i></button>
@@ -214,7 +221,7 @@
         </div>
 
         <div class="form-group">
-          <label for="troca-nova-senha">Nova Senha</label>
+          <label for="troca-nova-senha">Nova Senha <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
           <div class="input-senha-wrap">
             <input type="password" id="troca-nova-senha" placeholder="Sua nova senha pessoal" autocomplete="new-password" required aria-describedby="troca-nova-senha-dica">
             <button type="button" class="btn-ver-senha" data-alvo="troca-nova-senha" aria-pressed="false" aria-label="Mostrar senha"><i class="ti ti-eye" aria-hidden="true"></i></button>
@@ -223,7 +230,7 @@
         </div>
 
         <div class="form-group">
-          <label for="troca-confirmar-senha">Confirmar Nova Senha</label>
+          <label for="troca-confirmar-senha">Confirmar Nova Senha <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
           <div class="input-senha-wrap">
             <input type="password" id="troca-confirmar-senha" placeholder="Repita a nova senha" autocomplete="new-password" required
                    data-keydown="action-9">
@@ -234,7 +241,7 @@
         <div class="auth-error" id="troca-senha-error" role="alert"></div>
 
         <button class="btn btn-primary btn-block btn-lg" data-click="action-10" id="btn-troca-senha" style="margin-top:12px">
-          <i class="ti ti-check"></i> Definir nova senha
+          <i class="ti ti-check" aria-hidden="true"></i> Definir nova senha
         </button>
       </div>
     </div>
@@ -257,7 +264,7 @@
         <!-- Hero de Início Rápido -->
         <div class="func-hero-card">
           <span class="func-hero-badge"><i class="ti ti-scan" aria-hidden="true"></i> Contagem física · Saldo oculto</span>
-          <h2 class="func-hero-title">Olá, <span id="funcionario-home-nome">equipe</span></h2>
+          <h2 class="func-hero-title" aria-level="1">Olá, <span id="funcionario-home-nome">equipe</span></h2>
           <p class="func-hero-desc">Registre o que está fisicamente no estoque. O saldo do sistema e as diferenças aparecem somente depois da finalização.</p>
           
           <button class="btn btn-primary btn-lg btn-func-start" id="btn-iniciar-contagem-funcionario" data-click="action-11">
@@ -287,17 +294,17 @@
             <span class="consulta-home-description">Produtores contados e pendentes na semana</span>
           </button>
           <button class="kpi-card kpi-emerald consulta-home-card" data-click="action-12">
-            <span class="kpi-top"><span class="kpi-title">Catálogo</span><i class="ti ti-packages"></i></span>
+            <span class="kpi-top"><span class="kpi-title">Catálogo</span><i class="ti ti-packages" aria-hidden="true"></i></span>
             <span class="kpi-value" id="funcionario-total-produtos">…</span>
             <span class="consulta-home-description">Consultar produtos e códigos</span>
           </button>
           <button class="kpi-card kpi-indigo consulta-home-card" data-click="action-13">
-            <span class="kpi-top"><span class="kpi-title">Produtores</span><i class="ti ti-truck"></i></span>
+            <span class="kpi-top"><span class="kpi-title">Produtores</span><i class="ti ti-truck" aria-hidden="true"></i></span>
             <span class="kpi-value" id="funcionario-total-produtores">…</span>
             <span class="consulta-home-description">Consultar produtores do catálogo</span>
           </button>
           <button class="kpi-card kpi-amber consulta-home-card" data-click="action-14">
-            <span class="kpi-top"><span class="kpi-title">Histórico de contagens</span><i class="ti ti-history"></i></span>
+            <span class="kpi-top"><span class="kpi-title">Histórico de contagens</span><i class="ti ti-history" aria-hidden="true"></i></span>
             <span class="consulta-home-action">Ver contagens <i class="ti ti-arrow-right" aria-hidden="true"></i></span>
             <span class="consulta-home-description">Contagens e quantidades registradas</span>
           </button>
@@ -307,8 +314,8 @@
         <!-- Header da Loja -->
         <div class="dash-header" style="margin-bottom:18px">
           <div class="dash-welcome">
-            <h2>Central de Estoque & Conciliação</h2>
-            <p class="dash-date" id="home-current-date"><i class="ti ti-calendar"></i> Carregando data...</p>
+            <h2 aria-level="1">Central de Estoque & Conciliação</h2>
+            <p class="dash-date" id="home-current-date"><i class="ti ti-calendar" aria-hidden="true"></i> Carregando data...</p>
           </div>
           <span style="display:none" id="home-user-name">Administrador</span>
         </div>
@@ -333,9 +340,9 @@
             <span class="action-bloco-titulo" id="grupo-contagem">Contagem</span>
             <div class="action-bloco-botoes">
               <button class="btn btn-main" data-click="action-15">
-                <i class="ti ti-plus"></i> Iniciar Contagem
+                <i class="ti ti-plus" aria-hidden="true"></i> Iniciar Contagem
               </button>
-              <button class="btn btn-outline" data-click="semana-abrir"><i class="ti ti-calendar"></i> Semana de contagem</button>
+              <button class="btn btn-outline" data-click="semana-abrir"><i class="ti ti-calendar" aria-hidden="true"></i> Semana de contagem</button>
             </div>
           </div>
           <div class="action-bloco" role="group" aria-labelledby="grupo-importar">
@@ -383,8 +390,8 @@
         <!-- Tabela de Contagens Recentes da Empresa -->
         <div class="dash-table-card">
           <div class="dash-table-header">
-            <h3><i class="ti ti-history" style="color:var(--cor-primaria)"></i> Últimas Conferências Físicas</h3>
-            <button class="btn btn-ghost btn-sm" data-click="action-23">Ver histórico completo <i class="ti ti-arrow-right"></i></button>
+            <h3 aria-level="2"><i class="ti ti-history" aria-hidden="true" style="color:var(--cor-primaria)"></i> Últimas Conferências Físicas</h3>
+            <button class="btn btn-ghost btn-sm" data-click="action-23">Ver histórico completo <i class="ti ti-arrow-right" aria-hidden="true"></i></button>
           </div>
           <div class="table-scroll" role="region" aria-label="Contagens recentes" tabindex="0">
             <table class="dash-recent-table tabela-acoes-fixas" id="admin-recent-table">
@@ -423,19 +430,19 @@
             <ul class="saas-nav-list">
               <li>
                 <button class="saas-nav-btn active" data-saas-tab="visao-geral" data-click="action-100" aria-current="page">
-                  <i class="ti ti-dashboard"></i>
+                  <i class="ti ti-dashboard" aria-hidden="true"></i>
                   <span>Visão geral</span>
                 </button>
               </li>
               <li>
                 <button class="saas-nav-btn" data-saas-tab="tenants" data-click="action-100">
-                  <i class="ti ti-buildings"></i>
+                  <i class="ti ti-buildings" aria-hidden="true"></i>
                   <span>Empresas</span>
                 </button>
               </li>
               <li>
                 <button class="saas-nav-btn" data-saas-tab="auditoria-global" data-click="action-100">
-                  <i class="ti ti-shield-search"></i>
+                  <i class="ti ti-shield-search" aria-hidden="true"></i>
                   <span>Auditoria global</span>
                 </button>
               </li>
@@ -453,12 +460,12 @@
             <!-- Header Dinâmico -->
             <div class="saas-header">
               <div class="saas-header-text">
-                <h2 id="saas-page-title"><i class="ti ti-dashboard" style="color:var(--cor-primaria)"></i> Visão geral da plataforma</h2>
+                <h2 id="saas-page-title" aria-level="1"><i class="ti ti-dashboard" aria-hidden="true" style="color:var(--cor-primaria)"></i> Visão geral da plataforma</h2>
                 <p id="saas-page-desc">Métricas consolidadas de infraestrutura, clientes e volumetria do SaaS</p>
               </div>
               <div class="saas-header-actions">
                 <button class="btn btn-primary btn-sm" data-click="action-0">
-                  <i class="ti ti-plus"></i> Nova empresa
+                  <i class="ti ti-plus" aria-hidden="true"></i> Nova empresa
                 </button>
               </div>
             </div>
@@ -471,12 +478,12 @@
                   <span class="saas-kpi-header">
                     <span class="saas-kpi-title">Empresas</span>
                     <span class="saas-kpi-icon" style="background: rgba(99, 102, 241, 0.12); color: var(--cor-primaria);">
-                      <i class="ti ti-buildings"></i>
+                      <i class="ti ti-buildings" aria-hidden="true"></i>
                     </span>
                   </span>
                   <span class="saas-kpi-val" id="super-kpi-empresas">…</span>
                   <span class="saas-kpi-sub" id="super-kpi-empresas-sub">
-                    <i class="ti ti-circle-check"></i> Calculando status...
+                    <i class="ti ti-circle-check" aria-hidden="true"></i> Calculando status...
                   </span>
                 </button>
 
@@ -484,12 +491,12 @@
                   <div class="saas-kpi-header">
                     <span class="saas-kpi-title">Usuários Ativos</span>
                     <div class="saas-kpi-icon" style="background: rgba(245, 158, 11, 0.12); color: #d97706;">
-                      <i class="ti ti-users"></i>
+                      <i class="ti ti-users" aria-hidden="true"></i>
                     </div>
                   </div>
                   <div class="saas-kpi-val" id="super-kpi-usuarios">…</div>
                   <div class="saas-kpi-sub">
-                    <i class="ti ti-user-check"></i> Gestores e operadores
+                    <i class="ti ti-user-check" aria-hidden="true"></i> Gestores e operadores
                   </div>
                 </div>
 
@@ -497,12 +504,12 @@
                   <div class="saas-kpi-header">
                     <span class="saas-kpi-title">SKUs no Estoque</span>
                     <div class="saas-kpi-icon" style="background: rgba(16, 185, 129, 0.12); color: #059669;">
-                      <i class="ti ti-packages"></i>
+                      <i class="ti ti-packages" aria-hidden="true"></i>
                     </div>
                   </div>
                   <div class="saas-kpi-val" id="super-kpi-produtos">…</div>
                   <div class="saas-kpi-sub">
-                    <i class="ti ti-database"></i> Catálogo consolidado
+                    <i class="ti ti-database" aria-hidden="true"></i> Catálogo consolidado
                   </div>
                 </div>
 
@@ -510,20 +517,20 @@
                   <div class="saas-kpi-header">
                     <span class="saas-kpi-title">Contagens Concluídas</span>
                     <div class="saas-kpi-icon" style="background: rgba(59, 130, 246, 0.12); color: #2563eb;">
-                      <i class="ti ti-clipboard-check"></i>
+                      <i class="ti ti-clipboard-check" aria-hidden="true"></i>
                     </div>
                   </div>
                   <div class="saas-kpi-val" id="super-kpi-contagens">…</div>
                   <div class="saas-kpi-sub">
-                    <i class="ti ti-chart-bar"></i> Sessões no SaaS
+                    <i class="ti ti-chart-bar" aria-hidden="true"></i> Sessões no SaaS
                   </div>
                 </div>
               </div>
 
               <!-- Tabela Rápida de Tenants Recentes -->
               <div class="table-toolbar" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-                <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--cor-texto); display: flex; align-items: center; gap: 8px;">
-                  <i class="ti ti-building-store" style="color: var(--cor-primaria)"></i> Empresas Cadastradas na Plataforma
+                <h3 aria-level="2" style="font-size: 1.1rem; font-weight: 700; color: var(--cor-texto); display: flex; align-items: center; gap: 8px;">
+                  <i class="ti ti-building-store" aria-hidden="true" style="color: var(--cor-primaria)"></i> Empresas Cadastradas na Plataforma
                 </h3>
               </div>
               <div id="super-empresas-lista"></div>
@@ -549,8 +556,8 @@
             <section id="saas-tab-auditoria-global" class="saas-tab-section" style="display: none;">
               <div id="saas-audit-feed">
                 <div class="table-toolbar" style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-                  <h3 style="font-size: 1.1rem; font-weight: 700; color: var(--cor-texto); display: flex; align-items: center; gap: 8px;">
-                    <i class="ti ti-shield-search" style="color: var(--cor-primaria)"></i> Log de Segurança e Plataforma
+                  <h3 aria-level="2" style="font-size: 1.1rem; font-weight: 700; color: var(--cor-texto); display: flex; align-items: center; gap: 8px;">
+                    <i class="ti ti-shield-search" aria-hidden="true" style="color: var(--cor-primaria)"></i> Log de Segurança e Plataforma
                   </h3>
                 </div>
                 <!-- Rodada 10: busca e filtros da Auditoria global (montados por auditoria.js só para o Super Admin; os ids filtro-audit-* já existem no back-office) -->
@@ -574,12 +581,12 @@
     <div class="container" style="max-width: 1200px; padding-top: 24px;">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
         <div>
-          <h2 style="font-size: 1.4rem; font-weight: 800; color: var(--cor-texto);">Empresas Clientes</h2>
+          <h2 aria-level="1" style="font-size: 1.4rem; font-weight: 800; color: var(--cor-texto);">Empresas Clientes</h2>
           <p style="font-size: 0.85rem; color: var(--cor-texto-secundario); margin-top: 2px;">Gestão de empresas e acessos da plataforma</p>
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 10px;">
           <button class="btn btn-ghost btn-sm btn-voltar" data-click="action-87"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel</button>
-          <button class="btn btn-primary btn-sm" data-click="action-0"><i class="ti ti-plus"></i> Nova empresa</button>
+          <button class="btn btn-primary btn-sm" data-click="action-0"><i class="ti ti-plus" aria-hidden="true"></i> Nova empresa</button>
         </div>
       </div>
       <div id="empresas-lista-compat"></div>
@@ -588,7 +595,7 @@
 <section id="screen-catalogo" class="screen">
     <div class="container consulta-container">
       <button class="btn btn-ghost btn-sm btn-voltar" data-click="action-24"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel</button>
-      <h2>Catálogo de produtos</h2>
+      <h2 aria-level="1">Catálogo de produtos</h2>
       <p class="consulta-description">Consulte os códigos, nomes e produtores dos produtos cadastrados.</p>
       <div class="form-group">
         <label for="consulta-catalogo-busca">Buscar por código ou nome</label>
@@ -598,7 +605,8 @@
         <span id="consulta-produtor-selecionado"></span>
         <button class="btn btn-ghost btn-sm" data-click="action-26">Limpar produtor</button>
       </div>
-      <div id="consulta-catalogo-lista" class="consulta-lista" aria-live="polite"></div>
+      <p id="consulta-catalogo-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div id="consulta-catalogo-lista" class="consulta-lista"></div>
       <div class="pagination-controls">
         <button class="btn btn-outline btn-sm" id="consulta-catalogo-anterior" data-click="action-27">Anterior</button>
         <span id="consulta-catalogo-pagina"></span>
@@ -610,7 +618,7 @@
   <section id="screen-semana-contagem" class="screen">
     <div class="container consulta-container">
     <button class="btn btn-ghost btn-sm btn-voltar" data-click="action-8"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel</button>
-    <h2>Semana de contagem</h2>
+    <h2 aria-level="1">Semana de contagem</h2>
     <div class="semana-introducao"><div><p id="semana-periodo"></p><p>A cobertura considera produtos ativos com quantidade registrada nesta semana em sessões finalizadas.</p></div><button class="btn btn-outline" data-click="semana-recarregar"><i class="ti ti-refresh" aria-hidden="true"></i> Atualizar semana</button></div>
     <p id="semana-status-leitor" class="semana-aviso-leitor" role="status" aria-live="polite" aria-atomic="true"></p>
     <div id="semana-conteudo"></div>
@@ -620,19 +628,20 @@
   <section id="screen-produtores" class="screen">
     <div class="container consulta-container">
       <button class="btn btn-ghost btn-sm btn-voltar" data-click="action-29"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel</button>
-      <h2>Produtores</h2>
+      <h2 aria-level="1">Produtores</h2>
       <div class="form-group">
         <label for="consulta-produtores-busca">Buscar produtor</label>
         <input id="consulta-produtores-busca" type="search" placeholder="Nome do produtor" data-input="action-30">
       </div>
-      <div id="consulta-produtores-lista" class="consulta-lista" aria-live="polite"></div>
+      <p id="consulta-produtores-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div id="consulta-produtores-lista" class="consulta-lista"></div>
     </div>
   </section>
 
   <section id="screen-historico-contagens" class="screen">
     <div class="container consulta-container">
       <button class="btn btn-ghost btn-sm btn-voltar" data-click="action-31"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel</button>
-      <h2>Histórico de contagens</h2>
+      <h2 aria-level="1">Histórico de contagens</h2>
       <div class="historico-filtro-barra" id="consulta-historico-filtro-barra">
         <div class="historico-filtro" role="group" aria-label="Filtrar contagens por situação">
           <button type="button" class="historico-chip" data-click="historico-filtro" data-filtro="todas" aria-pressed="true">Todas</button>
@@ -641,7 +650,7 @@
         </div>
         <span class="historico-contagem" id="consulta-historico-total" role="status" aria-live="polite"></span>
       </div>
-      <div id="consulta-historico-lista" class="consulta-lista" aria-live="polite"></div>
+      <div id="consulta-historico-lista" class="consulta-lista"></div>
       <div class="pagination-controls">
         <button class="btn btn-outline btn-sm" id="consulta-historico-anterior" data-click="action-32">Anterior</button>
         <span id="consulta-historico-pagina"></span>
@@ -655,17 +664,17 @@
   <section id="screen-modalidade-contagem" class="screen">
     <div class="container">
       <button class="btn btn-ghost btn-sm btn-voltar" data-click="action-34"><i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel</button>
-      <h2>Iniciar ou retomar contagem</h2>
+      <h2 aria-level="1">Iniciar ou retomar contagem</h2>
       <p id="contagem-modalidade-ajuda" class="modalidade-ajuda"><strong>Produtos gerais:</strong> você conta unidades (e informa vencidos, se houver) e, ao finalizar, vê a comparação com o saldo do sistema. <strong>Peças de queijo:</strong> você conta peças inteiras e nenhuma comparação com o saldo em kg é feita.</p>
       <div class="modalidade-abas" role="tablist" aria-label="Modalidade de contagem">
         <button id="contagem-aba-geral" class="btn btn-outline" role="tab" aria-selected="true" aria-controls="contagem-modalidade-painel" data-click="contagem-modalidade" data-keydown="contagem-modalidade-teclado" data-tipo="geral">Produtos gerais</button>
         <button id="contagem-aba-pecas_queijo" class="btn btn-outline" role="tab" aria-selected="false" tabindex="-1" aria-controls="contagem-modalidade-painel" data-click="contagem-modalidade" data-keydown="contagem-modalidade-teclado" data-tipo="pecas_queijo">Peças de queijo</button>
       </div>
       <div id="contagem-modalidade-painel" role="tabpanel" aria-labelledby="contagem-aba-geral" class="card">
-        <h3 id="contagem-modalidade-titulo">Contagem geral</h3>
+        <h3 id="contagem-modalidade-titulo" aria-level="2">Contagem geral</h3>
         <p id="contagem-modalidade-orientacao"></p>
-        <button class="btn btn-primary" data-click="contagem-nova-modalidade"><i class="ti ti-plus"></i> Iniciar nova sessão</button>
-        <h3 class="sessoes-abertas-titulo">Retomar uma sessão aberta</h3>
+        <button class="btn btn-primary" data-click="contagem-nova-modalidade"><i class="ti ti-plus" aria-hidden="true"></i> Iniciar nova sessão</button>
+        <h3 class="sessoes-abertas-titulo" aria-level="2">Retomar uma sessão aberta</h3>
         <div id="contagem-sessoes-lista" aria-live="polite"></div>
       </div>
     </div>
@@ -681,7 +690,7 @@
   </dialog>
   <section id="screen-contagem" class="screen">
     <div class="container">
-      <h2 class="sr-only">Contagem em andamento</h2>
+      <h2 class="sr-only" aria-level="1">Contagem em andamento</h2>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
         <button class="btn btn-ghost btn-sm btn-voltar" data-click="action-34">
           <i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel
@@ -698,7 +707,7 @@
       <div class="card contagem-progresso" id="contagem-progresso" style="margin-bottom:16px">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
           <div class="contagem-progresso-titulo" style="display:flex; align-items:center; gap:8px">
-            <i class="ti ti-eye-off" style="color:var(--cor-primaria); font-size:1.3rem"></i>
+            <i class="ti ti-eye-off" aria-hidden="true" style="color:var(--cor-primaria); font-size:1.3rem"></i>
             <strong id="contagem-sessao-modalidade">Contagem geral</strong>
             <span class="badge badge-info" style="font-size:0.75rem">Estoque oculto</span>
           </div>
@@ -712,7 +721,7 @@
       </div>
 
       <div class="step-indicator">
-        <i class="ti ti-info-circle"></i>
+        <i class="ti ti-info-circle" aria-hidden="true"></i>
         <span>Escolha um produtor e informe a quantidade física de cada produto.</span>
       </div>
 
@@ -737,7 +746,7 @@
               <i class="ti ti-info-circle" aria-hidden="true"></i>
             </button>
             <button type="button" class="btn btn-ghost btn-sm" data-click="action-121" aria-label="Fechar produtos do produtor" title="Fechar">
-              <i class="ti ti-x"></i>
+              <i class="ti ti-x" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -766,7 +775,7 @@
           <i class="ti ti-arrow-left" aria-hidden="true"></i> Voltar ao painel
         </button>
         <button class="btn btn-primary" data-click="action-38">
-          <i class="ti ti-history"></i> Ver no Histórico
+          <i class="ti ti-history" aria-hidden="true"></i> Ver no Histórico
         </button>
       </div>
     </div>
@@ -779,7 +788,7 @@
         <h2>Importar estoque</h2>
         <div class="card" style="margin-bottom:20px">
           <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px">
-            <i class="ti ti-file-type-pdf" style="font-size:2rem; color:var(--cor-primaria)"></i>
+            <i class="ti ti-file-type-pdf" aria-hidden="true" style="font-size:2rem; color:var(--cor-primaria)"></i>
             <div>
               <h3 style="font-size:1.1rem; font-weight:700; margin:0">Importar Relatório de Estoque</h3>
               <p style="font-size:0.85rem; color:var(--cor-texto-secundario); margin:4px 0 0">
@@ -789,7 +798,7 @@
           </div>
 
           <div id="stock-upload-area" class="upload-area" data-dragover="action-124" data-dragleave="action-125" data-drop="action-126">
-            <i class="ti ti-cloud-upload" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
+            <i class="ti ti-cloud-upload" aria-hidden="true" style="font-size:2.5rem; color:var(--cor-primaria); margin-bottom:8px"></i>
             <p style="font-weight:600; margin-bottom:4px">Escolha o arquivo PDF ou arraste-o aqui</p>
             <p style="font-size:0.8rem; color:var(--cor-texto-secundario)">Formato aceito: .pdf. Relatório de estoque do Tiny ou ERP da Olist</p>
             <label for="stock-pdf-file" class="upload-area-btn">Selecionar Arquivo PDF</label>
@@ -804,7 +813,7 @@
         <!-- Histórico de Importações -->
         <div class="card" style="margin-top:20px">
           <h3 style="font-size:1rem; font-weight:700; display:flex; align-items:center; gap:8px; margin-bottom:12px">
-            <i class="ti ti-history" style="color:var(--cor-texto-secundario)"></i> Histórico de Importações
+            <i class="ti ti-history" aria-hidden="true" style="color:var(--cor-texto-secundario)"></i> Histórico de Importações
           </h3>
           <div id="lista-historico-estoque"></div>
         </div>
@@ -825,12 +834,12 @@
               <img src="/assets/logo-sistema-estoque.svg" alt="" width="30" height="30">
             </div>
             <div class="bo-brand-info">
-              <span class="bo-brand-title">Back-Office</span>
+              <span class="bo-brand-title" id="bo-sidebar-titulo">Back-Office</span>
               <span class="bo-brand-subtitle">Sistema de Estoque</span>
             </div>
           </div>
           <button class="bo-sidebar-close" id="bo-sidebar-close" data-click="action-89" aria-label="Fechar navegação" title="Fechar navegação">
-            <i class="ti ti-x"></i>
+            <i class="ti ti-x" aria-hidden="true"></i>
           </button>
         </div>
 
@@ -838,43 +847,43 @@
           <div class="bo-nav-section-title">Gestão</div>
 
           <button class="bo-nav-item tab active" data-tab="produtos" data-click="action-40">
-            <i class="ti ti-package"></i>
+            <i class="ti ti-package" aria-hidden="true"></i>
             <span>Produtos</span>
           </button>
 
           <button class="bo-nav-item tab" data-tab="estoque" data-click="action-41">
-            <i class="ti ti-file-type-pdf"></i>
+            <i class="ti ti-file-type-pdf" aria-hidden="true"></i>
             <span>Importar Estoque</span>
           </button>
 
           <button class="bo-nav-item tab" data-tab="usuarios" data-click="action-42">
-            <i class="ti ti-users"></i>
+            <i class="ti ti-users" aria-hidden="true"></i>
             <span>Funcionários</span>
           </button>
 
           <div class="bo-nav-section-title">Auditoria & Dados</div>
 
           <button class="bo-nav-item tab" data-tab="historico" data-click="action-43">
-            <i class="ti ti-history"></i>
+            <i class="ti ti-history" aria-hidden="true"></i>
             <span>Histórico</span>
           </button>
 
           <button class="bo-nav-item tab" data-tab="atividades" data-click="action-44">
-            <i class="ti ti-shield-check"></i>
+            <i class="ti ti-shield-check" aria-hidden="true"></i>
             <span>Atividades</span>
           </button>
 
           <div class="bo-nav-section-title">Sistema</div>
 
           <button class="bo-nav-item tab" data-tab="config" data-click="action-45">
-            <i class="ti ti-settings"></i>
+            <i class="ti ti-settings" aria-hidden="true"></i>
             <span>Configurações</span>
           </button>
         </nav>
 
         <div class="bo-sidebar-footer">
           <button class="bo-btn-voltar" data-click="action-39" title="Voltar ao painel" aria-label="Voltar ao painel">
-            <i class="ti ti-arrow-left"></i>
+            <i class="ti ti-arrow-left" aria-hidden="true"></i>
             <span>Voltar ao painel</span>
           </button>
         </div>
@@ -888,7 +897,7 @@
               <i class="ti ti-layout-sidebar" aria-hidden="true"></i> Seções
             </button>
             <div>
-              <h2 class="bo-page-title" id="bo-page-title">Catálogo de Produtos</h2>
+              <h2 class="bo-page-title" id="bo-page-title" aria-level="1">Catálogo de Produtos</h2>
               <p class="bo-page-subtitle" id="bo-page-subtitle">Gerenciamento completo de itens, SKUs e saldos</p>
             </div>
           </div>
@@ -897,28 +906,28 @@
         <!-- KPI Cards Executivos -->
         <div class="bo-kpis-wrapper" id="bo-kpis">
           <div class="bo-kpi-card">
-            <div class="bo-kpi-icon icon-produtos"><i class="ti ti-package"></i></div>
+            <div class="bo-kpi-icon icon-produtos"><i class="ti ti-package" aria-hidden="true"></i></div>
             <div class="bo-kpi-content">
               <span class="bo-kpi-label">Produtos Cadastrados</span>
               <span class="bo-kpi-value" id="bo-kpi-produtos">…</span>
             </div>
           </div>
           <div class="bo-kpi-card">
-            <div class="bo-kpi-icon icon-fornecedores"><i class="ti ti-truck-delivery"></i></div>
+            <div class="bo-kpi-icon icon-fornecedores"><i class="ti ti-truck-delivery" aria-hidden="true"></i></div>
             <div class="bo-kpi-content">
               <span class="bo-kpi-label">Produtores</span>
               <span class="bo-kpi-value" id="bo-kpi-fornecedores">…</span>
             </div>
           </div>
           <div class="bo-kpi-card">
-            <div class="bo-kpi-icon icon-contagens"><i class="ti ti-clipboard-check"></i></div>
+            <div class="bo-kpi-icon icon-contagens"><i class="ti ti-clipboard-check" aria-hidden="true"></i></div>
             <div class="bo-kpi-content">
               <span class="bo-kpi-label">Última contagem</span>
               <span class="bo-kpi-value" id="bo-kpi-contagens">…</span>
             </div>
           </div>
           <div class="bo-kpi-card">
-            <div class="bo-kpi-icon icon-usuarios"><i class="ti ti-users"></i></div>
+            <div class="bo-kpi-icon icon-usuarios"><i class="ti ti-users" aria-hidden="true"></i></div>
             <div class="bo-kpi-content">
               <span class="bo-kpi-label">Usuários Cadastrados</span>
               <span class="bo-kpi-value" id="bo-kpi-usuarios">…</span>
@@ -937,26 +946,27 @@
           </div>
           <div style="display:flex; gap:8px">
             <label class="btn btn-outline btn-sm" title="Importar catálogo de produtos por planilha Excel">
-              <i class="ti ti-file-upload"></i> Importar catálogo (.xlsx)
+              <i class="ti ti-file-upload" aria-hidden="true"></i> Importar catálogo (.xlsx)
               <input type="file" class="sr-only" id="input-importar-catalogo" accept=".xlsx,.xls" data-change="action-47">
             </label>
             <button class="btn btn-primary btn-sm" data-click="action-48">
-              <i class="ti ti-plus"></i> Novo Produto
+              <i class="ti ti-plus" aria-hidden="true"></i> Novo Produto
             </button>
           </div>
         </div>
 
+        <p id="produtos-busca-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
         <div class="form-group"><label for="produto-filtro-pecas">Modalidade</label><select id="produto-filtro-pecas" data-change="produto-filtro-pecas"><option value="">Todos os produtos</option><option value="false">Geral</option><option value="true">Peças de queijo</option></select></div>
       <div id="lista-produtos"></div>
 
         <!-- Controles de Paginação -->
         <div class="pagination-controls" id="produtos-pagination" style="display:none">
           <button class="btn btn-outline btn-sm" id="btn-pag-anterior" data-click="action-49">
-            <i class="ti ti-chevron-left"></i> Anterior
+            <i class="ti ti-chevron-left" aria-hidden="true"></i> Anterior
           </button>
           <span id="paginacao-info">Página 1</span>
           <button class="btn btn-outline btn-sm" id="btn-pag-proxima" data-click="action-50">
-            Próxima <i class="ti ti-chevron-right"></i>
+            Próxima <i class="ti ti-chevron-right" aria-hidden="true"></i>
           </button>
         </div>
       </div>
@@ -969,16 +979,17 @@
                    data-input="action-54">
           </div>
           <button class="btn btn-primary btn-sm" data-click="action-55">
-            <i class="ti ti-user-plus"></i> Novo Funcionário
+            <i class="ti ti-user-plus" aria-hidden="true"></i> Novo Funcionário
           </button>
         </div>
 
-        <div id="lista-usuarios"></div>
+        <p id="usuarios-busca-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div id="lista-usuarios"></div>
       </div>
 
       <!-- ABA 4: HISTÓRICO -->
       <div class="tab-content" id="tab-historico">
-        <div class="historico-counter">
+        <div class="historico-counter" id="historico-counter">
           Sessões exibidas: <strong id="historico-counter-total">0</strong>
         </div>
         <div id="historico-lote" hidden style="margin-bottom:12px">
@@ -999,7 +1010,7 @@
       <!-- ABA 5: CONFIGURAÇÕES -->
       <div class="tab-content" id="tab-config">
         <div class="card config-card">
-          <h3><i class="ti ti-lock"></i> Alterar Senha de Acesso</h3>
+          <h3 aria-level="2"><i class="ti ti-lock" aria-hidden="true"></i> Alterar Senha de Acesso</h3>
           <div class="form-group">
             <label for="senha-atual">Senha Atual</label>
             <div class="input-senha-wrap">
@@ -1016,9 +1027,14 @@
             <small id="senha-nova-dica" class="text-muted">Mínimo de 8 caracteres, com letra maiúscula, minúscula e número.</small>
           </div>
           <button class="btn btn-primary" data-click="action-56">
-            <i class="ti ti-check"></i> Salvar Nova Senha
+            <i class="ti ti-check" aria-hidden="true"></i> Salvar Nova Senha
           </button>
           <div id="msg-senha" class="msg-feedback"></div>
+        </div>
+        <div class="card config-card">
+          <h3 aria-level="2"><i class="ti ti-keyboard" aria-hidden="true"></i> Atalhos de teclado</h3>
+          <p class="text-muted" style="margin:0 0 8px">As teclas <kbd>/</kbd> (ir para a busca) e <kbd>?</kbd> (abrir a ajuda) funcionam fora dos campos de texto. Desligue se atrapalham o seu leitor de tela ou seu ditado por voz.</p>
+          <label style="display:flex; align-items:center; gap:8px; min-height:44px; cursor:pointer"><input type="checkbox" class="js-opcao-atalhos" id="config-opcao-atalhos" checked> Usar os atalhos de uma tecla</label>
         </div>
       </div>
 
@@ -1064,7 +1080,7 @@
             </div>
           </div>
           <button class="btn btn-outline btn-sm" id="btn-audit-exportar" data-click="action-59">
-            <i class="ti ti-file-export"></i> Exportar CSV
+            <i class="ti ti-file-export" aria-hidden="true"></i> Exportar CSV
           </button>
         </div>
 
@@ -1073,11 +1089,11 @@
         <!-- Controles de Paginação -->
         <div class="pagination-controls" id="audit-pagination" style="display:none; margin-top:16px">
           <button class="btn btn-outline btn-sm" id="btn-audit-ant" data-click="action-60">
-            <i class="ti ti-chevron-left"></i> Anterior
+            <i class="ti ti-chevron-left" aria-hidden="true"></i> Anterior
           </button>
           <span id="audit-paginacao-info">Página 1</span>
           <button class="btn btn-outline btn-sm" id="btn-audit-prox" data-click="action-61">
-            Próxima <i class="ti ti-chevron-right"></i>
+            Próxima <i class="ti ti-chevron-right" aria-hidden="true"></i>
           </button>
         </div>
       </div>
@@ -1088,23 +1104,24 @@
   </main>
 
   <!-- ==================== MODAL: CRIAR / EDITAR PRODUTO ==================== -->
-  <div id="modal-produto" class="app-modal" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-produto" class="app-modal" data-admin-only hidden>
     <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
         <h3 id="modal-produto-titulo" style="font-size:1.15rem; font-weight:700">Produto</h3>
         <button type="button" class="btn btn-ghost btn-sm" data-click="action-62" aria-label="Fechar janela de produto" title="Fechar janela de produto"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
       <input type="hidden" id="prod-id">
+      <p class="campo-obrigatorio-legenda"><span aria-hidden="true">*</span> Campo obrigatório</p>
       <div class="form-group">
-        <label for="prod-codigo">Código / SKU</label>
+        <label for="prod-codigo">Código / SKU <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
         <input type="text" id="prod-codigo" placeholder="Ex: 001 ou SKU-CAM-01" required>
       </div>
       <div class="form-group">
-        <label for="prod-nome">Nome do Produto</label>
+        <label for="prod-nome">Nome do Produto <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
         <input type="text" id="prod-nome" placeholder="Ex: Camiseta Básica Preta" required>
       </div>
       <div class="form-group">
-        <label for="prod-fornecedor">Produtor</label>
+        <label for="prod-fornecedor">Produtor <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
         <input type="text" id="prod-fornecedor" list="lista-produtores" autocomplete="off" placeholder="Ex: Têxtil Sul" required>
         <datalist id="lista-produtores"></datalist>
       </div>
@@ -1122,22 +1139,23 @@
   </div>
 
   <!-- ==================== MODAL: CRIAR / EDITAR USUÁRIO ==================== -->
-  <div id="modal-usuario" class="app-modal" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-usuario" class="app-modal" data-admin-only hidden>
     <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
         <h3 id="modal-usuario-titulo" style="font-size:1.15rem; font-weight:700">Novo Funcionário</h3>
         <button type="button" class="btn btn-ghost btn-sm" data-click="action-65" aria-label="Fechar janela de usuário" title="Fechar janela de usuário"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
+      <p class="campo-obrigatorio-legenda"><span aria-hidden="true">*</span> Campo obrigatório</p>
       <div class="form-group">
-        <label for="user-nome">Nome Completo</label>
+        <label for="user-nome">Nome Completo <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
         <input type="text" id="user-nome" placeholder="Ex: Maria Silva" required>
       </div>
       <div class="form-group">
-        <label for="user-email">E-mail de acesso</label>
+        <label for="user-email">E-mail de acesso <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
         <input type="email" id="user-email" placeholder="Ex: maria@minhaloja.com" required>
       </div>
       <div class="form-group" id="user-senha-temp-group">
-        <label for="user-senha-temp">Senha Temporária (funcionário trocará no primeiro login)</label>
+        <label for="user-senha-temp">Senha Temporária (funcionário trocará no primeiro login) <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
         <div class="input-senha-wrap">
           <input type="password" id="user-senha-temp" placeholder="Senha temporária de acesso" autocomplete="new-password" aria-describedby="user-senha-temp-dica" required>
           <button type="button" class="btn-ver-senha" data-alvo="user-senha-temp" aria-pressed="false" aria-label="Mostrar senha"><i class="ti ti-eye" aria-hidden="true"></i></button>
@@ -1155,14 +1173,14 @@
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
         <button type="button" class="btn btn-outline" data-click="action-66">Cancelar</button>
         <button class="btn btn-primary" data-click="action-67">
-          <i class="ti ti-check"></i> Salvar
+          <i class="ti ti-check" aria-hidden="true"></i> Salvar
         </button>
       </div>
     </div>
   </div>
 
   <!-- ==================== MODAL: REDEFINIR SENHA DE USUÁRIO ==================== -->
-  <div id="modal-reset-senha" class="app-modal" data-admin-only hidden role="dialog" aria-modal="true" aria-labelledby="modal-reset-senha-titulo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-reset-senha" class="app-modal" data-admin-only hidden role="dialog" aria-modal="true" aria-labelledby="modal-reset-senha-titulo">
     <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
         <h3 id="modal-reset-senha-titulo" style="font-size:1.15rem; font-weight:700">Redefinir senha temporária</h3>
@@ -1177,13 +1195,13 @@
       <div id="modal-reset-error" class="auth-error" role="alert" aria-live="polite"></div>
       <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px">
         <button class="btn btn-outline" data-click="action-106">Cancelar</button>
-        <button class="btn btn-primary" id="btn-confirmar-reset-senha" data-click="action-107"><i class="ti ti-key"></i> Definir senha temporária</button>
+        <button class="btn btn-primary" id="btn-confirmar-reset-senha" data-click="action-107"><i class="ti ti-key" aria-hidden="true"></i> Definir senha temporária</button>
       </div>
     </div>
   </div>
 
   <!-- ==================== MODAL: AJUDA ==================== -->
-  <div id="modal-ajuda" class="app-modal" hidden aria-labelledby="modal-ajuda-titulo" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1100; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-ajuda" class="app-modal app-modal--ajuda" hidden aria-labelledby="modal-ajuda-titulo">
     <div class="card" style="width:100%; max-width:560px; max-height:90vh; overflow-y:auto; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--cor-borda); padding-bottom:12px">
         <h3 id="modal-ajuda-titulo" tabindex="-1" data-foco-inicial style="font-size:1.15rem; font-weight:700">Como funciona a contagem</h3>
@@ -1224,6 +1242,8 @@
         <li id="ajuda-atalho-contagem"><kbd>Enter</kbd> no campo de quantidade vai para o próximo produto.</li>
         <li><kbd>Esc</kbd> fecha as janelas.</li>
       </ul>
+      <p class="text-muted" style="margin:0 0 8px; font-size:.85rem">Os atalhos <kbd>/</kbd> e <kbd>?</kbd> só funcionam quando o foco está fora de um campo de texto.</p>
+      <label style="display:flex; align-items:center; gap:8px; min-height:44px; margin:0 0 16px; cursor:pointer"><input type="checkbox" class="js-opcao-atalhos" id="ajuda-opcao-atalhos" checked> Usar os atalhos de uma tecla (<kbd>/</kbd> e <kbd>?</kbd>)</label>
       <div style="display:flex; justify-content:flex-end">
         <button type="button" class="btn btn-primary" data-click="action-128">Entendi</button>
       </div>
@@ -1231,11 +1251,11 @@
   </div>
 
   <!-- ==================== MODAL: DETALHES DE ATIVIDADE & DIFF ==================== -->
-  <div id="modal-audit-detalhe" class="app-modal" data-admin-only hidden style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1000; align-items:center; justify-content:center; padding:20px">
+  <div id="modal-audit-detalhe" class="app-modal" data-admin-only hidden>
     <div class="card" style="width:100%; max-width:760px; max-height:90vh; overflow-y:auto; box-shadow:var(--sombra-lg)">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--cor-borda); padding-bottom:12px">
         <h3 style="font-size:1.15rem; font-weight:700; display:flex; align-items:center; gap:8px">
-          <i class="ti ti-shield-search" style="color:var(--cor-primaria)"></i> Detalhes da Operação de Auditoria
+          <i class="ti ti-shield-search" aria-hidden="true" style="color:var(--cor-primaria)"></i> Detalhes da Operação de Auditoria
         </h3>
         <button class="btn btn-ghost btn-sm" data-click="action-68" aria-label="Fechar detalhes da auditoria" title="Fechar detalhes da auditoria"><i class="ti ti-x" aria-hidden="true"></i></button>
       </div>
@@ -1285,13 +1305,13 @@
         <div class="diff-container">
           <div>
             <span style="font-size:0.75rem; font-weight:700; color:var(--cor-perigo); display:block; margin-bottom:4px">
-              <i class="ti ti-minus"></i> Estado Anterior (Antes)
+              <i class="ti ti-minus" aria-hidden="true"></i> Estado Anterior (Antes)
             </span>
             <pre class="diff-box anterior" id="audit-det-anterior"></pre>
           </div>
           <div>
             <span style="font-size:0.75rem; font-weight:700; color:var(--cor-sucesso); display:block; margin-bottom:4px">
-              <i class="ti ti-plus"></i> Estado Novo (Depois)
+              <i class="ti ti-plus" aria-hidden="true"></i> Estado Novo (Depois)
             </span>
             <pre class="diff-box novo" id="audit-det-novo"></pre>
           </div>
@@ -1306,7 +1326,8 @@
   </div>
 
   <!-- ==================== SLIDE-OVER DRAWER (DETALHES DO TENANT) ==================== -->
-  <div id="slide-over-backdrop" class="slide-over-backdrop">
+  <!-- Gaveta legada (sem uso: o detalhe da empresa abre no console). Oculta de vez, inclusive da árvore de acessibilidade. -->
+  <div id="slide-over-backdrop" class="slide-over-backdrop" hidden style="display:none" inert>
     <div class="slide-over-drawer">
       <div class="drawer-header">
         <div class="drawer-title-group">
@@ -1314,14 +1335,14 @@
           <p id="drawer-empresa-email">email@empresa.com</p>
         </div>
         <button class="drawer-close-btn" data-click="action-91" aria-label="Fechar painel" title="Fechar painel">
-          <i class="ti ti-x"></i>
+          <i class="ti ti-x" aria-hidden="true"></i>
         </button>
       </div>
 
       <div class="drawer-body">
         <!-- Status e Métricas Rápidas -->
         <div class="drawer-section">
-          <div class="drawer-section-title"><i class="ti ti-info-circle"></i> Status da Conta</div>
+          <div class="drawer-section-title"><i class="ti ti-info-circle" aria-hidden="true"></i> Status da Conta</div>
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <span id="drawer-empresa-status" class="status-pill active">
               <span class="status-dot"></span> <span>Ativo</span>
@@ -1332,7 +1353,7 @@
 
         <!-- Indicadores de Volumetria -->
         <div class="drawer-section">
-          <div class="drawer-section-title"><i class="ti ti-chart-dots"></i> Volumetria no SaaS</div>
+          <div class="drawer-section-title"><i class="ti ti-chart-dots" aria-hidden="true"></i> Volumetria no SaaS</div>
           <div class="drawer-stats-grid">
             <div class="drawer-stat-item">
               <span class="drawer-stat-label">SKUs Cadastrados</span>
@@ -1347,7 +1368,7 @@
 
         <!-- Usuários Vinculados -->
         <div class="drawer-section">
-          <div class="drawer-section-title"><i class="ti ti-users"></i> Equipe e Acessos</div>
+          <div class="drawer-section-title"><i class="ti ti-users" aria-hidden="true"></i> Equipe e Acessos</div>
           <div class="drawer-users-list" id="drawer-users-list">
             <p style="font-size: 0.8rem; color: var(--cor-texto-mudo);">Carregando usuários...</p>
           </div>
@@ -1357,13 +1378,13 @@
       <!-- Rodapé de Ações do Drawer -->
       <div class="drawer-actions-footer">
         <button class="btn btn-outline btn-sm" id="drawer-btn-status" data-click="action-103">
-          <i class="ti ti-power"></i> Suspender
+          <i class="ti ti-power" aria-hidden="true"></i> Suspender
         </button>
         <button class="btn btn-outline btn-sm" id="drawer-btn-editar" data-click="action-94">
-          <i class="ti ti-edit"></i> Editar
+          <i class="ti ti-edit" aria-hidden="true"></i> Editar
         </button>
         <button class="btn btn-primary btn-sm" id="drawer-btn-auditoria" data-click="action-98">
-          <i class="ti ti-shield-search"></i> Auditar em modo leitura
+          <i class="ti ti-shield-search" aria-hidden="true"></i> Auditar em modo leitura
         </button>
       </div>
     </div>
@@ -1373,10 +1394,10 @@
   <div id="modal-excluir-empresa" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-excluir-empresa-titulo">
     <div class="modal-card" style="max-width: 480px;">
       <div class="modal-header">
-        <h3 id="modal-excluir-empresa-titulo" style="color: var(--cor-perigo); display: flex; align-items: center; gap: 8px;">
-          <i class="ti ti-alert-triangle"></i> Retirar empresa da operação
+        <h3 id="modal-excluir-empresa-titulo" style="color: var(--cor-perigo-texto); display: flex; align-items: center; gap: 8px;">
+          <i class="ti ti-alert-triangle" aria-hidden="true"></i> Retirar empresa da operação
         </h3>
-        <button class="btn-close" data-click="action-97" aria-label="Fechar confirmação de exclusão">×</button>
+        <button type="button" class="btn-close" data-click="action-97" aria-label="Fechar confirmação de exclusão"><span aria-hidden="true">×</span></button>
       </div>
       <div class="modal-body" style="padding-top: 8px;">
         <p style="font-size: 0.9rem; color: var(--cor-texto); line-height: 1.5;">
@@ -1385,16 +1406,16 @@
 
         <div class="delete-confirm-box">
           <span class="delete-confirm-label">
-            Para confirmar, digite exatamente o nome da empresa:
-            <br><strong id="delete-empresa-nome-label" style="color: var(--cor-perigo); font-family: monospace; font-size: 0.95rem;"></strong>
+            Para retirar da operação, digite exatamente o nome da empresa:
+            <br><strong id="delete-empresa-nome-label" style="color: var(--cor-perigo-texto); font-family: monospace; font-size: 0.95rem;"></strong>
           </span>
-          <input type="text" id="delete-empresa-input" class="delete-confirm-input" aria-label="Nome da empresa para confirmar exclusão" placeholder="Digite o nome da empresa para confirmar..." data-input="action-104" autocomplete="off">
+          <input type="text" id="delete-empresa-input" class="delete-confirm-input" aria-label="Para retirar da operação, digite exatamente o nome da empresa" aria-describedby="delete-empresa-nome-label" placeholder="Digite o nome da empresa para confirmar..." data-input="action-104" autocomplete="off">
         </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
         <button class="btn btn-outline" data-click="action-97">Cancelar</button>
         <button class="btn btn-danger" id="btn-confirmar-exclusao-permanente" data-click="action-93" disabled>
-          <i class="ti ti-archive"></i> Retirar da operação
+          <i class="ti ti-archive" aria-hidden="true"></i> Retirar da operação
         </button>
       </div>
     </div>
@@ -1405,19 +1426,20 @@
     <div class="modal-card" style="max-width: 480px;">
       <div class="modal-header">
         <h3 id="modal-editar-empresa-titulo" style="display: flex; align-items: center; gap: 8px;">
-          <i class="ti ti-edit" style="color: var(--cor-primaria)"></i> Editar Informações da Empresa
+          <i class="ti ti-edit" aria-hidden="true" style="color: var(--cor-primaria)"></i> Editar Informações da Empresa
         </h3>
         <button class="btn-close" data-click="action-96" aria-label="Fechar edição da empresa">×</button>
       </div>
       <form id="form-editar-empresa">
         <input type="hidden" id="edit-emp-id">
         <div class="modal-body">
+          <p class="campo-obrigatorio-legenda"><span aria-hidden="true">*</span> Campo obrigatório</p>
           <div class="form-group" style="margin-bottom: 14px;">
-            <label for="edit-emp-nome">Nome da empresa</label>
+            <label for="edit-emp-nome">Nome da empresa <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
             <input type="text" id="edit-emp-nome" required style="width: 100%;">
           </div>
           <div class="form-group" style="margin-bottom: 14px;">
-            <label for="edit-emp-email">E-mail de contato principal</label>
+            <label for="edit-emp-email">E-mail de contato principal <span class="campo-obrigatorio" aria-hidden="true">*</span></label>
             <input type="email" id="edit-emp-email" required style="width: 100%;">
           </div>
           <div class="form-group">
@@ -1439,7 +1461,7 @@
   <div id="modal-status-empresa" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-status-empresa-titulo">
     <div class="modal-card" style="max-width:480px;">
       <div class="modal-header">
-        <h3 id="modal-status-empresa-titulo"><i class="ti ti-power" style="color:var(--cor-primaria)"></i> Alterar acesso da empresa</h3>
+        <h3 id="modal-status-empresa-titulo"><i class="ti ti-power" aria-hidden="true" style="color:var(--cor-primaria)"></i> Alterar acesso da empresa</h3>
         <button type="button" class="btn-close" data-click="action-109" aria-label="Fechar">×</button>
       </div>
       <div class="modal-body">
@@ -1460,7 +1482,7 @@
   <div id="modal-senha-temporaria-admin" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-senha-temporaria-admin-titulo">
     <div class="modal-card" style="max-width:480px;">
       <div class="modal-header">
-        <h3 id="modal-senha-temporaria-admin-titulo"><i class="ti ti-key" style="color:var(--cor-primaria)"></i> Nova senha temporária</h3>
+        <h3 id="modal-senha-temporaria-admin-titulo"><i class="ti ti-key" aria-hidden="true" style="color:var(--cor-primaria)"></i> Nova senha temporária</h3>
         <button class="btn-close" data-click="action-117" aria-label="Fechar">×</button>
       </div>
       <div class="modal-body">
@@ -1478,27 +1500,20 @@
       </div>
       <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
         <button class="btn btn-outline" data-click="action-117">Cancelar</button>
-        <button class="btn btn-primary" id="btn-salvar-senha-temporaria-admin" data-click="action-118"><i class="ti ti-key"></i> Definir senha temporária</button>
+        <button class="btn btn-primary" id="btn-salvar-senha-temporaria-admin" data-click="action-118"><i class="ti ti-key" aria-hidden="true"></i> Definir senha temporária</button>
       </div>
     </div>
   </div>
 
   <!-- Scripts Modularizados -->
   <!-- ==================== MODAL: CONFIRMAÇÃO GENÉRICA (confirmarAcao) ==================== -->
-  <div id="modal-confirmacao" class="app-modal" role="alertdialog" aria-modal="true" aria-labelledby="modal-confirmacao-titulo" aria-describedby="modal-confirmacao-mensagem" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:1250; align-items:center; justify-content:center; padding:20px">
-    <div class="card" style="width:100%; max-width:440px; box-shadow:var(--sombra-lg)">
-      <h3 id="modal-confirmacao-titulo" style="font-size:1.15rem; font-weight:700; margin-bottom:12px"></h3>
-      <p id="modal-confirmacao-mensagem" style="margin-bottom:20px; white-space:pre-line"></p>
-      <div id="modal-confirmacao-acoes" style="display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px"></div>
+  <div id="modal-confirmacao" class="app-modal app-modal--confirmacao" role="alertdialog" aria-modal="true" aria-labelledby="modal-confirmacao-titulo" aria-describedby="modal-confirmacao-mensagem">
+    <div class="card modal-confirmacao-card">
+      <h3 id="modal-confirmacao-titulo" class="modal-confirmacao-titulo"></h3>
+      <p id="modal-confirmacao-mensagem" class="modal-confirmacao-mensagem"></p>
+      <div id="modal-confirmacao-acoes" class="modal-confirmacao-acoes"></div>
     </div>
   </div>
 
-  <script src="/js/utils.js"></script>
-  <script src="/js/api.js"></script>
-  <script src="/js/module-loader.js"></script>
-  <script src="/js/auth.js"></script>
-  <script src="/js/events.js"></script>
-  <script src="/js/mobile-nav.js"></script>
-  <script src="/js/app.js"></script>
 </body>
 </html>

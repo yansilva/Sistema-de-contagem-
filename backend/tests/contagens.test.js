@@ -83,8 +83,10 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
         .mockResolvedValueOnce({ rows: [] }) // BEGIN
         .mockResolvedValueOnce({ rows: [{ id: contagemId, tipo: 'geral' }] }) // locked contagem em_andamento
         .mockResolvedValueOnce({ rows: [{ id: 'forn-1' }] }) // check fornecedor
-        .mockResolvedValueOnce({ rows: [{ id: 'item-1' }] }) // update item 1 (12 unidades)
-        .mockResolvedValueOnce({ rows: [{ id: 'item-2' }] }) // update item 2 (0 unidades contadas)
+        .mockResolvedValueOnce({ rows: [
+          { produto_id: '11111111-2222-3333-4444-555555555555' },
+          { produto_id: '66666666-7777-8888-9999-000000000000' }
+        ] }) // UPDATE em lote: 12 unidades e 0 unidades contadas
         .mockResolvedValueOnce({ rows: [] }), // COMMIT
       release: jest.fn()
     };
@@ -119,6 +121,11 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
     expect(res.statusCode).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.itens_salvos).toBe(2);
+    // Um único UPDATE em lote; zero (0) e não contado (null) seguem distintos nos arrays.
+    const lote = mockClient.query.mock.calls.filter(([sql]) => String(sql).includes('UPDATE contagem_itens'));
+    expect(lote).toHaveLength(1);
+    expect(lote[0][1][1]).toEqual(['11111111-2222-3333-4444-555555555555', '66666666-7777-8888-9999-000000000000']);
+    expect(lote[0][1][2]).toEqual([12, 0]);
   });
 
   it('salva progresso com quantidade vazia sem erro de tipo do PostgreSQL', async () => {
@@ -131,7 +138,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
             error.code = '42P08';
             throw error;
           }
-          return { rows: [{ id: produtoId }] };
+          return { rows: [{ produto_id: produtoId }] };
         }
         if (sql.includes('SELECT id, tipo FROM contagens')) return { rows: [{ id: contagemId }] };
         if (sql.includes('SELECT id FROM contagem_fornecedores')) return { rows: [{ id: '66666666-6666-4666-8666-666666666666' }] };

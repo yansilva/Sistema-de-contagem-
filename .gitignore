@@ -36,3 +36,6 @@ graphify-out/
 .worktrees/
 .superpowers/
 backend/src/scripts/gerarPlanilhaAtalaia.js
+
+backend/coverage/
+.build-ref/

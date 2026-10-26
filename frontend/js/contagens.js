@@ -325,7 +325,7 @@ const Contagens = {
       return `
         <button type="button" class="quick-card contagem-produtor-card ${estado} ${isAtivo ? 'selected' : ''}" data-produtor="${escapeHtml(f.fornecedor)}" data-click="action-73">
           <div class="contagem-produtor-card__header">
-            <h4 class="contagem-produtor-card__title"><i class="ti ti-truck"></i> ${escapeHtml(f.fornecedor)}</h4>
+            <h3 class="contagem-produtor-card__title"><i class="ti ti-truck" aria-hidden="true"></i> ${escapeHtml(f.fornecedor)}</h3>
             ${badge}
           </div>
           <p class="contagem-produtor-card__progress">${contados} de ${pluralizar(total, 'produto')} com contagem física registrada</p>
@@ -554,15 +554,17 @@ const Contagens = {
    * Não usa saldo de referência.
    */
   htmlStatusItem(p, invalido) {
-    if (invalido) return '<span class="badge badge-danger">Corrigir quantidade</span>';
+    // Cada estado tem forma própria além da cor (no celular o selo vira um ponto): corrigir = "!", digitado = lápis,
+    // salvo = check, pendente = anel vazio. O texto continua disponível para leitor de tela e como dica (title).
+    if (invalido) return '<span class="badge badge-danger" data-estado="invalido" title="Corrigir quantidade"><i class="ti ti-alert-circle" aria-hidden="true"></i> Corrigir quantidade</span>';
     const preenchido = p.quantidade_contada !== null && p.quantidade_contada !== undefined;
     if (preenchido && this.itensTocados.has(p.produto_id)) {
-      return '<span class="badge badge-warning"><i class="ti ti-pencil" aria-hidden="true"></i> Digitado, falta salvar</span>';
+      return '<span class="badge badge-warning" data-estado="digitado" title="Digitado, falta salvar"><i class="ti ti-pencil" aria-hidden="true"></i> Digitado, falta salvar</span>';
     }
     if (preenchido) {
-      return `<span class="badge badge-success"><i class="ti ti-check"></i> ${p.quantidade_contada} ${this.tipoAtual === 'pecas_queijo' ? 'peças' : 'un'}</span>`;
+      return `<span class="badge badge-success" data-estado="salvo" title="Salvo"><i class="ti ti-check" aria-hidden="true"></i><span class="sr-only">Salvo: </span>${p.quantidade_contada} ${this.tipoAtual === 'pecas_queijo' ? 'peças' : 'un'}</span>`;
     }
-    return '<span class="badge badge-neutral">Pendente</span>';
+    return '<span class="badge badge-neutral" data-estado="pendente" title="Pendente">Pendente</span>';
   },
 
   /**
@@ -945,9 +947,9 @@ const Contagens = {
           <button class="btn ${primario ? 'btn-primary' : 'btn-outline'}" data-click="action-75" data-arg-0="${escapeHtml(c.id)}">
             <i class="ti ti-file-spreadsheet" aria-hidden="true"></i> ${temDif ? 'Baixar relatório de diferenças' : 'Baixar relatório da contagem'} (.xlsx)
           </button>`;
-      cardEl.innerHTML = pecas ? '<i class="ti ti-package" aria-hidden="true"></i><span class="resultado-eyebrow">Contagem finalizada</span><div role="status" aria-live="polite"><h2 tabindex="-1">Peças de queijo</h2></div><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
+      cardEl.innerHTML = pecas ? '<i class="ti ti-package" aria-hidden="true"></i><span class="resultado-eyebrow">Contagem finalizada</span><div role="status" aria-live="polite"><h2 tabindex="-1" aria-level="1">Peças de queijo</h2></div><p>Quantidades de peças registradas. O saldo em kg não é comparado.</p>' : `
         <i class="ti ${temDif ? 'ti-list-search' : 'ti-circle-check'}" aria-hidden="true"></i>
-        <div role="status" aria-live="polite"><h2 tabindex="-1">${temDif ? tituloDif : 'Contagem finalizada: sem diferenças'}</h2></div>
+        <div role="status" aria-live="polite"><h2 tabindex="-1" aria-level="1">${temDif ? tituloDif : 'Contagem finalizada: sem diferenças'}</h2></div>
         <p>${temDif
           ? 'Algumas quantidades físicas não correspondem ao saldo do sistema. Revise as diferenças abaixo.'
           : temVencidos ? 'Contagem conferida com produtos vencidos: as quantidades conferem e as unidades vencidas registradas são detalhadas abaixo.' : 'Todas as quantidades registradas correspondem ao saldo do sistema.'}

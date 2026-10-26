@@ -35,14 +35,15 @@ const Auditoria = {
     this.sessao = this.restaurarLocal();
     if (!this.sessao || this.sessao.empresaId !== empresaId) {
       this.esconderBarra();
-      container.innerHTML = `<div class="audit-start-card"><i class="ti ti-shield-search"></i><h4>Auditoria segura e somente leitura</h4><p>Você continuará identificado como Super Admin. Nenhuma ação operacional da empresa ficará disponível.</p><label for="audit-session-motivo">Motivo opcional</label><textarea id="audit-session-motivo" maxlength="500" rows="3" placeholder="Ex.: análise de chamado de suporte"></textarea><button class="btn btn-primary" data-click="action-114"><i class="ti ti-eye"></i> Iniciar auditoria</button></div>`;
+      container.innerHTML = `<div class="audit-start-card"><i class="ti ti-shield-search"></i><h4>Auditoria segura e somente leitura</h4><p>Você continuará identificado como Super Admin. Nenhuma ação operacional da empresa ficará disponível.</p><label for="audit-session-motivo">Motivo da auditoria (obrigatório, mínimo de 10 caracteres)</label><textarea id="audit-session-motivo" maxlength="500" minlength="10" required rows="3" placeholder="Ex.: análise de chamado de suporte"></textarea><button class="btn btn-primary" data-click="action-114"><i class="ti ti-eye"></i> Iniciar auditoria</button></div>`;
       return;
     }
     await this.validarERenderizar();
   },
 
   async iniciar() {
-    const motivo = document.getElementById('audit-session-motivo')?.value.trim() || undefined;
+    const motivo = document.getElementById('audit-session-motivo')?.value.trim() || '';
+    if (motivo.length < 10) return showToast('Informe o motivo da auditoria (mínimo de 10 caracteres).', 'error');
     const tokenAntes = sessionStorage.getItem('accessToken');
     const refreshAntes = sessionStorage.getItem('refreshToken');
     const res = await API.post('/auditoria/sessoes', { empresa_id: this.empresaId, motivo });
@@ -55,6 +56,13 @@ const Auditoria = {
       return showToast('A sessão principal mudou. Entre novamente.', 'error');
     }
     await this.validarERenderizar();
+    // O botão "Iniciar auditoria" saiu da tela: foco no aviso "Somente leitura" e anúncio para leitores de tela
+    const aviso = this.container && this.container.querySelector ? this.container.querySelector('.audit-readonly-note strong') : null;
+    if (aviso) {
+      aviso.setAttribute('tabindex', '-1');
+      try { aviso.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
+      if (typeof anunciarParaLeitor === 'function') anunciarParaLeitor(`Auditoria iniciada. Empresa ${this.sessao?.empresaNome || this.empresaNome || ''} em modo somente leitura.`);
+    }
   },
 
   async validarERenderizar() {
@@ -123,9 +131,6 @@ const Auditoria = {
     return this.CABECALHOS[coluna] || this.rotulo({}, String(coluna).replaceAll('_', ' '));
   },
 
-  ROTULOS_PAPEL: { super_admin: 'Super Admin', funcionario: 'Funcionário', administrador: 'Administrador', admin: 'Administrador', gestor: 'Gestor' },
-  ROTULOS_ENTIDADE: { sessao: 'Sessão', contagem: 'Contagem', usuario: 'Usuário', empresa: 'Empresa', produto: 'Produto', estoque: 'Estoque' },
-
   rotulo(mapa, codigo) {
     const cod = String(codigo || '');
     if (mapa[cod]) return mapa[cod];
@@ -135,10 +140,10 @@ const Auditoria = {
 
   valor(value, coluna) {
     if (value === null || value === undefined) return '—';
-    if (coluna === 'papel') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(typeof Rotulos !== 'undefined' && Rotulos.papel ? Rotulos.papel(value) : this.rotulo(this.ROTULOS_PAPEL, value))}</span>`;
+    if (coluna === 'papel') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(Rotulos.papel(value))}</span>`;
     if (coluna === 'status') return Empresas.escapeHtml(typeof Rotulos !== 'undefined' && Rotulos.statusContagem ? Rotulos.statusContagem(value) : this.rotulo({ finalizada: 'Finalizada', em_andamento: 'Em andamento', apagada: 'Apagada' }, value));
     if (coluna === 'resultado') return Empresas.escapeHtml(typeof Rotulos !== 'undefined' && Rotulos.resultado ? Rotulos.resultado(value) : this.rotulo({ sucesso: 'Sucesso', falha: 'Falha' }, value));
-    if (coluna === 'entidade') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(this.rotulo(this.ROTULOS_ENTIDADE, value))}</span>`;
+    if (coluna === 'entidade') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(Rotulos.entidade(value))}</span>`;
     if (coluna === 'acao' && typeof Atividades !== 'undefined') return `<span title="${Empresas.escapeHtml(value)}">${Empresas.escapeHtml(Atividades.rotuloAcao(value))}</span>`;
     if (typeof value === 'boolean') return value ? 'Sim' : 'Não';
     if (/^\d{4}-\d{2}-\d{2}T/.test(String(value))) return new Date(value).toLocaleString('pt-BR');
@@ -158,6 +163,7 @@ const Auditoria = {
       if (!titulo.hasAttribute('tabindex')) titulo.setAttribute('tabindex', '-1');
       try { titulo.focus({ preventScroll: true }); } catch (e) { /* sem foco */ }
     }
+    if (typeof anunciarParaLeitor === 'function') anunciarParaLeitor('Auditoria encerrada.');
   },
 
   mostrarBarra() {
@@ -166,12 +172,14 @@ const Auditoria = {
     if (bar) bar.style.display = 'block';
     if (name) name.textContent = this.sessao?.empresaNome || this.empresaNome || 'Empresa';
     document.body.classList.add('audit-mode');
+    if (typeof atualizarAlturaBarraAuditoria === 'function') atualizarAlturaBarraAuditoria();
   },
 
   esconderBarra() {
     const bar = document.getElementById('audit-session-bar');
     if (bar) bar.style.display = 'none';
     document.body.classList.remove('audit-mode');
+    if (typeof atualizarAlturaBarraAuditoria === 'function') atualizarAlturaBarraAuditoria();
   },
 
   limparLocal() {
@@ -185,8 +193,9 @@ const Auditoria = {
 /**
  * Rodada 10: busca e filtros da Auditoria global (aba do console do Super Admin).
  * Reaproveita o módulo Atividades (filtros, painel recolhível, paginação, exportação) para não duplicar regra.
- * Os controles vêm de um <template> e só entram no DOM para o Super Admin, para os ids
- * (filtro-audit-*) não colidirem com os do back-office do administrador.
+ * Os controles só entram no DOM para o Super Admin e usam o prefixo "sa-" nos ids
+ * (sa-filtro-audit-*), que não repetem os do back-office do administrador (index.html).
+ * Atividades.idControle() escolhe o id certo conforme o perfil.
  */
 const AuditoriaGlobal = {
   montado: false,
@@ -194,20 +203,20 @@ const AuditoriaGlobal = {
   MODELO: `<div class="audit-toolbar saas-audit-toolbar">
     <div class="audit-filters">
       <div class="audit-linha-topo">
-        <div class="audit-campo audit-campo-busca"><label for="filtro-audit-busca">Busca</label><input type="text" id="filtro-audit-busca" aria-label="Buscar atividade por ator, ação ou motivo" placeholder="Ator, ação ou motivo"></div>
-        <button type="button" class="btn btn-outline btn-sm audit-filtros-toggle" id="btn-audit-filtros" data-click="audit-filtros-alternar" aria-expanded="true" aria-controls="audit-filtros-painel"><i class="ti ti-filter" aria-hidden="true"></i> Filtros</button>
-        <span class="audit-filtros-resumo" id="audit-filtros-resumo" role="status" aria-live="polite"></span>
-        <button type="button" class="btn btn-ghost btn-sm" id="btn-audit-limpar" data-click="action-58" hidden><i class="ti ti-refresh" aria-hidden="true"></i> Limpar</button>
+        <div class="audit-campo audit-campo-busca"><label for="sa-filtro-audit-busca">Busca</label><input type="text" id="sa-filtro-audit-busca" aria-label="Buscar atividade por ator, ação ou motivo" placeholder="Ator, ação ou motivo"></div>
+        <button type="button" class="btn btn-outline btn-sm audit-filtros-toggle" id="sa-btn-audit-filtros" data-click="audit-filtros-alternar" aria-expanded="true" aria-controls="sa-audit-filtros-painel"><i class="ti ti-filter" aria-hidden="true"></i> Filtros</button>
+        <span class="audit-filtros-resumo" id="sa-audit-filtros-resumo" role="status" aria-live="polite"></span>
+        <button type="button" class="btn btn-ghost btn-sm" id="sa-btn-audit-limpar" data-click="action-58" hidden><i class="ti ti-refresh" aria-hidden="true"></i> Limpar</button>
       </div>
-      <div class="audit-filtros-painel" id="audit-filtros-painel" role="group" aria-label="Filtros da auditoria global">
-        <div class="audit-campo"><label for="filtro-audit-inicio">De</label><input type="date" id="filtro-audit-inicio" title="Data inicial"></div>
-        <div class="audit-campo"><label for="filtro-audit-fim">Até</label><input type="date" id="filtro-audit-fim" title="Data final"></div>
-        <div class="audit-campo"><label for="filtro-audit-acao">Ação</label><select id="filtro-audit-acao" title="Filtrar por ação" data-change="action-57"><option value="">Todas as ações</option></select></div>
-        <div class="audit-campo"><label for="filtro-audit-resultado">Resultado</label><select id="filtro-audit-resultado" title="Filtrar por resultado" data-change="action-57"><option value="">Todos os resultados</option><option value="sucesso">Sucesso</option><option value="falha">Falha</option></select></div>
+      <div class="audit-filtros-painel" id="sa-audit-filtros-painel" role="group" aria-label="Filtros da auditoria global">
+        <div class="audit-campo"><label for="sa-filtro-audit-inicio">De</label><input type="date" id="sa-filtro-audit-inicio" title="Data inicial"></div>
+        <div class="audit-campo"><label for="sa-filtro-audit-fim">Até</label><input type="date" id="sa-filtro-audit-fim" title="Data final"></div>
+        <div class="audit-campo"><label for="sa-filtro-audit-acao">Ação</label><select id="sa-filtro-audit-acao" title="Filtrar por ação" data-change="action-57"><option value="">Todas as ações</option></select></div>
+        <div class="audit-campo"><label for="sa-filtro-audit-resultado">Resultado</label><select id="sa-filtro-audit-resultado" title="Filtrar por resultado" data-change="action-57"><option value="">Todos os resultados</option><option value="sucesso">Sucesso</option><option value="falha">Falha</option></select></div>
         <button type="button" class="btn btn-primary btn-sm" data-click="action-57"><i class="ti ti-filter" aria-hidden="true"></i> Filtrar</button>
       </div>
     </div>
-    <button type="button" class="btn btn-outline btn-sm" id="btn-audit-exportar" data-click="action-59"><i class="ti ti-file-export" aria-hidden="true"></i> Exportar CSV</button>
+    <button type="button" class="btn btn-outline btn-sm" id="sa-btn-audit-exportar" data-click="action-59"><i class="ti ti-file-export" aria-hidden="true"></i> Exportar CSV</button>
   </div>`,
 
   montarFiltros() {
@@ -216,10 +225,8 @@ const AuditoriaGlobal = {
     if (!host) return;
     host.innerHTML = this.MODELO;
     this.montado = true;
-    const acoes = typeof Rotulos !== 'undefined' && Rotulos.ACOES_AUDITORIA
-      ? Rotulos.ACOES_AUDITORIA
-      : (typeof Atividades !== 'undefined' && Atividades.ROTULOS_ACAO) || {};
-    const select = document.getElementById('filtro-audit-acao');
+    const acoes = Rotulos.ACOES_AUDITORIA;
+    const select = document.getElementById('sa-filtro-audit-acao');
     if (select) {
       Object.entries(acoes)
         .sort((a, b) => a[1].localeCompare(b[1], 'pt-BR'))

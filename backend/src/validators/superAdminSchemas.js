@@ -30,7 +30,11 @@ module.exports = {
   }).strict().refine(v=>Object.keys(v).length>0,'Informe uma alteração') },
   status: { params: z.object({id}), body: z.object({status:z.enum(['ativa','inativa']),confirmar:z.literal(true),motivo}).strict() },
   excluir: { params: z.object({id}), body:z.object({nomeConfirmacao:z.string().trim().min(1).max(255),motivo}).strict() },
-  iniciarAuditoria: { body: z.object({empresa_id:id,motivo}).strict() },
+  iniciarAuditoria: { body: z.object({
+    empresa_id: id,
+    motivo: z.string({ required_error: 'Informe o motivo da auditoria.' }).trim()
+      .min(10, 'O motivo da auditoria deve ter no mínimo 10 caracteres.').max(500)
+  }).strict() },
   sessao: {params:z.object({sessaoId:id})},
   sessaoDetalhe: {params:z.object({sessaoId:id,id})},
   paginacao: {query:pagination.strict()},

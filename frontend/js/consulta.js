@@ -15,6 +15,12 @@ const Consulta = {
     document.getElementById(id).innerHTML = `<p class="consulta-vazio">${escapeHtml(texto)}</p>`;
   },
 
+  /** Resultado da busca em região status curta (a lista inteira não é anunciada a cada digitação) */
+  anunciarResultado(id, texto) {
+    const regiao = document.getElementById(id);
+    if (regiao) regiao.textContent = texto;
+  },
+
   async carregarResumo() {
     const [produtos, produtores] = await Promise.all([
       API.get('/produtos?limit=1'), API.get('/produtos/fornecedores')
@@ -64,8 +70,13 @@ const Consulta = {
     document.getElementById('consulta-catalogo-pagina').textContent = `Página ${this.paginaCatalogo} de ${this.paginasCatalogo}`;
     if (!produtos.length) {
       this.mensagem('consulta-catalogo-lista', 'Nenhum produto encontrado.');
+      this.anunciarResultado('consulta-catalogo-status', 'Nenhum produto encontrado.');
       return;
     }
+    const totalCatalogo = Number(pagination.total);
+    this.anunciarResultado('consulta-catalogo-status', Number.isFinite(totalCatalogo) && totalCatalogo > 0
+      ? `${pluralizar(totalCatalogo, 'produto')} encontrado${totalCatalogo === 1 ? '' : 's'}. Página ${this.paginaCatalogo} de ${this.paginasCatalogo}.`
+      : `${pluralizar(produtos.length, 'produto')} nesta página.`);
     document.getElementById('consulta-catalogo-lista').innerHTML = produtos.map(p => `
       <article class="consulta-item">
         <strong>${escapeHtml(p.nome)}</strong>
@@ -91,8 +102,10 @@ const Consulta = {
     const produtores = this.produtores.filter(nome => nome.toLocaleLowerCase('pt-BR').includes(termo));
     if (!produtores.length) {
       this.mensagem('consulta-produtores-lista', 'Nenhum produtor encontrado.');
+      this.anunciarResultado('consulta-produtores-status', 'Nenhum produtor encontrado.');
       return;
     }
+    this.anunciarResultado('consulta-produtores-status', `${pluralizar(produtores.length, 'produtor', 'produtores')} encontrado${produtores.length === 1 ? '' : 's'}.`);
     document.getElementById('consulta-produtores-lista').innerHTML = produtores.map(nome => `
       <article class="consulta-item table-toolbar">
         <strong>${escapeHtml(nome)}</strong>

@@ -141,7 +141,7 @@
   font-weight: 500;
   text-align: left;
   cursor: pointer;
-  transition: all var(--transicao);
+  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao), box-shadow var(--transicao);
 }
 
 .bo-nav-item i {
@@ -199,7 +199,7 @@
   font-family: inherit;
   font-size: 0.82rem;
   font-weight: 600;
-  transition: all var(--transicao);
+  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
 }
 
 .bo-btn-voltar:hover {
@@ -229,7 +229,9 @@
 .bo-header-left {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+  min-width: 0; /* permite encolher a 320px / texto 200% sem estourar a largura */
 }
 
 .bo-menu-btn {
@@ -244,12 +246,16 @@
   letter-spacing: -0.02em;
   margin: 0;
   line-height: 1.2;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .bo-page-subtitle {
   font-size: 0.82rem;
   color: var(--cor-texto-secundario);
   margin: 3px 0 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* ==================== KPI CARDS (DASHBOARD) ==================== */

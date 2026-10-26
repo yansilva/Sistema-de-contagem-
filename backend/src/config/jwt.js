@@ -6,24 +6,12 @@ const REFRESH_EXPIRA_DIAS = parseInt(process.env.REFRESH_TOKEN_EXPIRA_DIAS, 10) 
 const MIN_JWT_SECRET_LENGTH = 32;
 
 function obterJwtSecret() {
+  // Sem fallback: JWT_SECRET é exigido em qualquer ambiente (testes definem em tests/helpers/setupEnv.js).
   const secret = process.env.JWT_SECRET;
-  if (process.env.NODE_ENV === 'production') {
-    if (!secret || secret.trim().length < MIN_JWT_SECRET_LENGTH) {
-      throw new Error(
-        'JWT_SECRET é obrigatório em produção e deve ter pelo menos 32 caracteres.'
-      );
-    }
-    return secret;
+  if (!secret || secret.trim().length < MIN_JWT_SECRET_LENGTH) {
+    throw new Error('JWT_SECRET é obrigatório e deve ter pelo menos 32 caracteres.');
   }
-  if (secret && secret.length >= MIN_JWT_SECRET_LENGTH) {
-    return secret;
-  }
-  if (process.env.NODE_ENV !== 'test') {
-    console.warn(
-      '[JWT] JWT_SECRET ausente ou curto. Usando chave local de desenvolvimento — nunca use isso em produção.'
-    );
-  }
-  return secret || 'dev-secret-inventory-jwt-key-change-in-prod-2026';
+  return secret;
 }
 
 /**
@@ -38,7 +26,7 @@ function gerarAccessToken({ id, empresa_id, versao_sessao = 1 }) {
     sv: versao_sessao
   };
   // nosemgrep: javascript.jsonwebtoken.security.audit.jwt-exposed-data.jwt-exposed-data
-  return jwt.sign(tokenPayload, obterJwtSecret(), { expiresIn: JWT_EXPIRA_EM });
+  return jwt.sign(tokenPayload, obterJwtSecret(), { algorithm: 'HS256', expiresIn: JWT_EXPIRA_EM });
 }
 
 /**
@@ -64,7 +52,7 @@ function hashToken(token) {
  * Lança erro se inválido ou expirado
  */
 function verificarToken(token) {
-  return jwt.verify(token, obterJwtSecret());
+  return jwt.verify(token, obterJwtSecret(), { algorithms: ['HS256'] });
 }
 
 module.exports = {

@@ -51,14 +51,8 @@ async function auth(req, res, next) {
     validarAcessoConta(usuario);
 
     // Se deve trocar a senha, bloqueia acesso a outros endpoints
-    // Verifica na URL original para garantir precisão
-    const url = req.originalUrl || req.url || '';
-    const isAuthRoute =
-      url.includes('/auth/senha') ||
-      url.includes('/auth/me') ||
-      url.includes('/auth/logout');
-
-    if (usuario.must_change_password && !isAuthRoute) {
+    // Whitelist exata por método + baseUrl + path (nunca originalUrl/query string)
+    if (usuario.must_change_password && !isAllowedDuringPasswordChange(req)) {
       throw new ForbiddenError(
         'Você deve alterar sua senha temporária antes de continuar.',
         'TROCA_SENHA_OBRIGATORIA'
@@ -73,5 +67,23 @@ async function auth(req, res, next) {
     next(err);
   }
 }
+
+const ALLOWED_PASSWORD_CHANGE_OPERATIONS = Object.freeze([
+  { method: 'GET', baseUrl: '/api/auth', path: '/me' },
+  { method: 'PUT', baseUrl: '/api/auth', path: '/senha' },
+  { method: 'POST', baseUrl: '/api/auth', path: '/logout' }
+]);
+
+/**
+ * Operações permitidas enquanto a troca de senha é obrigatória.
+ * Igualdade literal de método, baseUrl e path: a query string não participa.
+ */
+function isAllowedDuringPasswordChange(req) {
+  return ALLOWED_PASSWORD_CHANGE_OPERATIONS.some(
+    (op) => req.method === op.method && req.baseUrl === op.baseUrl && req.path === op.path
+  );
+}
+
+auth.isAllowedDuringPasswordChange = isAllowedDuringPasswordChange;
 
 module.exports = auth;

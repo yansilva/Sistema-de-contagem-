@@ -139,7 +139,7 @@ textarea:focus-visible,
   min-height: 40px;
   font-size: 15px;
   line-height: 1;
-  transition: all var(--transicao);
+  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao), box-shadow var(--transicao);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -314,7 +314,7 @@ input::placeholder {
   font-size: .875rem;
   z-index: 1300; /* acima de .modal (1200) e #modal-confirmacao (1250) */
   box-shadow: var(--sombra-lg);
-  animation: toastIn .22s cubic-bezier(0.16, 1, 0.3, 1), toastOut .25s ease 2.7s forwards;
+  animation: toastIn .22s cubic-bezier(0.16, 1, 0.3, 1), toastOut .25s ease 7.75s forwards;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -502,7 +502,7 @@ select {
   justify-content: center;
   font-size: 0.85rem;
   flex-shrink: 0;
-  transition: all var(--transicao);
+  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
 }
 
 .item-contagem-cega .item-status.contado {
@@ -750,7 +750,7 @@ small.text-muted {
 }
 /* Em telas estreitas o nome da empresa sai do desenho (mobile.css), mas continua no h1 para leitores de tela */
 @media (max-width: 1100px) {
-  .topbar h1 #topbar-company-title {
+  .topbar .topbar-marca #topbar-company-title {
     display: block;
     position: absolute;
     width: 1px;
@@ -762,3 +762,22 @@ small.text-muted {
     border: 0;
   }
 }
+
+/* ===== Rodada 11: modais por classe (antes eram estilos inline) =====
+ * Ocultos por padrão; o gerenciador abre com element.style.display = 'flex' e fecha com 'none'. */
+.app-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.app-modal--ajuda { z-index: 1100; }
+.app-modal--confirmacao { z-index: 1250; }
+.modal-confirmacao-card { width: 100%; max-width: 440px; box-shadow: var(--sombra-lg); }
+.modal-confirmacao-titulo { font-size: 1.15rem; font-weight: 700; margin-bottom: 12px; }
+.modal-confirmacao-mensagem { margin-bottom: 20px; white-space: pre-line; }
+.modal-confirmacao-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }

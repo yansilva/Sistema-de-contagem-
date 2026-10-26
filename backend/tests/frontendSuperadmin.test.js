@@ -60,7 +60,7 @@ describe('Contrato da interface do Super Admin', () => {
   });
 
   it('mantém modais do console ocultos até serem ativados', () => {
-    const css = read('css/superadmin.css');
+    const css = read('css/modais.css'); // modais são globais; superadmin.css carrega sob demanda
     expect(css).toMatch(/\.modal\s*\{[^}]*display:\s*none/s);
     expect(css).toMatch(/\.modal\.active\s*\{[^}]*display:\s*flex/s);
   });

@@ -21,8 +21,8 @@
 
 @media (max-width: 1100px) {
   .topbar { padding: 0 12px; gap: 8px; }
-  .topbar h1 { flex-shrink: 0; }
-  .topbar h1 span { display: none; }
+  .topbar .topbar-marca { flex-shrink: 0; }
+  .topbar .topbar-marca span { display: none; }
   .topbar-right { min-width: 0; gap: 6px; }
   .user-badge { min-width: 0; padding: 6px 8px; }
   #topbar-user-name { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -101,6 +101,13 @@
   .contagem-item-status .badge-success { background: var(--cor-sucesso); border-color: var(--cor-sucesso); }
   .contagem-item-status .badge-warning { background: var(--cor-aviso); border-color: var(--cor-aviso); }
   .contagem-item-status .badge-danger { background: var(--cor-perigo); border-color: var(--cor-perigo); }
+  /* Rodada 11 · a11y: o estado do item não depende só da cor. Salvo = círculo cheio com check; digitado = quadrado
+     arredondado âmbar com lápis; corrigir = círculo vermelho com "!"; pendente = anel vazio. O texto segue para leitor de tela. */
+  .contagem-item-status .badge { width: 24px; height: 24px; min-width: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+  .contagem-item-status .badge i { display: inline-block; font-size: 15px; line-height: 1; margin: 0; color: #fff; }
+  .contagem-item-status .badge-warning { border-radius: 6px; }
+  .contagem-item-status .badge-warning i { color: #1f2937; }
+  .contagem-item-status .badge-neutral { border-style: dashed; }
   .contagem-item-rotulo { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
   .contagem-item .input-qtd-fisica { width: 108px; min-height: 44px; padding-left: 6px; padding-right: 6px; text-align: center; }
   #bloco-produtos-contagem .eyebrow-curto { display: inline; }
@@ -420,6 +427,8 @@ label.btn:focus-within { outline: 2px solid var(--cor-primaria); outline-offset:
   .kpi-faixa .kpi-card { grid-template-columns: minmax(0, 1fr); gap: 2px; padding: 10px 12px; min-height: 0; }
   .kpi-faixa .kpi-icon { display: none; }
   .kpi-faixa .kpi-title { font-size: .75rem; letter-spacing: .02em; }
+  /* Rodada 11 · a11y: palavra do KPI ("PRODUTORES") nunca quebra no meio; o título inteiro desce de linha se precisar */
+  .kpi-faixa .kpi-title { overflow-wrap: normal; word-break: normal; hyphens: manual; letter-spacing: 0; }
   .kpi-faixa .kpi-value { font-size: 1.4rem; }
   .dash-action-bar { padding: 14px; gap: 14px; }
   .dash-action-bar .action-bloco + .action-bloco { padding-left: 0; border-left: 0; padding-top: 12px; border-top: 1px solid var(--cor-borda); }
@@ -435,8 +444,8 @@ label.btn:focus-within { outline: 2px solid var(--cor-primaria); outline-offset:
 }
 @media (max-width: 760px) {
   /* Topo: avatar + nome da empresa (com reticências) em vez do nome do usuário truncado */
-  .topbar h1 { flex: 1 1 auto; min-width: 0; gap: 8px; }
-  .topbar h1 span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+  .topbar .topbar-marca { flex: 1 1 auto; min-width: 0; gap: 8px; }
+  .topbar .topbar-marca span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
   .topbar-right { flex: 0 0 auto; }
   #topbar-user-name { display: none; }
   .user-badge { padding: 3px; }
@@ -448,7 +457,7 @@ label.btn:focus-within { outline: 2px solid var(--cor-primaria); outline-offset:
   .dash-action-bar .action-bloco + .action-bloco { padding-top: 10px; }
 }
 @media (max-width: 760px) {
-  .topbar h1 span#topbar-company-title { position: static; width: auto; height: auto; margin: 0; clip: auto; display: block; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
+  .topbar .topbar-marca span#topbar-company-title { position: static; width: auto; height: auto; margin: 0; clip: auto; display: block; flex: 1 1 auto; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
   .dash-header, #home-administrador .dash-header { padding: 14px 16px; }
   /* Rótulos de Contagem e Gestão ficam só para leitor de tela: o botão já diz o que faz */
   .dash-action-bar #grupo-contagem, .dash-action-bar #grupo-gestao { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }

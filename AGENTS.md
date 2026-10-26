@@ -47,3 +47,28 @@ Ao concluir qualquer tarefa ou fase de implementação, **registrar imediatament
 
 ## 3. REGRA INEGOCIÁVEL
 O usuário nunca precisa pedir: "Consulte o segundo cérebro" ou "Registre no segundo cérebro". Esta rotina é o comportamento operacional nativo e obrigatório em todo ciclo de trabalho.
+
+
+---
+
+# Guia do projeto para agentes (Sistema de Contagem)
+
+## Diretórios
+- `backend/`: API Express (`src/`), SQL (`sql/schema.sql`, `sql/migrations`, `sql/rollbacks`, `sql/seed.sql` só para desenvolvimento) e testes Jest (`tests/`).
+- `frontend/`: fonte do frontend. Edite aqui.
+- `public/`: espelho gerado de `frontend/`. Nunca edite à mão.
+- `api/`: entrada serverless da Vercel. `docs/`: guias e planos. `.local/`, `.worktrees/`, `.tmp/`, `graphify-out/`: uso local, não versionar.
+
+## Espelhamento frontend para public
+A Vercel serve `public/`. Depois de qualquer mudança em `frontend/`, rode `npm run build` (copia `frontend/` para `public/`). O CI falha se `public/` divergir de `frontend/` (ignora só fim de linha). O build copia por cima e não apaga arquivos removidos de `frontend/`: apague-os também em `public/`.
+
+## Comandos
+- `npm run build`, `npm test`, `npm run lint` (raiz, delegam ao backend).
+- `npm run migrate`: aplica schema e migrações pendentes. Novas migrações vão em `backend/sql/migrations` com prefixo numérico crescente e rollback correspondente em `backend/sql/rollbacks`.
+- Docker: `docker compose up --build -d` e `docker compose --profile tools run --rm migrate`.
+
+## Política de testes
+Bug corrigido ou regra nova precisa de teste. Rode `npm test` e `npm run lint` antes de concluir. Testes de integração com Postgres usam `TEST_DATABASE_URL` e são ignorados sem ela.
+
+## Regras de segurança operacional
+Sem segredos no Git (apenas nomes de variáveis em `.env.example`). Não publique nem faça deploy sem pedido explícito do usuário.

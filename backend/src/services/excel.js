@@ -1,4 +1,5 @@
-const ExcelJS = require('exceljs');
+// exceljs é pesado: carregado só na primeira exportação, para não custar nada no cold start da API.
+let ExcelJS;
 
 /**
  * Gera planilha Excel com diferenças de estoque
@@ -7,6 +8,7 @@ const ExcelJS = require('exceljs');
  * @returns {Buffer} Buffer do arquivo .xlsx
  */
 async function gerarExcelContagem(itens, _data) {
+  ExcelJS = ExcelJS || require('exceljs');
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'Estoque SaaS';
   workbook.created = new Date();
@@ -17,7 +19,7 @@ async function gerarExcelContagem(itens, _data) {
 
   // Definir colunas
   sheet.columns = [
-    { header: 'Fornecedor', key: 'fornecedor', width: 28 },
+    { header: 'Produtor', key: 'fornecedor', width: 28 },
     { header: 'Código', key: 'codigo', width: 14 },
     { header: 'Produto', key: 'nome', width: 38 },
     { header: 'Estoque de Referência', key: 'estoque_referencia', width: 22 },

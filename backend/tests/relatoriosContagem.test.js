@@ -39,7 +39,7 @@ describe('Excel de diferenças da contagem', () => {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(res.body);
     const sheet = workbook.worksheets[0];
-    expect(sheet.getRow(1).values).toEqual([undefined, 'Fornecedor', 'Código', 'Produto', 'Estoque de Referência', 'Contagem Física', 'Diferença', 'Unidades vencidas', 'Baixa efetiva', 'Estoque antes da baixa', 'Estoque após a baixa', 'Observação']);
+    expect(sheet.getRow(1).values).toEqual([undefined, 'Produtor', 'Código', 'Produto', 'Estoque de Referência', 'Contagem Física', 'Diferença', 'Unidades vencidas', 'Baixa efetiva', 'Estoque antes da baixa', 'Estoque após a baixa', 'Observação']);
     expect(sheet.getRow(2).getCell(7).value).toBe(0);
     expect(sheet.getRow(2).getCell(8).value).toBeNull();
     expect(db.query.mock.calls[1][0]).toMatch(/status/);

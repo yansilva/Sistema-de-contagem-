@@ -1,6 +1,5 @@
 const {
   serializeItem,
-  serializeFornecedor,
   serializeContagemDetalhe
 } = require('../src/serializers/contagemSerializer');
 

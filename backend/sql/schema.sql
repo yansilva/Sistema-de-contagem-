@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS contagens (
 
 CREATE INDEX IF NOT EXISTS idx_contagens_empresa ON contagens(empresa_id);
 CREATE INDEX IF NOT EXISTS idx_contagens_empresa_status ON contagens(empresa_id, status);
+CREATE INDEX IF NOT EXISTS idx_contagens_empresa_iniciado_em ON contagens(empresa_id, iniciado_em DESC);
 CREATE INDEX IF NOT EXISTS idx_contagens_finalizado_em ON contagens(empresa_id, finalizado_em DESC) WHERE status = 'finalizada';
 
 -- =============================================
@@ -162,6 +163,7 @@ CREATE TABLE IF NOT EXISTS contagem_itens (
 
 CREATE INDEX IF NOT EXISTS idx_contagem_itens_fornecedor ON contagem_itens(contagem_fornecedor_id);
 CREATE INDEX IF NOT EXISTS idx_contagem_itens_situacao ON contagem_itens(contagem_fornecedor_id, situacao);
+CREATE INDEX IF NOT EXISTS idx_contagem_itens_fornecedor_produto ON contagem_itens(contagem_fornecedor_id, produto_id);
 
 -- =============================================
 -- Tabela: refresh_tokens

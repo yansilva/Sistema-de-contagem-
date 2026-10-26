@@ -13,6 +13,92 @@ function modalAberto() {
   return [...document.querySelectorAll('.modal, .app-modal')].find(elementoVisivel) || null;
 }
 
+/** Modal visível que está por cima (o último no documento: a confirmação vem depois dos demais), ou null */
+function modalNoTopo() {
+  const abertos = [...document.querySelectorAll('.modal, .app-modal')].filter(elementoVisivel);
+  return abertos.length ? abertos[abertos.length - 1] : null;
+}
+
+const SELETOR_FOCAVEL_JANELA = 'button:not(:disabled), input:not([type="hidden"]):not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex]:not([tabindex="-1"])';
+
+/** Focáveis por Tab dentro de um contêiner de janela (modal ou gaveta), na ordem do documento */
+function focaveisDaJanela(contenedor) {
+  return [...contenedor.querySelectorAll(SELETOR_FOCAVEL_JANELA)].filter((el) => !el.closest('[inert], [hidden]') && elementoVisivel(el));
+}
+
+/** Gaveta do back-office aberta no celular (no desktop a barra lateral é navegação fixa, não janela) */
+function gavetaBoAberta() {
+  const sidebar = document.getElementById('bo-sidebar');
+  return sidebar && sidebar.classList && sidebar.classList.contains('open') && elementoVisivel(sidebar) ? sidebar : null;
+}
+
+/** Janela que prende o foco agora: modal no topo ou gaveta aberta */
+function janelaAtiva() {
+  return modalNoTopo() || gavetaBoAberta();
+}
+
+/**
+ * Isolamento da página atrás de uma janela: aplica `inert` (com aria-hidden de reserva onde não houver suporte)
+ * aos irmãos de cada ancestral da janela, ou seja, cabeçalho, conteúdo e barra de auditoria.
+ * Toasts, o anúncio de tela e o fundo que fecha a gaveta ficam de fora.
+ */
+const _isolados = new Map(); // elemento -> valor anterior de aria-hidden (null = não tinha)
+function atualizarIsolamentoDeJanela() {
+  try {
+    _isolados.forEach((anterior, el) => {
+      if ('inert' in el) el.inert = false;
+      if (anterior === null) el.removeAttribute('aria-hidden'); else el.setAttribute('aria-hidden', anterior);
+    });
+    _isolados.clear();
+    const janela = janelaAtiva();
+    if (!janela) return;
+    const suporta = 'inert' in HTMLElement.prototype;
+    let no = janela;
+    while (no && no !== document.body && no.parentElement) {
+      const pai = no.parentElement;
+      [...pai.children].forEach((irmao) => {
+        if (irmao === no || _isolados.has(irmao)) return;
+        if (/^(SCRIPT|STYLE|LINK|TEMPLATE|DIALOG)$/.test(irmao.tagName)) return;
+        if (irmao.id === 'anuncio-tela' || irmao.id === 'bo-sidebar-backdrop' || (irmao.classList && irmao.classList.contains('toast'))) return;
+        // Outras janelas fechadas não precisam de isolamento (e continuam sem aria-hidden próprio)
+        if (irmao.classList && (irmao.classList.contains('modal') || irmao.classList.contains('app-modal')) && !elementoVisivel(irmao)) return;
+        _isolados.set(irmao, irmao.getAttribute('aria-hidden'));
+        if (suporta) irmao.inert = true;
+        irmao.setAttribute('aria-hidden', 'true');
+      });
+      no = pai;
+    }
+  } catch (e) { /* ambiente sem DOM completo */ }
+}
+
+/** Altura da barra "Auditoria somente leitura" (sticky) vira variável CSS: a topbar desce essa altura */
+function atualizarAlturaBarraAuditoria() {
+  try {
+    const barra = document.getElementById('audit-session-bar');
+    const raiz = document.documentElement;
+    const visivel = !!barra && barra.style.display !== 'none' && elementoVisivel(barra);
+    const altura = visivel ? Math.ceil(barra.getBoundingClientRect().height) : 0;
+    raiz.style.setProperty('--altura-barra-auditoria', `${altura}px`);
+    if (visivel && typeof ResizeObserver === 'function' && !atualizarAlturaBarraAuditoria._obs) {
+      atualizarAlturaBarraAuditoria._obs = new ResizeObserver(() => atualizarAlturaBarraAuditoria());
+      atualizarAlturaBarraAuditoria._obs.observe(barra);
+    }
+  } catch (e) { /* sem layout */ }
+}
+if (typeof window !== 'undefined' && window.addEventListener) {
+  window.addEventListener('resize', () => atualizarAlturaBarraAuditoria());
+}
+
+/** Atalhos de uma tecla ("/" e "?"): o usuário pode desligar (WCAG 2.1.4). Guardado por navegador. */
+const CHAVE_ATALHOS = 'inventory_atalhos';
+function atalhosAtivos() {
+  return lerPreferencia(CHAVE_ATALHOS, 'on') !== 'off';
+}
+function definirAtalhos(ativo) {
+  gravarPreferencia(CHAVE_ATALHOS, ativo ? 'on' : 'off');
+  document.querySelectorAll('.js-opcao-atalhos').forEach((c) => { c.checked = ativo; });
+}
+
 /** Ajuda contextual (modal-ajuda). Funciona logado e deslogado. */
 const AJUDA_CONTEXTUAL = {
   'screen-contagem': [
@@ -207,6 +293,7 @@ function iniciarGerenciadorModais() {
       st.anterior = document.activeElement && document.activeElement !== document.body ? document.activeElement : null;
       if (!modal.hasAttribute('role')) modal.setAttribute('role', 'dialog');
       modal.setAttribute('aria-modal', 'true');
+      atualizarIsolamentoDeJanela();
       if (!modal.hasAttribute('aria-labelledby') && !modal.hasAttribute('aria-label')) {
         const titulo = modal.querySelector('h2, h3');
         if (titulo) {
@@ -228,6 +315,7 @@ function iniciarGerenciadorModais() {
     } else {
       const anterior = st.anterior;
       st.anterior = null;
+      atualizarIsolamentoDeJanela();
       if (anterior && document.contains(anterior) && typeof anterior.focus === 'function') anterior.focus();
     }
   };
@@ -909,8 +997,10 @@ function toggleBoSidebar() {
   const isOpen = sidebar.classList.toggle('open');
   if (backdrop) backdrop.classList.toggle('active', isOpen);
   if (menuBtn) menuBtn.setAttribute('aria-expanded', String(isOpen));
+  definirGavetaComoDialogo(sidebar, isOpen);
   if (isOpen) {
-    const primeiro = sidebar.querySelector('.bo-nav-item, .bo-sidebar-nav button, button:not(.bo-sidebar-close)') || sidebar.querySelector('button');
+    // Foco inicial no botão Fechar da gaveta (padrão de diálogo); o Esc e o fundo também fecham
+    const primeiro = sidebar.querySelector('.bo-sidebar-close') || sidebar.querySelector('.bo-nav-item, button');
     // Foco no quadro seguinte: o item só deixa de ser visibility:hidden depois do estilo recalculado
     const focarPrimeiro = (tentativa) => {
       if (!sidebar.classList.contains('open') || !primeiro || !primeiro.focus) return;
@@ -930,14 +1020,35 @@ function fecharBoSidebar(semFoco) {
   const sidebar = document.getElementById('bo-sidebar');
   const backdrop = document.getElementById('bo-sidebar-backdrop');
   const menuBtn = document.getElementById('bo-menu-btn');
-  // Devolve o foco ao botão "Seções" só se o foco estava dentro da gaveta aberta
-  if (!semFoco && sidebar &&sidebar.classList.contains('open') && menuBtn && menuBtn.focus && sidebar.contains(document.activeElement)) {
-    menuBtn.focus({ preventScroll: true });
-  }
+  // Devolve o foco ao botão "Seções" (#bo-menu-btn) só se o foco estava dentro da gaveta aberta
+  const devolverFoco = !semFoco && sidebar && sidebar.classList.contains('open') && menuBtn && menuBtn.focus && sidebar.contains(document.activeElement);
   if (sidebar) sidebar.classList.remove('open');
   if (backdrop) backdrop.classList.remove('active');
   if (menuBtn) menuBtn.setAttribute('aria-expanded', 'false');
+  // Tira o isolamento (inert) antes de focar: elemento inerte não recebe foco
+  definirGavetaComoDialogo(sidebar, false);
+  if (devolverFoco) menuBtn.focus({ preventScroll: true });
 }
+
+/** A gaveta do celular é um diálogo modal (role, nome e isolamento da página); no desktop é só navegação lateral */
+function definirGavetaComoDialogo(sidebar, aberta) {
+  if (!sidebar || !sidebar.setAttribute) return;
+  if (aberta) {
+    sidebar.setAttribute('role', 'dialog');
+    sidebar.setAttribute('aria-modal', 'true');
+    sidebar.setAttribute('aria-labelledby', 'bo-sidebar-titulo');
+  } else {
+    sidebar.removeAttribute('role');
+    sidebar.removeAttribute('aria-modal');
+    sidebar.removeAttribute('aria-labelledby');
+  }
+  atualizarIsolamentoDeJanela();
+}
+try {
+  // Gaveta aberta e a janela cresce para o desktop: a gaveta deixa de existir, então fecha sem tirar o foco do lugar
+  const mqGaveta = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(max-width: 860px)') : null;
+  if (mqGaveta && mqGaveta.addEventListener) mqGaveta.addEventListener('change', (ev) => { if (!ev.matches) fecharBoSidebar(true); });
+} catch (e) { /* sem matchMedia */ }
 
 /**
  * Carrega KPIs executivos no cabeçalho do Back-office
@@ -1078,7 +1189,7 @@ function toggleTheme() {
   const next = current === 'dark' ? 'light' : 'dark';
 
   document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('inventory_theme', next);
+  gravarPreferencia('inventory_theme', next);
 
   atualizarIconeTema(next);
 }
@@ -1086,6 +1197,8 @@ function toggleTheme() {
 function atualizarIconeTema(tema) {
   document.querySelectorAll('.btn-theme').forEach(b => {
     b.innerHTML = `<i class="ti ${tema === 'dark' ? 'ti-sun' : 'ti-moon'}" aria-hidden="true"></i>`;
+    // Botão de alternância: "pressionado" = tema escuro ligado
+    b.setAttribute('aria-pressed', tema === 'dark' ? 'true' : 'false');
   });
 }
 
@@ -1094,7 +1207,7 @@ function atualizarIconeTema(tema) {
  */
 document.addEventListener('DOMContentLoaded', async () => {
   // 1. Inicializar tema
-  const savedTheme = localStorage.getItem('inventory_theme') ||
+  const savedTheme = lerPreferencia('inventory_theme') ||
     (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 
   document.documentElement.setAttribute('data-theme', savedTheme);
@@ -1140,7 +1253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Atalho "?" abre a ajuda, fora de campos de digitação
     // (e.key '?' ou Shift+Barra, para layouts em que a tecla Barra produz outro caractere)
     const teclaAjuda = e.key === '?' || (e.code === 'Slash' && e.shiftKey);
-    if (teclaAjuda && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing && !e.repeat && !e.defaultPrevented) {
+    if (teclaAjuda && atalhosAtivos() && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing && !e.repeat && !e.defaultPrevented) {
       const digitandoAjuda = e.target && e.target.closest && e.target.closest('input, textarea, select, [role="textbox"], [role="combobox"], [contenteditable]:not([contenteditable="false"])');
       if (!digitandoAjuda && !modalAberto()) {
         e.preventDefault();
@@ -1148,11 +1261,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     // Atalho "/" foca a primeira busca visível, fora de campos de digitação
-    if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing && !e.repeat) {
+    if (e.key === '/' && atalhosAtivos() && !e.ctrlKey && !e.metaKey && !e.altKey && !e.isComposing && !e.repeat) {
       const alvo = e.target;
       const digitando = alvo.closest && alvo.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
       if (!digitando && !modalAberto()) {
-        const busca = [...document.querySelectorAll('input[type="search"], #busca-fornecedor, #filtro-busca-produto, #filtro-busca-usuario, #filtro-audit-busca')]
+        const busca = [...document.querySelectorAll('input[type="search"], #busca-fornecedor, #filtro-busca-produto, #filtro-busca-usuario, #filtro-audit-busca, #sa-filtro-audit-busca')]
           .find(el => el.offsetParent !== null);
         if (busca) {
           e.preventDefault();
@@ -1161,21 +1274,49 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     if (e.key === 'Tab') {
-      const modal = modalAberto();
-      if (!modal) return;
-      const focaveis = [...modal.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')];
-      if (!focaveis.length) return;
+      // Janela no topo (modal ou gaveta do celular): Tab e Shift+Tab nunca saem dela
+      if (e.defaultPrevented) return;
+      const janela = janelaAtiva();
+      if (!janela) return;
+      const focaveis = focaveisDaJanela(janela);
+      if (!focaveis.length) {
+        e.preventDefault();
+        if (!janela.hasAttribute('tabindex')) janela.setAttribute('tabindex', '-1');
+        janela.focus();
+        return;
+      }
       const primeiro = focaveis[0];
       const ultimo = focaveis[focaveis.length - 1];
-      if (e.shiftKey && document.activeElement === primeiro) {
+      const ativo = document.activeElement;
+      if (!janela.contains(ativo) || !focaveis.includes(ativo)) {
+        // Foco fora da janela ou num elemento sem Tab (como o título com tabindex -1): volta para o extremo certo
+        e.preventDefault();
+        (e.shiftKey ? ultimo : primeiro).focus();
+      } else if (e.shiftKey && ativo === primeiro) {
         e.preventDefault();
         ultimo.focus();
-      } else if (!e.shiftKey && document.activeElement === ultimo) {
+      } else if (!e.shiftKey && ativo === ultimo) {
         e.preventDefault();
         primeiro.focus();
       }
     }
   });
+
+  // Rede de segurança: se o foco escapar da janela (clique em área sem inert, leitor de tela), volta para dentro
+  document.addEventListener('focusin', (e) => {
+    const janela = janelaAtiva();
+    if (!janela || !e.target || janela.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.toast')) return;
+    const focaveis = focaveisDaJanela(janela);
+    if (focaveis.length) focaveis[0].focus();
+  });
+
+  // Opção de desligar os atalhos "/" e "?" (Configurações e Ajuda)
+  document.querySelectorAll('.js-opcao-atalhos').forEach((caixa) => {
+    caixa.checked = atalhosAtivos();
+    caixa.addEventListener('change', () => definirAtalhos(caixa.checked));
+  });
+  atualizarAlturaBarraAuditoria();
 
   // 4b. Botão Voltar/Avançar do navegador
   try {

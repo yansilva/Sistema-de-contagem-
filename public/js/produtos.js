@@ -67,9 +67,28 @@ const Produtos = {
     this.produtosCache = produtos;
     this.totalPaginas = pagination.totalPages;
 
+    // Total da busca numa região de status curta (a lista de produtos não é anunciada)
+    const regiaoBusca = document.getElementById('produtos-busca-status');
+    if (regiaoBusca) {
+      const filtrando = Boolean(this.termoBusca || this.fornecedorFiltro || this.pecasFiltro !== '');
+      const total = Number(pagination.total);
+      regiaoBusca.textContent = !filtrando ? ''
+        : produtos.length === 0 ? 'Nenhum produto encontrado.'
+          : `${pluralizar(Number.isFinite(total) && total > 0 ? total : produtos.length, 'produto')} encontrado${(Number.isFinite(total) && total > 0 ? total : produtos.length) === 1 ? '' : 's'}.`;
+    }
+
     // Atualiza KPIs do backoffice de forma reativa
+    // Sem forçar a cada página/busca/filtro (eram 4 chamadas repetidas): os KPIs já têm memo de 30 s e só são
+    // refeitos de imediato quando o total do catálogo (sem filtro) mudou, ou seja, depois de criar/desativar/importar.
     if (typeof carregarBackofficeKPIs === 'function' && typeof Auth !== 'undefined' && Auth.isAdmin()) {
-      carregarBackofficeKPIs(true);
+      const semFiltro = !(this.termoBusca || this.fornecedorFiltro || this.pecasFiltro !== '');
+      const totalCatalogo = Number(pagination.total);
+      let catalogoMudou = false;
+      if (semFiltro && Number.isFinite(totalCatalogo)) {
+        catalogoMudou = this._totalCatalogo !== undefined && this._totalCatalogo !== totalCatalogo;
+        this._totalCatalogo = totalCatalogo;
+      }
+      carregarBackofficeKPIs(catalogoMudou);
     }
 
     if (produtos.length === 0) {

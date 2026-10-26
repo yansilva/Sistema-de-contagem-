@@ -73,7 +73,7 @@ const EmpresaDetalhes = {
     container.innerHTML = `
       <div class="empresa-detail-header">
         <button class="btn btn-ghost btn-sm" data-click="action-113"><i class="ti ti-arrow-left"></i> Voltar às empresas</button>
-        <div class="empresa-detail-title"><div><h3>${this.escape(empresa.nome)}</h3><p>${this.escape(empresa.email_contato)}</p></div><span class="status-pill ${excluida ? 'excluida' : empresa.status}">${status}</span></div>
+        <div class="empresa-detail-title"><div><h3 aria-level="2">${this.escape(empresa.nome)}</h3><p>${this.escape(empresa.email_contato)}</p></div><span class="status-pill ${excluida ? 'excluida' : empresa.status}">${status}</span></div>
         <div class="empresa-detail-actions">
           ${excluida ? '' : `<button class="btn btn-outline btn-sm" data-click="action-94" data-id="${empresa.id}"><i class="ti ti-edit"></i> Editar</button>
           <button class="btn btn-outline btn-sm" data-click="action-103" data-id="${empresa.id}" data-status="${empresa.status}">${empresa.status === 'ativa' ? 'Inativar' : 'Reativar'}</button>
@@ -85,14 +85,15 @@ const EmpresaDetalhes = {
         ${this.botaoAba('usuarios', 'Usuários')}
         ${this.botaoAba('contagens', 'Contagens')}
         ${this.botaoAba('auditoria', 'Auditoria')}
-        ${this.botaoAba('logs', 'Logs')}
       </div>
-      <div id="empresa-detalhes-conteudo" class="empresa-detail-content" role="tabpanel" aria-live="polite"></div>`;
+      <div id="empresa-detalhes-conteudo" class="empresa-detail-content" role="tabpanel" aria-labelledby="empresa-aba-${this.abaAtual}" aria-live="polite"></div>`;
   },
 
+  /** Aba com padrão WAI-ARIA: id, aria-controls, tabindex móvel (só a ativa entra na ordem de Tab) e setas via events.js */
   botaoAba(id, label) {
     const rotuloAcessivel = id === 'visao-geral' ? ' aria-label="Visão geral da empresa"' : '';
-    return `<button type="button" class="empresa-detail-tab" role="tab" aria-selected="false" data-click="action-112" data-tab="${id}"${rotuloAcessivel}>${label}</button>`;
+    const ativa = id === this.abaAtual;
+    return `<button type="button" id="empresa-aba-${id}" class="empresa-detail-tab" role="tab" aria-selected="${ativa}" aria-controls="empresa-detalhes-conteudo" tabindex="${ativa ? '0' : '-1'}" data-click="action-112" data-keydown="empresa-aba-teclado" data-tab="${id}"${rotuloAcessivel}>${label}</button>`;
   },
 
   /** Rótulos legíveis: usa Rotulos (utils.js) quando existir; o fallback é equivalente. */
@@ -128,12 +129,14 @@ const EmpresaDetalhes = {
       const ativa = button.dataset.tab === aba;
       button.classList.toggle('active', ativa);
       button.setAttribute('aria-selected', ativa ? 'true' : 'false');
+      button.setAttribute('tabindex', ativa ? '0' : '-1');
       // Celular: as abas rolam na horizontal; a ativa fica sempre visível
       const faixa = button.parentElement;
       if (ativa && faixa && faixa.scrollWidth > faixa.clientWidth) faixa.scrollLeft = button.offsetLeft - (faixa.clientWidth - button.offsetWidth) / 2;
     });
     const content = document.getElementById('empresa-detalhes-conteudo');
     if (!content) return;
+    content.setAttribute('aria-labelledby', `empresa-aba-${aba}`);
     const requestId = ++this.requestId;
     content.innerHTML = '<div class="loading-state"><span class="spinner"></span><p>Carregando…</p></div>';
 
@@ -149,8 +152,6 @@ const EmpresaDetalhes = {
       let res;
       if (aba === 'usuarios' && dadosIniciais) {
         res = { success: true, data: { items: dadosIniciais.usuarios, pagination: dadosIniciais.pagination } };
-      } else if (aba === 'logs') {
-        res = await API.get('/atividades?empresa_id=' + encodeURIComponent(this.empresaId) + '&page=1&limit=20');
       } else {
         res = await API.get('/empresas/' + this.empresaId + '/' + aba + '?page=1&limit=20');
       }

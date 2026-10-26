@@ -51,7 +51,7 @@ html { scroll-padding-top: 72px; }
 #bo-page-title,
 #saas-page-title { scroll-margin-top: 72px; }
 
-.topbar h1 {
+.topbar .topbar-marca {
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -62,10 +62,26 @@ html { scroll-padding-top: 72px; }
   user-select: none;
 }
 
-.topbar h1 i {
+.topbar .topbar-marca i {
   color: var(--cor-primaria);
   font-size: 1.4rem;
 }
+
+/* ===== Rodada 11 · a11y ===== */
+/* A barra "Auditoria somente leitura" é sticky (z-index 1100) e cobria a topbar: app.js mede a altura dela em
+   --altura-barra-auditoria (0 sem auditoria) e a topbar, a rolagem por âncora e os títulos descem essa altura. */
+.topbar { top: var(--altura-barra-auditoria, 0px); }
+html { scroll-padding-top: calc(72px + var(--altura-barra-auditoria, 0px)); }
+#bo-page-title,
+#saas-page-title { scroll-margin-top: calc(72px + var(--altura-barra-auditoria, 0px)); }
+/* Alvo de toque do botão Fechar do aviso */
+.toast .toast-close { min-width: 44px; min-height: 44px; }
+/* Botão Fechar (×) dos modais do console: 44px (maior especificidade que modais.css, que carrega depois) */
+.modal .btn-close, .modal-header .btn-close { width: 44px; height: 44px; }
+/* Campos obrigatórios dos modais */
+.campo-obrigatorio { color: var(--cor-perigo-texto); font-weight: 700; }
+.campo-obrigatorio-legenda { margin: 0 0 12px; font-size: .8rem; color: var(--cor-texto-secundario); }
+.campo-obrigatorio-legenda span { color: var(--cor-perigo-texto); font-weight: 700; }
 
 .brand-mark {
   width: 30px;
@@ -179,7 +195,7 @@ html { scroll-padding-top: 72px; }
   .topbar {
     padding: 0 14px;
   }
-  .topbar h1 span { display: none; }
+  .topbar .topbar-marca span { display: none; }
   .topbar-right { gap: 6px; min-width: 0; }
   .user-badge { min-width: 0; padding: 6px 8px; }
   .user-badge .avatar { flex-shrink: 0; }

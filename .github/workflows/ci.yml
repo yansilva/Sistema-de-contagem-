@@ -6,10 +6,36 @@ on:
   pull_request:
     branches: [main, master]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  backend-audit-and-test:
-    name: Backend Lint & Automated Tests
+  backend:
+    name: Backend (lint, audit, migrations, tests)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_postgres_password
+          POSTGRES_DB: estoque_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d estoque_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:ci_postgres_password@localhost:5432/estoque_test
 
     steps:
       - name: Checkout Source Code
@@ -26,13 +52,66 @@ jobs:
         working-directory: ./backend
         run: npm ci --workspaces=false
 
-      - name: Run ESLint
+      - name: Run ESLint (falha em erros)
         working-directory: ./backend
         run: npm run lint
 
+      # Informativo ate os avisos restantes serem zerados; depois remova o continue-on-error.
+      - name: ESLint sem avisos (--max-warnings 0)
+        working-directory: ./backend
+        continue-on-error: true
+        run: npx eslint src/ tests/ --max-warnings 0
+
+      - name: Audit de dependencias de producao
+        working-directory: ./backend
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Aplicar schema e migracoes no Postgres de teste
+        working-directory: ./backend
+        run: npm run migrate
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+
       - name: Run Jest Test Suites
         working-directory: ./backend
-        run: npm test
+        run: npm test -- --coverage
         env:
           JWT_SECRET: ci_github_actions_test_jwt_secret_key_1234567890
           NODE_ENV: test
+
+  mirror:
+    name: Espelho frontend/ -> public/
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+
+      # public/ e gerado por `npm run build` (frontend/ com ?v=hash nas referencias). O job refaz o build
+      # numa pasta temporaria e falha se public/ commitado divergir dele (arquivo a mais, a menos ou com
+      # conteudo diferente; ignora diferenca de fim de linha).
+      - name: Gerar build de referencia
+        run: node scripts/build.js --out=.build-ref
+
+      - name: Verificar que public/ corresponde ao build de frontend/
+        run: |
+          node -e "
+          const fs=require('fs'),path=require('path');
+          const walk=(d,b=d,o=[])=>{for(const e of fs.readdirSync(d,{withFileTypes:true})){const p=path.join(d,e.name);e.isDirectory()?walk(p,b,o):o.push(path.relative(b,p).split(path.sep).join('/'));}return o;};
+          const a=walk('.build-ref'),b=walk('public'),bad=[];
+          for(const f of new Set([...a,...b])){
+            if(!a.includes(f)){bad.push('so em public: '+f);continue;}
+            if(!b.includes(f)){bad.push('so em frontend: '+f);continue;}
+            const x=fs.readFileSync('.build-ref/'+f).toString('latin1').replace(/\r\n/g,'\n');
+            const y=fs.readFileSync('public/'+f).toString('latin1').replace(/\r\n/g,'\n');
+            if(x!==y)bad.push('difere: '+f);
+          }
+          if(bad.length){console.error(bad.join('\n'));console.error('Rode npm run build e inclua public/ no commit.');process.exit(1);}
+          console.log('espelho OK');
+          "

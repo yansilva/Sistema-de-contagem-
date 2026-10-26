@@ -39,10 +39,37 @@ const Usuarios = {
   /**
    * Renderiza a tabela de usuários com proteção contra XSS
    */
+  termoBusca: '',
+
+  /** Busca por nome ou e-mail (campo #filtro-busca-usuario); o total vai para a região de status curta */
+  filtrar(termo) {
+    this.termoBusca = String(termo || '').trim().toLocaleLowerCase('pt-BR');
+    this.renderizar();
+  },
+
+  anunciarResultado(texto) {
+    const regiao = document.getElementById('usuarios-busca-status');
+    if (regiao) regiao.textContent = texto;
+  },
+
   renderizar() {
     const container = document.getElementById('lista-usuarios');
     if (!container) return;
 
+    const todos = this.lista;
+    const lista = this.termoBusca
+      ? todos.filter((u) => `${u.nome || ''} ${u.email || ''}`.toLocaleLowerCase('pt-BR').includes(this.termoBusca))
+      : todos;
+    if (this.termoBusca) {
+      this.anunciarResultado(lista.length ? `${pluralizar(lista.length, 'funcionário')} encontrado${lista.length === 1 ? '' : 's'}.` : 'Nenhum funcionário encontrado.');
+    } else {
+      this.anunciarResultado('');
+    }
+
+    if (todos.length > 0 && lista.length === 0) {
+      container.innerHTML = '<div class="empty-state"><p>Nenhum funcionário encontrado para esta busca.</p></div>';
+      return;
+    }
     if (this.lista.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
@@ -56,7 +83,7 @@ const Usuarios = {
       return;
     }
 
-    const rows = this.lista.map((u) => {
+    const rows = lista.map((u) => {
       const isEu = Auth.usuario && Auth.usuario.id === u.id;
       const papelLabel = u.papel === 'super_admin'
         ? '<span class="badge badge-admin"><i class="ti ti-shield-lock"></i> ' + Rotulos.papel('super_admin') + '</span>'

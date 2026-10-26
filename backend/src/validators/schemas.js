@@ -4,6 +4,11 @@ const { z } = require('zod');
 const senhaForteRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 const mensagemSenhaForte =
   'A senha deve conter no mínimo 8 caracteres, incluindo pelo menos uma letra maiúscula, uma minúscula e um número.';
+// bcrypt ignora tudo além de 72 bytes; rejeita em vez de truncar silenciosamente
+const senhaForte = z
+  .string()
+  .regex(senhaForteRegex, mensagemSenhaForte)
+  .refine((value) => Buffer.byteLength(value, 'utf8') <= 72, 'A senha deve ter no máximo 72 bytes.');
 
 // ===== AUTH SCHEMAS =====
 const loginSchema = {
@@ -18,7 +23,7 @@ const registroSchema = {
     empresa_nome: z.string().min(2, 'Nome da empresa deve ter pelo menos 2 caracteres').trim(),
     nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').trim(),
     email: z.string().email('Email inválido').trim().toLowerCase(),
-    senha: z.string().regex(senhaForteRegex, mensagemSenhaForte)
+    senha: senhaForte
   })
 };
 
@@ -30,15 +35,15 @@ const refreshSchema = {
 
 const alterarSenhaSchema = {
   body: z.object({
-    senhaAtual: z.string().min(1, 'Senha atual é obrigatória'),
-    novaSenha: z.string().regex(senhaForteRegex, mensagemSenhaForte)
+    senhaAtual: z.string().min(1, 'Senha atual é obrigatória').max(1024),
+    novaSenha: senhaForte
   })
 };
 
 const confirmarRecuperacaoSchema = {
   body: z.object({
     token: z.string().regex(/^[a-f0-9]{64}$/i, 'Token de recuperação inválido'),
-    novaSenha: z.string().regex(senhaForteRegex, mensagemSenhaForte)
+    novaSenha: senhaForte
   }).strict()
 };
 
@@ -48,7 +53,7 @@ const criarUsuarioSchema = {
     nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').trim(),
     email: z.string().email('Email inválido').trim().toLowerCase(),
     papel: z.enum(['administrador', 'funcionario', 'super_admin']).default('funcionario'),
-    senha_temporaria: z.string().min(6, 'Senha temporária deve ter pelo menos 6 caracteres')
+    senha_temporaria: senhaForte
   })
 };
 
@@ -76,7 +81,7 @@ const resetSenhaUsuarioSchema = {
     id: z.string().uuid('ID de usuário inválido')
   }),
   body: z.object({
-    novaSenhaTemporaria: z.string().min(6, 'Nova senha temporária deve ter pelo menos 6 caracteres')
+    novaSenhaTemporaria: senhaForte
   })
 };
 
@@ -85,7 +90,7 @@ const criarProdutoSchema = {
   body: z.object({
     codigo: z.string().min(1, 'Código / SKU é obrigatório').trim(),
     nome: z.string().min(1, 'Nome é obrigatório').trim(),
-    fornecedor: z.string().min(1, 'Produtor / Fornecedor é obrigatório').trim(),
+    fornecedor: z.string().min(1, 'Produtor é obrigatório').trim(),
     contagem_em_pecas: z.boolean().optional().default(false),
     estoque_atual: z.number().int().optional().default(0)
   })
@@ -98,7 +103,7 @@ const editarProdutoSchema = {
   body: z.object({
     codigo: z.string().min(1, 'Código não pode ser vazio').trim().optional(),
     nome: z.string().min(1, 'Nome não pode ser vazio').trim().optional(),
-    fornecedor: z.string().min(1, 'Fornecedor não pode ser vazio').trim().optional(),
+    fornecedor: z.string().min(1, 'Produtor não pode ser vazio').trim().optional(),
     contagem_em_pecas: z.boolean().optional(),
     estoque_atual: z.number().int().optional()
   })
@@ -130,7 +135,7 @@ const importarProdutosSchema = {
         z.object({
           codigo: z.string().min(1, 'Código obrigatório').trim(),
           nome: z.string().min(1, 'Nome obrigatório').trim(),
-          fornecedor: z.string().min(1, 'Fornecedor obrigatório').trim(),
+          fornecedor: z.string().min(1, 'Produtor obrigatório').trim(),
           estoque_atual: z.number().int().optional().default(0)
         })
       )
@@ -193,7 +198,7 @@ const salvarProgressoContagemSchema = {
     id: z.string().uuid('ID de contagem inválido')
   }),
   body: z.object({
-    fornecedor: z.string().min(1, 'Nome do produtor/fornecedor é obrigatório').trim(),
+    fornecedor: z.string().min(1, 'Nome do produtor é obrigatório').trim(),
     itens: z
       .array(
         z.object({
@@ -213,7 +218,7 @@ const adicionarFornecedorSchema = {
     id: z.string().uuid('ID de contagem inválido')
   }),
   body: z.object({
-    fornecedor: z.string().min(1, 'Nome do fornecedor é obrigatório').trim(),
+    fornecedor: z.string().min(1, 'Nome do produtor é obrigatório').trim(),
     tem_diferenca: z.boolean().default(false),
     produtos: z
       .array(
@@ -237,13 +242,19 @@ const adicionarFornecedorSchema = {
 };
 
 // ===== AUDITORIA / ATIVIDADES SCHEMAS =====
+// Data inválida deve virar 400 de validação, nunca RangeError (500) em toISOString().
+const dataFiltro = z
+  .string()
+  .trim()
+  .max(40)
+  .refine((v) => v === '' || !Number.isNaN(new Date(v).getTime()), 'Data inválida.');
 const listarAtividadesQuerySchema = {
   query: z
     .object({
       page: z.coerce.number().int().positive().default(1),
       limit: z.coerce.number().int().positive().max(100).default(20),
-      data_inicio: z.string().trim().optional(),
-      data_fim: z.string().trim().optional(),
+      data_inicio: dataFiltro.optional(),
+      data_fim: dataFiltro.optional(),
       ator_id: z.string().uuid('ID do ator inválido').optional(),
       acao: z.string().trim().optional(),
       entidade: z.string().trim().optional(),
@@ -271,8 +282,8 @@ const listarAtividadesQuerySchema = {
 const exportarAtividadesSchema = {
   body: z
     .object({
-      data_inicio: z.string().trim().optional(),
-      data_fim: z.string().trim().optional(),
+      data_inicio: dataFiltro.optional(),
+      data_fim: dataFiltro.optional(),
       ator_id: z.string().uuid('ID do ator inválido').optional(),
       acao: z.string().trim().optional(),
       entidade: z.string().trim().optional(),

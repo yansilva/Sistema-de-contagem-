@@ -1,4 +1,5 @@
-const { query, getClient } = require('../config/db');
+const { query } = require('../config/db');
+const { withTransaction } = require('../config/transaction');
 const { NotFoundError, ConflictError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
 const { isAdministrador, serializeProdutos } = require('../serializers/produtoSerializer');
@@ -116,39 +117,32 @@ async function listarFornecedores(req, res, next) {
  * Cria um produto (administrador only)
  */
 async function criar(req, res, next) {
-  const client = await getClient();
-  let inTransaction = false;
-
   try {
     const { codigo, nome, fornecedor, estoque_atual = 0, contagem_em_pecas = false } = req.body;
 
-    await client.query('BEGIN');
-    inTransaction = true;
+    const produto = await withTransaction(async (client) => {
+      const result = await client.query(
+        `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas, criado_em, atualizado_em`,
+        [req.empresaId, codigo.trim(), nome.trim(), fornecedor.trim(), parseInt(estoque_atual, 10) || 0, contagem_em_pecas]
+      );
+      const criado = result.rows[0];
 
-    const result = await client.query(
-      `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas, criado_em, atualizado_em`,
-      [req.empresaId, codigo.trim(), nome.trim(), fornecedor.trim(), parseInt(estoque_atual, 10) || 0, contagem_em_pecas]
-    );
-
-    const produto = result.rows[0];
-
-    await auditService.registrar(client, req.auditContext || {}, {
-      empresaId: req.empresaId,
-      atorId: req.usuario.id,
-      atorPapel: req.usuario.papel,
-      atorRotulo: req.usuario.email,
-      acao: 'produto_criado',
-      entidade: 'produto',
-      entidadeId: produto.id,
-      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual, contagem_em_pecas: produto.contagem_em_pecas },
-      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual', 'contagem_em_pecas'],
-      eventoChave: `produto_criado_${produto.id}`
+      await auditService.registrar(client, req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'produto_criado',
+        entidade: 'produto',
+        entidadeId: criado.id,
+        dadosNovos: { codigo: criado.codigo, nome: criado.nome, fornecedor: criado.fornecedor, estoque_atual: criado.estoque_atual, contagem_em_pecas: criado.contagem_em_pecas },
+        whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual', 'contagem_em_pecas'],
+        eventoChave: `produto_criado_${criado.id}`
+      });
+      return criado;
     });
-
-    await client.query('COMMIT');
-    inTransaction = false;
 
     res.status(201).json({
       success: true,
@@ -158,12 +152,6 @@ async function criar(req, res, next) {
       }
     });
   } catch (err) {
-    if (inTransaction && client) {
-      try {
-        const p = client.query('ROLLBACK');
-        if (p && typeof p.then === 'function') await p;
-      } catch (_) {}
-    }
     if (err.code === '23505') {
       return next(
         new ConflictError(
@@ -173,10 +161,6 @@ async function criar(req, res, next) {
       );
     }
     next(err);
-  } finally {
-    if (client && typeof client.release === 'function') {
-      client.release();
-    }
   }
 }
 
@@ -185,88 +169,82 @@ async function criar(req, res, next) {
  * Edita um produto (administrador only)
  */
 async function editar(req, res, next) {
-  const client = await getClient();
-  let inTransaction = false;
-
   try {
     const { id } = req.params;
     const { codigo, nome, fornecedor, estoque_atual, contagem_em_pecas } = req.body;
 
-    // Buscar estado anterior
-    const anteriorRes = await client.query(
-      'SELECT id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
-      [id, req.empresaId]
-    );
-    if (!anteriorRes || !anteriorRes.rows || anteriorRes.rows.length === 0) {
-      throw new NotFoundError('Produto não encontrado ou inativo.', 'PRODUTO_NAO_ENCONTRADO');
-    }
-    const anterior = anteriorRes.rows[0];
+    const produto = await withTransaction(async (client) => {
+      // Buscar estado anterior
+      const anteriorRes = await client.query(
+        'SELECT id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
+        [id, req.empresaId]
+      );
+      if (!anteriorRes || !anteriorRes.rows || anteriorRes.rows.length === 0) {
+        throw new NotFoundError('Produto não encontrado ou inativo.', 'PRODUTO_NAO_ENCONTRADO');
+      }
+      const anterior = anteriorRes.rows[0];
 
-    const updates = [];
-    const params = [id, req.empresaId];
+      const updates = [];
+      const params = [id, req.empresaId];
 
-    if (codigo !== undefined && codigo.trim()) {
-      params.push(codigo.trim());
-      updates.push(`codigo = $${params.length}`);
-    }
-    if (nome !== undefined && nome.trim()) {
-      params.push(nome.trim());
-      updates.push(`nome = $${params.length}`);
-    }
-    if (fornecedor !== undefined && fornecedor.trim()) {
-      params.push(fornecedor.trim());
-      updates.push(`fornecedor = $${params.length}`);
-    }
-    if (estoque_atual !== undefined) {
-      params.push(parseInt(estoque_atual, 10) || 0);
-      updates.push(`estoque_atual = $${params.length}`);
-    }
+      if (codigo !== undefined && codigo.trim()) {
+        params.push(codigo.trim());
+        updates.push(`codigo = $${params.length}`);
+      }
+      if (nome !== undefined && nome.trim()) {
+        params.push(nome.trim());
+        updates.push(`nome = $${params.length}`);
+      }
+      if (fornecedor !== undefined && fornecedor.trim()) {
+        params.push(fornecedor.trim());
+        updates.push(`fornecedor = $${params.length}`);
+      }
+      if (estoque_atual !== undefined) {
+        params.push(parseInt(estoque_atual, 10) || 0);
+        updates.push(`estoque_atual = $${params.length}`);
+      }
+      if (contagem_em_pecas !== undefined) {
+        params.push(contagem_em_pecas);
+        updates.push(`contagem_em_pecas = $${params.length}`);
+      }
 
-    if (contagem_em_pecas !== undefined) {
-      params.push(contagem_em_pecas);
-      updates.push(`contagem_em_pecas = $${params.length}`);
-    }
+      if (updates.length === 0) return null;
 
-    if (updates.length === 0) {
-      return res.json({ success: true, message: 'Nenhuma alteração enviada.' });
-    }
+      updates.push('atualizado_em = NOW()');
 
-    updates.push('atualizado_em = NOW()');
+      const result = await client.query(
+        `UPDATE produtos
+         SET ${updates.join(', ')}
+         WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
+         RETURNING id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas, atualizado_em`,
+        params
+      );
 
-    await client.query('BEGIN');
-    inTransaction = true;
+      if (result.rows.length === 0) {
+        throw new NotFoundError('Produto não encontrado ou inativo.', 'PRODUTO_NAO_ENCONTRADO');
+      }
 
-    const sql = `
-      UPDATE produtos
-      SET ${updates.join(', ')}
-      WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
-      RETURNING id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas, atualizado_em
-    `;
+      const editado = result.rows[0];
 
-    const result = await client.query(sql, params);
-
-    if (result.rows.length === 0) {
-      throw new NotFoundError('Produto não encontrado ou inativo.', 'PRODUTO_NAO_ENCONTRADO');
-    }
-
-    const produto = result.rows[0];
-
-    await auditService.registrar(client, req.auditContext || {}, {
-      empresaId: req.empresaId,
-      atorId: req.usuario.id,
-      atorPapel: req.usuario.papel,
-      atorRotulo: req.usuario.email,
-      acao: 'produto_editado',
-      entidade: 'produto',
-      entidadeId: produto.id,
-      dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, estoque_atual: anterior.estoque_atual, contagem_em_pecas: anterior.contagem_em_pecas },
-      dadosNovos: { codigo: produto.codigo, nome: produto.nome, fornecedor: produto.fornecedor, estoque_atual: produto.estoque_atual, contagem_em_pecas: produto.contagem_em_pecas },
-      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual', 'contagem_em_pecas'],
-      eventoChave: `produto_editado_${produto.id}`
+      await auditService.registrar(client, req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'produto_editado',
+        entidade: 'produto',
+        entidadeId: editado.id,
+        dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, estoque_atual: anterior.estoque_atual, contagem_em_pecas: anterior.contagem_em_pecas },
+        dadosNovos: { codigo: editado.codigo, nome: editado.nome, fornecedor: editado.fornecedor, estoque_atual: editado.estoque_atual, contagem_em_pecas: editado.contagem_em_pecas },
+        whitelistCampos: ['codigo', 'nome', 'fornecedor', 'estoque_atual', 'contagem_em_pecas'],
+        eventoChave: `produto_editado_${editado.id}`
+      });
+      return editado;
     });
 
-    await client.query('COMMIT');
-    inTransaction = false;
+    if (!produto) {
+      return res.json({ success: true, message: 'Nenhuma alteração enviada.' });
+    }
 
     res.json({
       success: true,
@@ -276,22 +254,12 @@ async function editar(req, res, next) {
       }
     });
   } catch (err) {
-    if (inTransaction && client) {
-      try {
-        const p = client.query('ROLLBACK');
-        if (p && typeof p.then === 'function') await p;
-      } catch (_) {}
-    }
     if (err.code === '23505') {
       return next(
         new ConflictError('Já existe outro produto cadastrado com este código/SKU.', 'CODIGO_DUPLICADO')
       );
     }
     next(err);
-  } finally {
-    if (client && typeof client.release === 'function') {
-      client.release();
-    }
   }
 }
 
@@ -300,65 +268,48 @@ async function editar(req, res, next) {
  * Soft delete — desativa o produto (administrador only)
  */
 async function desativar(req, res, next) {
-  const client = await getClient();
-  let inTransaction = false;
-
   try {
     const { id } = req.params;
 
-    // Buscar estado anterior para auditoria
-    const anteriorRes = await client.query(
-      'SELECT id, codigo, nome, fornecedor FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
-      [id, req.empresaId]
-    );
-    if (!anteriorRes || !anteriorRes.rows || anteriorRes.rows.length === 0) {
-      throw new NotFoundError('Produto não encontrado.', 'PRODUTO_NAO_ENCONTRADO');
-    }
-    const anterior = anteriorRes.rows[0];
+    await withTransaction(async (client) => {
+      // Buscar estado anterior para auditoria
+      const anteriorRes = await client.query(
+        'SELECT id, codigo, nome, fornecedor FROM produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE',
+        [id, req.empresaId]
+      );
+      if (!anteriorRes || !anteriorRes.rows || anteriorRes.rows.length === 0) {
+        throw new NotFoundError('Produto não encontrado.', 'PRODUTO_NAO_ENCONTRADO');
+      }
+      const anterior = anteriorRes.rows[0];
 
-    await client.query('BEGIN');
-    inTransaction = true;
+      await client.query(
+        `UPDATE produtos
+         SET ativo = FALSE, atualizado_em = NOW()
+         WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE`,
+        [id, req.empresaId]
+      );
 
-    await client.query(
-      `UPDATE produtos
-       SET ativo = FALSE, atualizado_em = NOW()
-       WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE`,
-      [id, req.empresaId]
-    );
-
-    await auditService.registrar(client, req.auditContext || {}, {
-      empresaId: req.empresaId,
-      atorId: req.usuario.id,
-      atorPapel: req.usuario.papel,
-      atorRotulo: req.usuario.email,
-      acao: 'produto_desativado',
-      entidade: 'produto',
-      entidadeId: anterior.id,
-      dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, ativo: true },
-      dadosNovos: { ativo: false },
-      whitelistCampos: ['codigo', 'nome', 'fornecedor', 'ativo'],
-      eventoChave: `produto_desativado_${anterior.id}`
+      await auditService.registrar(client, req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'produto_desativado',
+        entidade: 'produto',
+        entidadeId: anterior.id,
+        dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, ativo: true },
+        dadosNovos: { ativo: false },
+        whitelistCampos: ['codigo', 'nome', 'fornecedor', 'ativo'],
+        eventoChave: `produto_desativado_${anterior.id}`
+      });
     });
-
-    await client.query('COMMIT');
-    inTransaction = false;
 
     res.json({
       success: true,
       message: 'Produto desativado com sucesso.'
     });
   } catch (err) {
-    if (inTransaction && client) {
-      try {
-        const p = client.query('ROLLBACK');
-        if (p && typeof p.then === 'function') await p;
-      } catch (_) {}
-    }
     next(err);
-  } finally {
-    if (client && typeof client.release === 'function') {
-      client.release();
-    }
   }
 }
 
@@ -367,37 +318,34 @@ async function desativar(req, res, next) {
  * Importa catálogo de produtos com transação segura
  */
 async function importar(req, res, next) {
-  const client = await getClient();
-
   try {
     const { produtos, modo = 'mesclar' } = req.body;
 
-    await client.query('BEGIN');
+    const processados = await withTransaction(async (client) => {
+      if (modo === 'substituir') {
+        await client.query(
+          'UPDATE produtos SET ativo = FALSE, atualizado_em = NOW() WHERE empresa_id = $1',
+          [req.empresaId]
+        );
+      }
 
-    if (modo === 'substituir') {
-      await client.query(
-        'UPDATE produtos SET ativo = FALSE, atualizado_em = NOW() WHERE empresa_id = $1',
-        [req.empresaId]
-      );
-    }
-
-    let processados = 0;
-    for (const p of produtos) {
-      await client.query(
-        `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual, ativo, atualizado_em)
-         VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
-         ON CONFLICT (empresa_id, codigo) DO UPDATE SET
-           nome = EXCLUDED.nome,
-           fornecedor = EXCLUDED.fornecedor,
-           estoque_atual = COALESCE(EXCLUDED.estoque_atual, produtos.estoque_atual),
-           ativo = TRUE,
-           atualizado_em = NOW()`,
-        [req.empresaId, p.codigo.trim(), p.nome.trim(), p.fornecedor.trim(), p.estoque_atual || 0]
-      );
-      processados++;
-    }
-
-    await client.query('COMMIT');
+      let total = 0;
+      for (const p of produtos) {
+        await client.query(
+          `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual, ativo, atualizado_em)
+           VALUES ($1, $2, $3, $4, $5, TRUE, NOW())
+           ON CONFLICT (empresa_id, codigo) DO UPDATE SET
+             nome = EXCLUDED.nome,
+             fornecedor = EXCLUDED.fornecedor,
+             estoque_atual = COALESCE(EXCLUDED.estoque_atual, produtos.estoque_atual),
+             ativo = TRUE,
+             atualizado_em = NOW()`,
+          [req.empresaId, p.codigo.trim(), p.nome.trim(), p.fornecedor.trim(), p.estoque_atual || 0]
+        );
+        total++;
+      }
+      return total;
+    });
 
     // Auditoria: importação de catálogo finalizada
     try {
@@ -423,10 +371,7 @@ async function importar(req, res, next) {
       }
     });
   } catch (err) {
-    await client.query('ROLLBACK');
     next(err);
-  } finally {
-    client.release();
   }
 }
 

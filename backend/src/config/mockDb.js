@@ -1,4 +1,3 @@
-const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 /**
@@ -702,6 +701,21 @@ async function executeMockQuery(sql, params = []) {
       return { rows: [item] };
     }
     return { rows: [] };
+  }
+
+  // UPDATE em lote do salvar-progresso: params = [fornecedorId, produtoIds[], quantidades[], vencidas[]]
+  if (norm.startsWith('UPDATE contagem_itens AS ci SET quantidade_contada = v.qtd')) {
+    const [fornId, produtoIds, quantidades, vencidas] = params;
+    const rows = [];
+    produtoIds.forEach((produtoId, i) => {
+      const item = state.contagemItens.find((x) => x.contagem_fornecedor_id === fornId && x.produto_id === produtoId);
+      if (!item) return;
+      item.quantidade_contada = quantidades[i];
+      item.quantidade_vencida = vencidas[i];
+      item.contado_em = quantidades[i] === null ? null : new Date().toISOString();
+      rows.push({ produto_id: item.produto_id });
+    });
+    return { rows };
   }
 
   if (norm.startsWith('UPDATE contagem_itens AS ci SET diferenca = ci.quantidade_contada')) {

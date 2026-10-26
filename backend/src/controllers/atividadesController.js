@@ -18,6 +18,10 @@ function sanitizeCsvValue(val) {
   return str;
 }
 
+function ehSuperAdmin(usuario) {
+  return String(usuario?.papel || '').toLowerCase() === 'super_admin';
+}
+
 /**
  * Monta condições SQL e parâmetros parametrizados dinamicamente
  */
@@ -25,13 +29,14 @@ function buildQueryFilters(usuario, filtros = {}) {
   const whereClauses = [];
   const params = [];
 
-  // Multi-tenancy: super_admin pode ver todos ou filtrar por empresa; demais veem apenas sua empresa
-  if (usuario.papel !== 'super_admin') {
+  if (ehSuperAdmin(usuario)) {
+    // O Super Admin vê apenas a trilha da plataforma. Logs de tenant só pela sessão de auditoria
+    // (/api/auditoria/sessoes/:id/logs, com motivo registrado).
+    whereClauses.push(`escopo IN ('plataforma', 'seguranca') AND empresa_id IS NULL`);
+  } else {
+    // Multi-tenancy: sempre restrito à empresa do usuário.
     params.push(usuario.empresa_id);
     whereClauses.push(`escopo = 'empresa' AND empresa_id = $${params.length}`);
-  } else if (filtros.empresa_id) {
-    params.push(filtros.empresa_id);
-    whereClauses.push(`(empresa_id = $${params.length} OR empresa_afetada_id = $${params.length})`);
   }
 
   if (filtros.data_inicio) {
@@ -129,13 +134,15 @@ async function listar(req, res, next) {
 async function obterPorId(req, res, next) {
   try {
     const { id } = req.params;
-    const params = [id];
-    let scope = '';
-    if (req.usuario.papel !== 'super_admin') {
-      params.push(req.usuario.empresa_id);
-      scope = ` AND escopo = 'empresa' AND empresa_id = $2`;
-    }
-    const result = await query(`SELECT * FROM audit_logs WHERE id = $1${scope}`, params);
+    const result = ehSuperAdmin(req.usuario)
+      ? await query(
+        `SELECT * FROM audit_logs WHERE id = $1 AND escopo IN ('plataforma', 'seguranca') AND empresa_id IS NULL`,
+        [id]
+      )
+      : await query(
+        `SELECT * FROM audit_logs WHERE id = $1 AND escopo = 'empresa' AND empresa_id = $2`,
+        [id, req.usuario.empresa_id]
+      );
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -194,7 +201,7 @@ async function exportar(req, res, next) {
     for (const log of result.rows) {
       const linha = [
         sanitizeCsvValue(log.id),
-        sanitizeCsvValue(log.criado_em),
+        sanitizeCsvValue(log.criado_em instanceof Date ? log.criado_em.toISOString() : log.criado_em),
         sanitizeCsvValue(log.escopo),
         sanitizeCsvValue(log.acao),
         sanitizeCsvValue(log.entidade),

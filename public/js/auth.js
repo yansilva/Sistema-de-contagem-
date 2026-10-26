@@ -53,9 +53,18 @@ const Auth = {
     const btn = document.getElementById('btn-login');
 
     erroEl.textContent = '';
+    const campoEmail = document.getElementById('login-email');
+    const campoSenhaLogin = document.getElementById('login-senha');
+    // Erro do login: aria-invalid + aria-describedby apontando para #login-error (via marcarErroCampo)
+    const marcar = typeof marcarErroCampo === 'function' ? marcarErroCampo : () => {};
+    const limpar = typeof limparErroCampo === 'function' ? limparErroCampo : () => {};
+    const erroLogin = (campo, msg) => { erroEl.textContent = msg; marcar(campo, msg, erroEl); };
+    limpar(campoEmail);
+    limpar(campoSenhaLogin);
     if (!email || !senha) {
-      erroEl.textContent = 'Preencha e-mail e senha.';
-      document.getElementById(email ? 'login-senha' : 'login-email').focus();
+      const vazio = email ? campoSenhaLogin : campoEmail;
+      erroLogin(vazio, 'Preencha e-mail e senha.');
+      vazio.focus();
       return;
     }
 
@@ -71,13 +80,14 @@ const Auth = {
           const espera = seg > 0
             ? (seg <= 90 ? 'Aguarde um minuto' : `Aguarde ${Math.ceil(seg / 60)} minutos`)
             : 'Aguarde um minuto';
-          erroEl.textContent = `Muitas tentativas. ${espera} e tente de novo.`;
+          erroLogin(campoSenhaLogin, `Muitas tentativas. ${espera} e tente de novo.`);
           return;
         }
-        erroEl.textContent = res?.message || 'E-mail ou senha incorretos. Confira os dados ou fale com o administrador da sua empresa.';
-        const campoSenha = document.getElementById('login-senha');
-        campoSenha.focus();
-        campoSenha.select();
+        // Credencial recusada: os dois campos ficam inválidos e descritos pela mensagem
+        erroLogin(campoEmail, res?.message || 'E-mail ou senha incorretos. Confira os dados ou fale com o administrador da sua empresa.');
+        marcar(campoSenhaLogin, erroEl.textContent, erroEl);
+        campoSenhaLogin.focus();
+        campoSenhaLogin.select();
         return;
       }
 

@@ -89,7 +89,7 @@
   font-weight: 500;
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease-in-out;
+  transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out;
 }
 
 .saas-nav-btn i {
@@ -270,7 +270,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   font-weight: 600;
   color: var(--cor-texto-secundario);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .saas-tab-btn:hover {
@@ -431,7 +431,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   justify-content: center;
   color: var(--cor-texto-secundario);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .saas-action-menu-btn:hover {
@@ -580,7 +580,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .drawer-close-btn:hover {
@@ -759,7 +759,7 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .btn-impersonation-exit:hover {
@@ -768,82 +768,23 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Modais do console: ocultos por padrão e exibidos apenas via classe active. */
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  overflow-y: auto;
-  background: rgba(2, 6, 23, 0.58);
-  backdrop-filter: blur(4px);
+/* ===== Rodada 11 · a11y ===== */
+/* Alvo de toque de 44px no botão Encerrar auditoria */
+.btn-impersonation-exit { min-height: 44px; }
+/* No celular a barra ocupa duas linhas (aviso + botão; empresa abaixo) em vez de três, para não tomar a tela */
+@media (max-width: 600px) {
+  .impersonation-bar { padding: 4px 12px; }
+  .impersonation-content { gap: 2px 8px; flex-wrap: wrap; }
+  .impersonation-badge { flex: 1 1 auto; min-width: 0; }
+  .impersonation-tenant { order: 3; flex: 1 1 100%; font-size: .8rem; padding-bottom: 2px; overflow-wrap: anywhere; }
+}
+/* Com a barra de auditoria acima da topbar, a barra lateral do console desce junto */
+.saas-sidebar {
+  top: calc(64px + var(--altura-barra-auditoria, 0px));
+  height: calc(100vh - 64px - var(--altura-barra-auditoria, 0px));
 }
 
-.modal.active {
-  display: flex;
-}
-
-.modal-card {
-  width: 100%;
-  max-height: calc(100dvh - 40px);
-  overflow-y: auto;
-  border: 1px solid var(--cor-borda);
-  border-radius: 12px;
-  background: var(--cor-superficie);
-  color: var(--cor-texto);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
-  animation: fadeIn 0.18s ease-out;
-}
-
-.modal-header,
-.modal-body,
-.modal-footer {
-  padding: 18px 20px;
-}
-
-.modal-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  border-bottom: 1px solid var(--cor-borda);
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: var(--cor-texto);
-  font-size: 1.05rem;
-}
-
-.modal-footer {
-  border-top: 1px solid var(--cor-borda);
-}
-
-.btn-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 auto;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--cor-texto-mudo);
-  font: inherit;
-  font-size: 1.45rem;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.btn-close:hover,
-.btn-close:focus-visible {
-  background: var(--cor-hover);
-  color: var(--cor-texto);
-}
+/* Estilos de .modal/.btn-close ficam em modais.css (globais, todos os perfis). */
 
 /* Modal de Exclusão Destrutiva com Confirmação */
 .delete-confirm-box {
@@ -1008,6 +949,8 @@ button.saas-kpi-card .saas-kpi-sub { display: block; }
 /* ===== Rodada 10 · super admin ===== */
 /* Nome da empresa na tabela: área clicável de 32px (antes 22px); a aparência do texto não muda */
 .saas-company-link { display: flex; align-items: center; min-height: 32px; }
+/* Celular: alvo de 44px (esta regra vem depois da @media anterior e a sobrescrevia com 32px) */
+@media (max-width: 760px) { .saas-company-link { min-height: 44px; } }
 /* E-mails em texto pequeno: contraste >= 4.5:1 (o muted global dava 4.42:1 sobre o fundo claro) */
 .saas-table td small { color: var(--cor-texto-secundario); }
 

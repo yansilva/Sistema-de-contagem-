@@ -55,7 +55,9 @@ describe('Segurança Multi-Tenant e Isolamento de Dados', () => {
           }
         ]
       })
-      // 2. UPDATE produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
+      // 2. BEGIN (o helper de transação abre antes de ler o produto)
+      .mockResolvedValueOnce({ rows: [] })
+      // 3. SELECT produtos WHERE id = $1 AND empresa_id = $2 AND ativo = TRUE
       // Retorna 0 linhas porque o produto pertence à Empresa B!
       .mockResolvedValueOnce({ rows: [] });
 
@@ -69,7 +71,7 @@ describe('Segurança Multi-Tenant e Isolamento de Dados', () => {
     expect(res.body.code).toBe('PRODUTO_NAO_ENCONTRADO');
 
     // Verifica que a query executada no banco de dados filtrou ESTRITAMENTE pela Empresa A
-    const updateCall = db.query.mock.calls[1];
+    const updateCall = db.query.mock.calls.find(([sql]) => String(sql).includes('empresa_id = $2'));
     expect(updateCall[0]).toContain('empresa_id = $2');
     expect(updateCall[1]).toContain(empresaA_Id); // A cláusula foi forçada pelo token JWT, não pelo usuário!
   });

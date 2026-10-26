@@ -1,5 +1,9 @@
 module.exports = [
   {
+    // Script avulso de planilha (depende de 'xlsx', fora das dependências do projeto).
+    ignores: ['src/scripts/gerarPlanilhaAtalaia.js']
+  },
+  {
     files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,

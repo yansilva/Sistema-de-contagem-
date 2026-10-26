@@ -7,14 +7,27 @@ const Atividades = {
   carregando: false,
 
   /**
+   * Id do controle de filtro no contexto atual. A Auditoria global do Super Admin monta uma cópia
+   * dos controles com prefixo "sa-" (ids únicos, já que o back-office mantém os originais no HTML).
+   */
+  idControle(base) {
+    const ehSuper = typeof Auth !== 'undefined' && Auth.usuario?.papel === 'super_admin';
+    return (ehSuper ? 'sa-' : '') + base;
+  },
+
+  controle(base) {
+    return document.getElementById(this.idControle(base));
+  },
+
+  /**
    * Obtém os filtros preenchidos na interface
    */
   obterFiltros() {
-    const inicio = document.getElementById('filtro-audit-inicio')?.value || '';
-    const fim = document.getElementById('filtro-audit-fim')?.value || '';
-    const acao = document.getElementById('filtro-audit-acao')?.value || '';
-    const resultado = document.getElementById('filtro-audit-resultado')?.value || '';
-    const search = document.getElementById('filtro-audit-busca')?.value.trim() || '';
+    const inicio = this.controle('filtro-audit-inicio')?.value || '';
+    const fim = this.controle('filtro-audit-fim')?.value || '';
+    const acao = this.controle('filtro-audit-acao')?.value || '';
+    const resultado = this.controle('filtro-audit-resultado')?.value || '';
+    const search = this.controle('filtro-audit-busca')?.value.trim() || '';
 
     const filtros = {};
     if (inicio) filtros.data_inicio = inicio;
@@ -31,14 +44,14 @@ const Atividades = {
    * Abre ou fecha o painel de filtros (fechado por padrão no celular, aberto no desktop)
    */
   definirFiltrosAbertos(aberto) {
-    const painel = document.getElementById('audit-filtros-painel');
-    const botao = document.getElementById('btn-audit-filtros');
+    const painel = this.controle('audit-filtros-painel');
+    const botao = this.controle('btn-audit-filtros');
     if (painel) painel.hidden = !aberto;
     if (botao) botao.setAttribute('aria-expanded', aberto ? 'true' : 'false');
   },
 
   alternarFiltros() {
-    const botao = document.getElementById('btn-audit-filtros');
+    const botao = this.controle('btn-audit-filtros');
     this.filtrosMexidos = true;
     this.definirFiltrosAbertos(botao?.getAttribute('aria-expanded') !== 'true');
   },
@@ -67,8 +80,8 @@ const Atividades = {
   atualizarResumoFiltros() {
     const filtros = this.obterFiltros();
     const ativos = Object.keys(filtros).filter(k => k !== 'search').length;
-    const resumo = document.getElementById('audit-filtros-resumo');
-    const limpar = document.getElementById('btn-audit-limpar');
+    const resumo = this.controle('audit-filtros-resumo');
+    const limpar = this.controle('btn-audit-limpar');
     if (resumo) resumo.textContent = ativos > 0 ? (ativos === 1 ? '1 filtro ativo' : `${ativos} filtros ativos`) : '';
     if (limpar) limpar.hidden = Object.keys(filtros).length === 0;
   },
@@ -143,67 +156,9 @@ const Atividades = {
     return Rotulos.acaoAuditoria(codigo);
   },
 
-  ROTULOS_ENTIDADE: {
-    sessao: 'Sessão',
-    contagem: 'Contagem',
-    usuario: 'Usuário',
-    empresa: 'Empresa',
-    produto: 'Produto',
-    estoque: 'Estoque'
-  },
-
-  ROTULOS_PAPEL: {
-    super_admin: 'Super Admin',
-    funcionario: 'Funcionário',
-    administrador: 'Administrador',
-    admin: 'Administrador',
-    gestor: 'Gestor'
-  },
-
-  rotuloDe(mapa, codigo) {
-    const cod = String(codigo || '');
-    if (!cod) return '';
-    if (mapa[cod]) return mapa[cod];
-    const texto = cod.replace(/_/g, ' ').trim();
-    return texto.charAt(0).toUpperCase() + texto.slice(1);
-  },
-
-  rotuloEntidade(codigo) { return this.rotuloDe(this.ROTULOS_ENTIDADE, codigo); },
+  // Vocabulário único em utils.js (Rotulos): entidade, papel e ação
+  rotuloEntidade(codigo) { return codigo ? Rotulos.entidade(codigo) : ''; },
   rotuloPapel(codigo) { return Rotulos.papel(codigo); },
-
-  ROTULOS_ACAO: {
-    login_sucesso: 'Login realizado',
-    login_falha: 'Falha no login',
-    logout: 'Saída do sistema',
-    sessao_comprometida: 'Sessão comprometida',
-    senha_alterada: 'Senha alterada',
-    senha_redefinida: 'Senha redefinida',
-    senha_temporaria_definida_superadmin: 'Senha temporária definida pelo Super Admin',
-    recuperacao_solicitada: 'Recuperação de senha solicitada',
-    recuperacao_entrega_aceita: 'E-mail de recuperação enviado',
-    recuperacao_entrega_falhou: 'Falha no envio do e-mail de recuperação',
-    recuperacao_concluida: 'Recuperação de senha concluída',
-    usuario_criado: 'Usuário criado',
-    usuario_editado: 'Usuário editado',
-    produto_criado: 'Produto criado',
-    produto_editado: 'Produto editado',
-    produto_desativado: 'Produto desativado',
-    catalogo_importado: 'Catálogo importado',
-    contagem_criada: 'Contagem criada',
-    contagem_progresso_salvo: 'Progresso da contagem salvo',
-    contagem_finalizada: 'Contagem finalizada',
-    contagem_reaberta: 'Contagem reaberta',
-    contagem_apagada: 'Contagem apagada',
-    estoque_pdf_recebido: 'PDF de estoque recebido',
-    estoque_atualizado: 'Estoque atualizado',
-    empresa_criada: 'Empresa criada',
-    empresa_atualizada: 'Empresa atualizada',
-    empresa_excluida: 'Empresa excluída',
-    empresa_exclusao_negada: 'Exclusão de empresa negada',
-    auditoria_iniciada: 'Auditoria assistida iniciada',
-    auditoria_encerrada: 'Auditoria assistida encerrada',
-    auditoria_expirada: 'Auditoria assistida expirada'
-  },
 
   /**
    * Renderiza a tabela de atividades
@@ -348,12 +303,12 @@ const Atividades = {
    */
   limparFiltros() {
     const inputs = ['filtro-audit-inicio', 'filtro-audit-fim', 'filtro-audit-acao', 'filtro-audit-resultado', 'filtro-audit-busca'];
-    inputs.forEach(id => {
-      const el = document.getElementById(id);
+    inputs.forEach(base => {
+      const el = this.controle(base);
       if (el) el.value = '';
     });
     this.carregar(1);
-    document.getElementById('filtro-audit-busca')?.focus();
+    this.controle('filtro-audit-busca')?.focus();
   },
 
   /**
@@ -453,7 +408,7 @@ const Atividades = {
    */
   async exportarCsv() {
     const filtros = this.obterFiltros();
-    const btn = document.getElementById('btn-audit-exportar');
+    const btn = this.controle('btn-audit-exportar');
     if (btn) {
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner"></span> Exportando...';
@@ -490,7 +445,7 @@ const Atividades = {
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-file-export"></i> Exportar CSV';
+        btn.innerHTML = '<i class="ti ti-file-export" aria-hidden="true"></i> Exportar CSV';
       }
     }
   }
@@ -498,7 +453,7 @@ const Atividades = {
 
 // Enter no campo de busca aplica o filtro (mesma ação do botão "Filtrar")
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && e.target && e.target.id === 'filtro-audit-busca') {
+  if (e.key === 'Enter' && e.target && (e.target.id === 'filtro-audit-busca' || e.target.id === 'sa-filtro-audit-busca')) {
     e.preventDefault();
     Atividades.aplicarFiltros();
   }

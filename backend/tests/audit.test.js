@@ -179,29 +179,50 @@ describe('Auditoria e Rastreabilidade — Rotas /api/atividades e Segurança', (
       expect(res.body.code).toBe('LOG_NAO_ENCONTRADO');
     });
 
-    it('super_admin tem visão de atividades da plataforma e de empresas', async () => {
-      const res = await request(app)
+    it('super_admin acessa a trilha da plataforma (200); o filtro SQL de escopo é verificado em buildQueryFilters', async () => {
+      // O mockDb não avalia WHERE: o isolamento real foi provado contra Postgres (ver relatório da rodada 11).
+      const lista = await request(app)
         .get('/api/atividades')
         .set('Authorization', `Bearer ${superAdminToken}`);
-
-      expect(res.status).toBe(200);
-      expect(res.body.data.atividades.length).toBeGreaterThanOrEqual(2);
+      expect(lista.status).toBe(200);
     });
 
-    it('super_admin filtra pela empresa afetada sem expor o evento ao admin do tenant', async () => {
-      const superRes = await request(app)
-        .get(`/api/atividades?empresa_id=${empresaIdA}`)
-        .set('Authorization', `Bearer ${superAdminToken}`);
-      expect(superRes.status).toBe(200);
-      expect(superRes.body.data.atividades.map((log) => log.id)).toContain('cccccccc-3333-4333-8333-333333333333');
+    it('buildQueryFilters restringe o super_admin a escopos de plataforma e ignora empresa_id do cliente', () => {
+      const { buildQueryFilters } = require('../src/controllers/atividadesController');
+      const { whereSql, params } = buildQueryFilters(
+        { papel: 'super_admin', empresa_id: empresaIdA },
+        { empresa_id: empresaIdB }
+      );
+      expect(whereSql).toContain("escopo IN ('plataforma', 'seguranca') AND empresa_id IS NULL");
+      expect(whereSql).not.toContain("escopo = 'empresa'");
+      expect(params).toEqual([]);
+    });
 
-      const adminRes = await request(app)
-        .get('/api/atividades')
+    it('buildQueryFilters do administrador continua restrito à própria empresa', () => {
+      const { buildQueryFilters } = require('../src/controllers/atividadesController');
+      const { whereSql, params } = buildQueryFilters(
+        { papel: 'administrador', empresa_id: empresaIdA },
+        { empresa_id: empresaIdB }
+      );
+      expect(whereSql).toContain("escopo = 'empresa' AND empresa_id = $1");
+      expect(params).toEqual([empresaIdA]);
+    });
+
+    it('datas inválidas em data_inicio/data_fim retornam 400 (nunca 500)', async () => {
+      const lista = await request(app)
+        .get('/api/atividades?data_inicio=nao-e-data')
         .set('Authorization', `Bearer ${adminTokenA}`);
-      expect(adminRes.body.data.atividades.map((log) => log.id)).not.toContain('cccccccc-3333-4333-8333-333333333333');
+      const listaFim = await request(app)
+        .get('/api/atividades?data_fim=2026-99-99')
+        .set('Authorization', `Bearer ${adminTokenA}`);
+      const exportacao = await request(app)
+        .post('/api/atividades/exportacoes')
+        .set('Authorization', `Bearer ${adminTokenA}`)
+        .send({ data_inicio: 'xyz' });
+      expect([lista.status, listaFim.status, exportacao.status]).toEqual([400, 400, 400]);
+      expect(lista.body.code).toBe('DADOS_INVALIDOS');
     });
   });
-
   describe('3. Detalhes de Auditoria e Serialização', () => {
     it('deve retornar detalhes e diff antes/depois para o administrador legítimo', async () => {
       const res = await request(app)

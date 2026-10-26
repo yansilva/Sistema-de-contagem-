@@ -10,7 +10,7 @@ const {
 } = require('../controllers/authController');
 const auth = require('../middlewares/auth');
 const validate = require('../middlewares/validate');
-const { loginLimiter, recoveryLimiter } = require('../middlewares/rateLimiter');
+const { loginLimiter, recoveryLimiter, loginEmailLimiter } = require('../middlewares/rateLimiter');
 const { loginSchema, refreshSchema, alterarSenhaSchema, registroSchema, confirmarRecuperacaoSchema } = require('../validators/schemas');
 const passwordReset = require('../controllers/passwordResetController');
 
@@ -21,7 +21,7 @@ router.post('/recuperacao/confirmar', recoveryLimiter, validate(confirmarRecuper
 router.post('/registro', loginLimiter, validate(registroSchema), registro);
 
 // POST /api/auth/login — autenticar email e senha
-router.post('/login', loginLimiter, validate(loginSchema), login);
+router.post('/login', loginLimiter, validate(loginSchema), loginEmailLimiter, login);
 
 // POST /api/auth/refresh — renovar access token com rotação de refresh token
 router.post('/refresh', loginLimiter, validate(refreshSchema), refresh);

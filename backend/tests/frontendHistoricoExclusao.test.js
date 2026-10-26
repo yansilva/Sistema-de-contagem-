@@ -170,7 +170,8 @@ describe('Exclusão de contagens em andamento (frontend)', () => {
   });
 
   it('rótulo de auditoria e opção do filtro existem', () => {
-    expect(ler('js/atividades.js')).toContain("contagem_apagada: 'Contagem apagada'");
+    // Vocabulário único: o rótulo vive em Rotulos (utils.js); atividades.js não repete o mapa
+    expect(ler('js/utils.js')).toContain("contagem_apagada: 'Contagem apagada'");
     expect(html).toContain('<option value="contagem_apagada">Contagem apagada</option>');
   });
 

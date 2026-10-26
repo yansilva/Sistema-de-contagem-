@@ -169,9 +169,18 @@ const API = {
     }
   },
 
-  async get(path) {
-    const res = await this.request(path, { method: 'GET' });
-    return this.parseResponse(res);
+  // GETs idênticos disparados ao mesmo tempo (ex.: duas telas pedindo /usuarios) compartilham uma única requisição.
+  // Não há cache: assim que a resposta chega, o próximo GET vai à rede de novo.
+  _getsEmVoo: new Map(),
+
+  get(path) {
+    const emVoo = this._getsEmVoo.get(path);
+    if (emVoo) return emVoo;
+    const requisicao = this.request(path, { method: 'GET' })
+      .then((res) => this.parseResponse(res))
+      .finally(() => this._getsEmVoo.delete(path));
+    this._getsEmVoo.set(path, requisicao);
+    return requisicao;
   },
 
   async post(path, data) {

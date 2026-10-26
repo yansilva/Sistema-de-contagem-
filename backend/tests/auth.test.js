@@ -24,6 +24,15 @@ describe('Autenticação, Onboarding & Refresh Token com Rotação', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Cliente transacional que repassa as queries ao mock db.query (BEGIN/COMMIT/ROLLBACK ignorados)
+    db.getClient.mockImplementation(() => ({
+      query: (sql, params) => {
+        const command = String(sql).trim().toUpperCase();
+        if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(command)) return Promise.resolve({ rows: [] });
+        return db.query(sql, params);
+      },
+      release: jest.fn()
+    }));
   });
 
   it('POST /api/auth/registro — deve realizar onboarding da empresa e do primeiro administrador', async () => {
@@ -192,7 +201,7 @@ describe('Autenticação, Onboarding & Refresh Token com Rotação', () => {
           }
         ]
       })
-      .mockResolvedValueOnce({ rows: [] }) // UPDATE revogado = true
+      .mockResolvedValueOnce({ rows: [{ id: 'token-uuid-1' }] }) // UPDATE condicional revogado = true RETURNING id
       .mockResolvedValueOnce({ rows: [] }); // INSERT novo token
 
     const res = await request(app).post('/api/auth/refresh').send({ refreshToken: rawToken });

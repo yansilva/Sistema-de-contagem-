@@ -8,6 +8,7 @@ const frontend = path.join(__dirname, '../../frontend');
 
 function carregarModuleLoader() {
   const scripts = [];
+  const estilos = [];
   const context = {
     Promise,
     document: {
@@ -18,6 +19,14 @@ function carregarModuleLoader() {
         appendChild(script) {
           scripts.push(script);
         }
+      },
+      documentElement: { dataset: {} },
+      querySelector: () => null,
+      head: {
+        appendChild(link) {
+          estilos.push(link.href);
+          link.onload();
+        }
       }
     }
   };
@@ -25,7 +34,7 @@ function carregarModuleLoader() {
   vm.createContext(context);
   const source = fs.readFileSync(path.join(frontend, 'js/module-loader.js'), 'utf8');
   vm.runInContext(`${source}\nglobalThis.FrontendModulesExport = FrontendModules;`, context);
-  return { loader: context.FrontendModulesExport, scripts };
+  return { loader: context.FrontendModulesExport, scripts, estilos };
 }
 
 function carregarAuth({ moduleLoader = jest.fn().mockResolvedValue(undefined), loginResponse } = {}) {
@@ -112,14 +121,15 @@ describe('Performance do carregamento inicial', () => {
   });
 
   it.each([
-    ['funcionario', ['consulta.js', 'contagens.js', 'semana.js', 'stock-import.js']],
-    ['administrador', ['consulta.js', 'contagens.js', 'semana.js', 'stock-import.js', 'produtos.js', 'historico.js', 'usuarios.js', 'atividades.js']],
-    ['super_admin', ['consulta.js', 'contagens.js', 'semana.js', 'stock-import.js', 'produtos.js', 'historico.js', 'usuarios.js', 'atividades.js', 'empresas.js', 'empresa-detalhes.js', 'auditoria.js']]
-  ])('carrega somente os módulos necessários para %s', async (papel, esperados) => {
-    const { loader, scripts } = carregarModuleLoader();
+    ['funcionario', ['consulta.js', 'contagens.js', 'semana.js', 'stock-import.js'], []],
+    ['administrador', ['consulta.js', 'contagens.js', 'semana.js', 'stock-import.js', 'produtos.js', 'historico.js', 'usuarios.js', 'atividades.js'], ['/css/backoffice.css']],
+    ['super_admin', ['consulta.js', 'contagens.js', 'semana.js', 'stock-import.js', 'produtos.js', 'historico.js', 'usuarios.js', 'atividades.js', 'empresas.js', 'empresa-detalhes.js', 'auditoria.js'], ['/css/backoffice.css', '/css/superadmin.css']]
+  ])('carrega somente os módulos necessários para %s', async (papel, esperados, estilosEsperados) => {
+    const { loader, scripts, estilos } = carregarModuleLoader();
     const pending = loader.carregarParaPapel(papel);
 
     expect(scripts).toHaveLength(esperados.length);
+    expect(estilos).toEqual(estilosEsperados); // CSS do back-office/console só para quem usa
     for (let i = 0; i < esperados.length; i += 1) {
       expect(scripts[i].src).toBe(`/js/${esperados[i]}`);
       scripts[i].onload();

@@ -65,7 +65,10 @@ function databaseError(error) {
 }
 
 if (pool) {
-  pool.on('error', () => console.error('[DB] Conexão PostgreSQL interrompida.'));
+  // Só código e mensagem do erro: a mensagem do driver não carrega a string de conexão nem a senha.
+  pool.on('error', (error) =>
+    console.error('[DB] Conexão PostgreSQL interrompida:', error?.code || error?.name || 'erro', error?.message || '')
+  );
 }
 
 async function query(text, params) {

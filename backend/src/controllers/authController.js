@@ -1,14 +1,16 @@
-const bcrypt = require('bcryptjs');
+﻿const bcrypt = require('bcryptjs');
 const { query, getClient } = require('../config/db');
 const { gerarAccessToken, gerarRefreshToken, hashToken } = require('../config/jwt');
-const { UnauthorizedError, NotFoundError } = require('../errors/AppError');
+const { UnauthorizedError, NotFoundError, ValidationError } =require('../errors/AppError');
 const { registrar: registrarEmpresa } = require('./empresasController');
 const auditService = require('../services/auditService');
 const { validarAcessoConta } = require('../services/acessoService');
+const { registrarFalhaLogin, limparFalhasLogin } = require('../middlewares/rateLimiter');
 
 const SALT_ROUNDS = 12;
-// Hash bcrypt válido só para equalizar tempo quando o e-mail não existe.
-const DUMMY_BCRYPT_HASH = bcrypt.hashSync('dummy-login-comparison-only', SALT_ROUNDS);
+// Hash bcrypt (cost 12) pré-calculado, só para equalizar tempo quando o e-mail não existe.
+// Não corresponde a nenhuma senha real; evita bcrypt.hashSync (bloqueante) no carregamento do módulo.
+const DUMMY_BCRYPT_HASH = '$2a$12$IJeVus/S4wE2hqjqcfw1D.rsupwYoRrwOaMR3axaTTVkD/0r7vWyS';
 // Mesma mensagem para e-mail inexistente, senha errada e conta inativa, sem revelar qual deles ocorreu.
 const MENSAGEM_CREDENCIAIS_INVALIDAS = 'E-mail ou senha incorretos. Confira os dados ou fale com o administrador da sua empresa.';
 
@@ -39,6 +41,7 @@ async function login(req, res, next) {
     }
 
     validarAcessoConta(usuario);
+    limparFalhasLogin(emailNorm);
     // Gerar tokens
     const accessToken = gerarAccessToken({ id: usuario.id, empresa_id: usuario.empresa_id, versao_sessao: usuario.versao_sessao || 1 });
     const { token: rawRefreshToken, expiraEm } = gerarRefreshToken();
@@ -90,6 +93,7 @@ async function login(req, res, next) {
   } catch (err) {
     // Auditoria: login falhou (credenciais inválidas, usuário desativado)
     if (err.code === 'CREDENCIAIS_INVALIDAS') {
+      registrarFalhaLogin(req.body?.email);
       try {
         await auditService.registrarForaDaTransacao(req.auditContext || {}, {
           escopo: 'seguranca',
@@ -109,21 +113,29 @@ async function login(req, res, next) {
 
 /**
  * POST /api/auth/refresh
- * Renova access token com detecção de roubo de token e rotação estrita
+ * Renova access token com rotação atômica (transação + lock da linha) e detecção de reutilização
  */
 async function refresh(req, res, next) {
+  let client;
+  let emTransacao = false;
   try {
     const { refreshToken } = req.body;
     const tokenHash = hashToken(refreshToken);
 
-    const result = await query(
+    client = await getClient();
+    await client.query('BEGIN');
+    emTransacao = true;
+
+    // FOR UPDATE serializa requisições concorrentes com o mesmo refresh token
+    const result = await client.query(
       `SELECT rt.id, rt.usuario_id, rt.revogado, rt.expira_em,
               u.empresa_id, u.papel, u.nome, u.email, u.ativo, u.must_change_password, u.versao_sessao,
               e.status, e.plano, e.trial_expira_em, e.excluida_em
        FROM refresh_tokens rt
        JOIN usuarios u ON u.id = rt.usuario_id
        JOIN empresas e ON e.id = u.empresa_id
-       WHERE rt.token_hash = $1`,
+       WHERE rt.token_hash = $1
+       FOR UPDATE OF rt`,
       [tokenHash]
     );
 
@@ -134,12 +146,11 @@ async function refresh(req, res, next) {
     const row = result.rows[0];
     validarAcessoConta(row);
 
-    // Detecção de reutilização de token revogado (Theft Detection)
-    if (row.revogado) {
-      await query(`UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1`, [
-        row.usuario_id
-      ]);
-      // Auditoria: violação de segurança (reutilização de token)
+    // Reutilização de token já consumido/revogado (Theft Detection): revoga tudo e confirma a revogação
+    const sessaoComprometida = async (motivo) => {
+      await client.query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [row.usuario_id]);
+      await client.query('COMMIT');
+      emTransacao = false;
       try {
         await auditService.registrarForaDaTransacao(req.auditContext || {}, {
           escopo: 'seguranca',
@@ -153,43 +164,54 @@ async function refresh(req, res, next) {
           entidadeId: row.usuario_id,
           resultado: 'falha',
           codigoErro: 'SESSAO_COMPROMETIDA',
-          metadados: { motivo: 'Reutilização de refresh token revogado, todas as sessões invalidadas.' },
+          metadados: { motivo },
           eventoChave: `theft_${Date.now()}`
         });
-      } catch { /* Auditoria não deve bloquear resposta */ }
+      } catch { /* Auditoria não deve bloquear resposta nem desfazer a revogação */ }
       throw new UnauthorizedError(
         'Violação de segurança detectada: tentativa de reutilização de token. Todas as sessões foram invalidadas.',
         'SESSAO_COMPROMETIDA'
       );
+    };
+
+    if (row.revogado) {
+      await sessaoComprometida('Reutilização de refresh token revogado, todas as sessões invalidadas.');
     }
 
-    // Verificar se usuário ainda está ativo
     if (row.ativo === false) {
       throw new UnauthorizedError('Usuário desativado.', 'USUARIO_DESATIVADO');
     }
 
-    // Verificar se expirou
     if (new Date() > new Date(row.expira_em)) {
       throw new UnauthorizedError('Refresh token expirado.', 'TOKEN_EXPIRADO');
     }
 
-    // Invalidar o token atual (Single-Use Token Rotation)
-    await query(`UPDATE refresh_tokens SET revogado = TRUE WHERE id = $1`, [row.id]);
+    // Consumo condicional (single-use): só uma requisição consegue passar de FALSE para TRUE
+    const consumo = await client.query(
+      'UPDATE refresh_tokens SET revogado = TRUE WHERE id = $1 AND revogado = FALSE RETURNING id',
+      [row.id]
+    );
+    if (!consumo.rows || consumo.rows.length === 0) {
+      await sessaoComprometida('Refresh token consumido por outra requisição concorrente, todas as sessões invalidadas.');
+    }
 
-    // Emitir novo par de tokens
+    const { token: novoRefreshTokenRaw, expiraEm } = gerarRefreshToken();
+    const novoTokenHash = hashToken(novoRefreshTokenRaw);
+
+    await client.query(
+      `INSERT INTO refresh_tokens (usuario_id, token_hash, expira_em)
+       VALUES ($1, $2, $3)`,
+      [row.usuario_id, novoTokenHash, expiraEm]
+    );
+
+    await client.query('COMMIT');
+    emTransacao = false;
+
     const novoAccessToken = gerarAccessToken({
       id: row.usuario_id,
       empresa_id: row.empresa_id,
       versao_sessao: row.versao_sessao || 1
     });
-    const { token: novoRefreshTokenRaw, expiraEm } = gerarRefreshToken();
-    const novoTokenHash = hashToken(novoRefreshTokenRaw);
-
-    await query(
-      `INSERT INTO refresh_tokens (usuario_id, token_hash, expira_em)
-       VALUES ($1, $2, $3)`,
-      [row.usuario_id, novoTokenHash, expiraEm]
-    );
 
     res.json({
       success: true,
@@ -199,7 +221,10 @@ async function refresh(req, res, next) {
       }
     });
   } catch (err) {
+    if (client && emTransacao) await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    if (client) client.release();
   }
 }
 
@@ -218,7 +243,7 @@ async function logout(req, res, next) {
 
     if (req.usuario && req.usuario.id) {
       await query(
-        'DELETE FROM refresh_tokens WHERE usuario_id = $1 AND (revogado = TRUE OR expira_em < NOW())',
+        'DELETE FROM refresh_tokens WHERE usuario_id = $1 AND expira_em < NOW()',
         [req.usuario.id]
       );
 
@@ -299,6 +324,11 @@ async function alterarSenha(req, res, next) {
     const senhaValida = await bcrypt.compare(senhaAtual, result.rows[0].senha_hash);
     if (!senhaValida) {
       throw new UnauthorizedError('A senha atual fornecida está incorreta.', 'SENHA_INCORRETA');
+    }
+    if (novaSenha === senhaAtual) {
+      throw new ValidationError('A nova senha deve ser diferente da senha atual.', [
+        { campo: 'novaSenha', mensagem: 'A nova senha deve ser diferente da senha atual.' }
+      ]);
     }
 
     const novoHash = await bcrypt.hash(novaSenha, SALT_ROUNDS);

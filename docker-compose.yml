@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ============================================================================
   # Banco de Dados PostgreSQL com inicialização automática de Schema e Seed
@@ -19,10 +17,12 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env da raiz}
       POSTGRES_DB: estoque_db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./backend/sql/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      # ATENCAO: seed.sql cria dados e usuarios de DEMONSTRACAO. Use apenas em desenvolvimento local;
+      # remova a linha abaixo em qualquer ambiente com dados reais.
       - ./backend/sql/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d estoque_db"]
@@ -64,6 +64,28 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - inventory_network
+
+  # ============================================================================
+  # Migracoes versionadas (nao sobe junto com o stack). Com o db saudavel, rode:
+  #   docker compose --profile tools run --rm migrate
+  # ============================================================================
+  migrate:
+    profiles: [tools]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["node", "src/scripts/migrate.js"]
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/estoque_db
+      DATABASE_SSL: "false"
     networks:
       - inventory_network
 

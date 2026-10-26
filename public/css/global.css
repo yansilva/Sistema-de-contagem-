@@ -123,7 +123,7 @@
 
 /* ===== BASE TYPOGRAPHY & BODY ===== */
 body {
-  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Plus Jakarta Sans Fallback', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: var(--cor-fundo);
   color: var(--cor-texto);
   line-height: 1.55;
@@ -141,6 +141,14 @@ body {
 html {
   scrollbar-color: var(--cor-borda-forte) var(--cor-fundo);
   scrollbar-width: thin;
+  /* Reserva a calha da barra de rolagem: login curto -> painel longo não desloca o layout (CLS) */
+  scrollbar-gutter: stable;
+}
+
+/* Reserva a altura do conteúdo principal; evita que ele "pule" quando a tela troca depois do login */
+#conteudo-principal {
+  display: block;
+  min-height: calc(100vh - 64px);
 }
 
 *::-webkit-scrollbar {

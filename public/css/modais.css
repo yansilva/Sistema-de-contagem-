@@ -1,0 +1,80 @@
+/* Modais globais (todos os perfis). Movido de superadmin.css para que ele possa ser
+ * carregado sob demanda apenas para o Super Admin. Carregado depois de mobile.css,
+ * na mesma posição de cascata em que estas regras ficavam antes. */
+
+/* Modais: ocultos por padrão e exibidos apenas via classe active. */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(2, 6, 23, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.modal.active {
+  display: flex;
+}
+
+.modal-card {
+  width: 100%;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  border: 1px solid var(--cor-borda);
+  border-radius: 12px;
+  background: var(--cor-superficie);
+  color: var(--cor-texto);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+  animation: fadeIn 0.18s ease-out;
+}
+
+.modal-header,
+.modal-body,
+.modal-footer {
+  padding: 18px 20px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--cor-borda);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--cor-texto);
+  font-size: 1.05rem;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--cor-borda);
+}
+
+.btn-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cor-texto-mudo);
+  font: inherit;
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.btn-close:hover,
+.btn-close:focus-visible {
+  background: var(--cor-hover);
+  color: var(--cor-texto);
+}

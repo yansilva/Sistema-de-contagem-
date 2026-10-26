@@ -45,6 +45,7 @@ function showToast(msg, tipo = 'info') {
   // Criação segura de elementos sem innerHTML não sanitizado
   const iconEl = document.createElement('i');
   iconEl.className = `ti ${icon}`;
+  iconEl.setAttribute('aria-hidden', 'true');
   const textNode = document.createTextNode(msg);
 
   toast.appendChild(iconEl);
@@ -79,8 +80,83 @@ function showToast(msg, tipo = 'info') {
     });
     return;
   }
-  // Sucesso, aviso e informação somem sozinhos após 3 s
-  setTimeout(() => toast.remove(), 3000);
+  // Sucesso some em 5 s; aviso e informação em 8 s (WCAG 2.2.1). O tempo pausa com o ponteiro ou o foco no aviso.
+  const duracao = tipo === 'success' ? 5000 : 8000;
+  let restante = duracao;
+  let inicio = Date.now();
+  let timer = setTimeout(() => toast.remove(), restante);
+  const pausar = () => {
+    if (timer === null) return;
+    clearTimeout(timer);
+    timer = null;
+    restante = Math.max(restante - (Date.now() - inicio), 2000);
+  };
+  const retomar = () => {
+    if (timer !== null) return;
+    inicio = Date.now();
+    timer = setTimeout(() => toast.remove(), restante);
+  };
+  toast.addEventListener?.('mouseenter', pausar);
+  toast.addEventListener?.('mouseleave', retomar);
+  toast.addEventListener?.('focusin', pausar);
+  toast.addEventListener?.('focusout', retomar);
+  // Aviso e informação também ganham o botão Fechar (dispensar sem esperar o tempo)
+  if (tipo !== 'success') {
+    const fechar = document.createElement('button');
+    fechar.type = 'button';
+    fechar.className = 'toast-close';
+    fechar.setAttribute('aria-label', 'Fechar aviso');
+    fechar.setAttribute('style', 'background:none; border:0; color:inherit; cursor:pointer; margin-left:12px; padding:4px; line-height:1');
+    const xi = document.createElement('i');
+    xi.className = 'ti ti-x';
+    xi.setAttribute('aria-hidden', 'true');
+    fechar.appendChild(xi);
+    fechar.addEventListener?.('click', () => { clearTimeout(timer); toast.remove(); });
+    toast.appendChild(fechar);
+  }
+}
+
+/** Texto para leitores de tela sem mudar o foco (região #anuncio-tela). */
+function anunciarParaLeitor(texto) {
+  const anuncio = typeof document !== 'undefined' && document.getElementById ? document.getElementById('anuncio-tela') : null;
+  if (!anuncio) return;
+  // Limpa antes: repetir o mesmo texto (ex.: iniciar de novo a auditoria) volta a ser anunciado
+  anuncio.textContent = '';
+  setTimeout(() => { anuncio.textContent = texto; }, 50);
+}
+
+/** Preferências por navegador: localStorage pode lançar exceção (modo privado, dados bloqueados). */
+function lerPreferencia(chave, padrao = null) {
+  try {
+    const valor = localStorage.getItem(chave);
+    return valor === null || valor === undefined ? padrao : valor;
+  } catch (e) { return padrao; }
+}
+function gravarPreferencia(chave, valor) {
+  try { localStorage.setItem(chave, valor); return true; } catch (e) { return false; }
+}
+
+/**
+ * Ícones Tabler são decorativos (o texto ao lado diz o mesmo): esconde de leitores de tela,
+ * inclusive os gerados depois pelo JS. Ícone sozinho continua nomeado pelo botão (aria-label).
+ */
+function ocultarIconesDecorativos(raiz) {
+  try {
+    const base = raiz && raiz.querySelectorAll ? raiz : document;
+    if (raiz && raiz.nodeType === 1 && raiz.matches && raiz.matches('i.ti:not([aria-hidden])')) raiz.setAttribute('aria-hidden', 'true');
+    base.querySelectorAll('i.ti:not([aria-hidden])').forEach((el) => el.setAttribute('aria-hidden', 'true'));
+  } catch (e) { /* ambiente sem DOM completo */ }
+}
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  document.addEventListener('DOMContentLoaded', () => {
+    ocultarIconesDecorativos(document);
+    try {
+      if (typeof MutationObserver !== 'function' || !document.body) return;
+      new MutationObserver((muts) => {
+        for (const m of muts) m.addedNodes.forEach((n) => { if (n.nodeType === 1) ocultarIconesDecorativos(n); });
+      }).observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* sem observer */ }
+  });
 }
 
 /**
@@ -123,6 +199,13 @@ const Rotulos = {
     const mapa = { funcionario: 'Funcionário', administrador: 'Administrador', admin: 'Administrador', gestor: 'Administrador', super_admin: 'Super Admin' };
     const cod = String(p || '');
     return mapa[cod] || Rotulos._capitalizar(cod);
+  },
+
+  ENTIDADES: { sessao: 'Sessão', contagem: 'Contagem', usuario: 'Usuário', empresa: 'Empresa', produto: 'Produto', estoque: 'Estoque' },
+
+  entidade(e) {
+    const cod = String(e || '');
+    return Rotulos.ENTIDADES[cod] || Rotulos._capitalizar(cod);
   },
 
   ACOES_AUDITORIA: {
@@ -259,10 +342,11 @@ function debounce(func, wait = 300) {
  * @param {HTMLInputElement} input
  * @param {string} msg
  */
-function marcarErroCampo(input, msg) {
+function marcarErroCampo(input, msg, regiaoExistente) {
   if (!input) return;
-  const idErro = `${input.id}-erro`;
-  let erro = document.getElementById(idErro);
+  // regiaoExistente: mensagem que já existe na página (ex.: #login-error); ela é ligada ao campo, não criada nem removida
+  const idErro = regiaoExistente ? regiaoExistente.id : `${input.id}-erro`;
+  let erro = regiaoExistente || document.getElementById(idErro);
   if (!erro) {
     erro = document.createElement('small');
     erro.className = 'field-error';
@@ -276,6 +360,7 @@ function marcarErroCampo(input, msg) {
   const ids = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean);
   if (!ids.includes(idErro)) ids.push(idErro);
   input.setAttribute('aria-describedby', ids.join(' '));
+  if (regiaoExistente) input.dataset.erroExistenteId = idErro;
   if (!input.dataset.erroLigado) {
     input.dataset.erroLigado = '1';
     input.addEventListener('input', () => limparErroCampo(input));
@@ -289,9 +374,12 @@ function marcarErroCampo(input, msg) {
 function limparErroCampo(input) {
   if (!input) return;
   input.removeAttribute('aria-invalid');
-  const idErro = `${input.id}-erro`;
+  const idExistente = input.dataset && input.dataset.erroExistenteId;
+  const idErro = idExistente || `${input.id}-erro`;
   const erro = document.getElementById(idErro);
-  if (erro) erro.remove();
+  // Região pré-existente só perde o vínculo; o texto some quando quem a criou o limpar
+  if (erro && !idExistente) erro.remove();
+  if (idExistente) delete input.dataset.erroExistenteId;
   const ids = (input.getAttribute('aria-describedby') || '').split(/\s+/).filter((i) => i && i !== idErro);
   if (ids.length) input.setAttribute('aria-describedby', ids.join(' '));
   else input.removeAttribute('aria-describedby');

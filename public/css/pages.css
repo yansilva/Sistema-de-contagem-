@@ -1482,7 +1482,7 @@ button.kpi-card .kpi-value { display: block; }
   gap: 10px;
   border: none;
   cursor: pointer;
-  transition: all var(--transicao);
+  transition: transform var(--transicao), box-shadow var(--transicao), filter var(--transicao);
 }
 
 .btn-func-start:hover {
@@ -1555,7 +1555,7 @@ button.kpi-card .kpi-value { display: block; }
   align-items: center;
   gap: 14px;
   cursor: pointer;
-  transition: all var(--transicao);
+  transition: transform var(--transicao), border-color var(--transicao), box-shadow var(--transicao);
   box-shadow: var(--sombra);
 }
 
@@ -1864,3 +1864,13 @@ button.kpi-card .kpi-value { display: block; }
 .historico-chip[aria-pressed="true"] { background: var(--cor-primaria-bg); color: var(--cor-primaria); border-color: var(--cor-borda-forte); }
 .historico-chip:focus-visible { outline: 2px solid var(--cor-primaria); outline-offset: 2px; }
 .historico-contagem { font-size: .875rem; color: var(--cor-texto-secundario); }
+
+/* ===== Rodada 11 · desempenho e layout em 320px ===== */
+/* Visão geral da semana: quebra de linha em vez de estourar a largura com texto ampliado */
+.semana-visao-geral { flex-wrap: wrap; }
+.semana-visao-texto { min-width: 0; flex: 1 1 120px; }
+.semana-medidor { max-width: 100%; }
+/* Início no celular: botões com alvo de toque de 44px */
+@media (max-width: 760px) {
+  .home-container .btn { min-height: 44px; }
+}

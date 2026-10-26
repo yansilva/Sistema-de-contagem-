@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middlewares/auth');
 const tenant = require('../middlewares/tenant');
-const { requireAdmin } = require('../middlewares/authorize');
+const { requireRole } = require('../middlewares/authorize');
 const validate = require('../middlewares/validate');
 const {
   listar,
@@ -15,8 +15,10 @@ const {
   exportarAtividadesSchema
 } = require('../validators/schemas');
 
-// Acesso à trilha de auditoria restrito exclusivamente a administradores e super_admin (RBAC)
-router.use(auth, tenant, requireAdmin);
+// Trilha de auditoria: administradores leem os logs da própria empresa. O super_admin lê SOMENTE os
+// logs de escopo plataforma/segurança (a "Auditoria global"); logs de tenant só via
+// /api/auditoria/sessoes/:id/logs, com motivo registrado.
+router.use(auth, tenant, requireRole('administrador', 'gestor', 'admin', 'super_admin'));
 
 // GET /api/atividades — Listagem paginada e filtrada de logs de auditoria
 router.get('/', validate(listarAtividadesQuerySchema), listar);

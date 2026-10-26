@@ -53,15 +53,25 @@ app.use(
   })
 );
 
-// CORS Defense
+// CORS Defense: allowlist exata (CORS_ALLOWED_ORIGINS, separada por vírgula) + localhost fora de produção.
+// Sem curinga, sem sufixo .vercel.app e sem credentials (a API usa Bearer token, não cookies).
+// O frontend é servido pela própria API (mesma origem), então produção normalmente não precisa de CORS.
+const LOCALHOST_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1)(:\d{1,5})?$/;
+function origemPermitida(origin) {
+  const lista = (process.env.CORS_ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((o) => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  if (lista.includes(origin)) return true;
+  return process.env.NODE_ENV !== 'production' && LOCALHOST_ORIGIN.test(origin);
+}
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || process.env.FRONTEND_URL === '*' || origin === process.env.FRONTEND_URL) return callback(null, true);
-      if (['http://localhost:3002', 'http://localhost:3000'].includes(origin) || origin.endsWith('.vercel.app')) return callback(null, true);
-      callback(null, false);
+      if (!origin) return callback(null, true); // chamadas sem Origin (curl, servidor a servidor, mesma origem)
+      callback(null, origemPermitida(origin));
     },
-    credentials: true
+    credentials: false
   })
 );
 
@@ -75,8 +85,15 @@ app.use(auditContext);
 app.use('/api', apiLimiter);
 
 // ===== DOCUMENTAÇÃO SWAGGER / OPENAPI =====
+// Exposta só fora de produção (avaliado por requisição); em produção responde 404.
 app.use(
   '/api/docs',
+  (req, res, next) => {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(404).json({ success: false, message: 'Endpoint não encontrado.', code: 'ROTA_NAO_ENCONTRADA' });
+    }
+    next();
+  },
   swaggerUi.serve,
   swaggerUi.setup(swaggerDocument, {
     customSiteTitle: 'Inventory Management System — API Docs'

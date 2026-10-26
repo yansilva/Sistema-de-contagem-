@@ -5,6 +5,22 @@ const auditService = require('../services/auditService');
 
 const SALT_ROUNDS = 12;
 
+/** Executa fn(client) dentro de uma transação (COMMIT no sucesso, ROLLBACK em erro). */
+async function comTransacao(fn) {
+  const client = await getClient();
+  try {
+    await client.query('BEGIN');
+    const resultado = await fn(client);
+    await client.query('COMMIT');
+    return resultado;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 /**
  * GET /api/usuarios
  * Lista os usuários da empresa autenticada (isolamento multi-tenant)
@@ -74,132 +90,127 @@ async function criar(req, res, next) {
       );
     }
 
-    // Verificar unicidade global de email
-    const emailExiste = await query('SELECT id FROM usuarios WHERE email = $1', [emailNorm]);
-    if (emailExiste.rows.length > 0) {
-      throw new ConflictError('Já existe um usuário com este email.', 'EMAIL_EXISTENTE');
-    }
-
     const senhaHash = await bcrypt.hash(senha_temporaria, SALT_ROUNDS);
 
-    const result = await query(
-      `INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel, ativo, must_change_password)
-       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE)
-       RETURNING id, nome, email, papel, ativo, must_change_password, criado_em`,
-      [req.empresaId, nome.trim(), emailNorm, senhaHash, papel]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: 'Usuário cadastrado com sucesso. O primeiro acesso exigirá a troca da senha temporária.',
-      data: {
-        usuario: result.rows[0]
+    // Criação + auditoria na mesma transação: se a auditoria falhar, o usuário não é criado.
+    const usuario = await comTransacao(async (client) => {
+      // Verificar unicidade global de email
+      const emailExiste = await client.query('SELECT id FROM usuarios WHERE email = $1', [emailNorm]);
+      if (emailExiste.rows.length > 0) {
+        throw new ConflictError('Já existe um usuário com este email.', 'EMAIL_EXISTENTE');
       }
-    });
 
-    // Auditoria: usuário criado (fora da transação pois a criação já foi commitada)
-    try {
-      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+      const result = await client.query(
+        `INSERT INTO usuarios (empresa_id, nome, email, senha_hash, papel, ativo, must_change_password)
+         VALUES ($1, $2, $3, $4, $5, TRUE, TRUE)
+         RETURNING id, nome, email, papel, ativo, must_change_password, criado_em`,
+        [req.empresaId, nome.trim(), emailNorm, senhaHash, papel]
+      );
+      const criado = result.rows[0];
+
+      await auditService.registrar(client, req.auditContext || {}, {
         empresaId: req.empresaId,
         atorId: req.usuario.id,
         atorPapel: req.usuario.papel,
         atorRotulo: req.usuario.email,
         acao: 'usuario_criado',
         entidade: 'usuario',
-        entidadeId: result.rows[0].id,
-        dadosNovos: { nome: result.rows[0].nome, email: result.rows[0].email, papel: result.rows[0].papel },
+        entidadeId: criado.id,
+        dadosNovos: { nome: criado.nome, email: criado.email, papel: criado.papel },
         whitelistCampos: ['nome', 'email', 'papel'],
-        eventoChave: `usuario_criado_${result.rows[0].id}`
+        eventoChave: `usuario_criado_${criado.id}`
       });
-    } catch { /* Auditoria não deve bloquear resposta */ }
+      return criado;
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuário cadastrado com sucesso. O primeiro acesso exigirá a troca da senha temporária.',
+      data: {
+        usuario
+      }
+    });
   } catch (err) {
+    if (err && err.code === '23505') {
+      return next(new ConflictError('Já existe um usuário com este email.', 'EMAIL_EXISTENTE'));
+    }
     next(err);
   }
 }
 
 /**
  * PUT /api/usuarios/:id
- * Edita dados de um usuário da empresa
+ * Edita dados de um usuário da empresa (alteração + auditoria na mesma transação)
  */
 async function editar(req, res, next) {
   try {
     const { id } = req.params;
     const { nome, papel } = req.body;
 
-    const userCheck = await query(
-      'SELECT id, papel FROM usuarios WHERE id = $1 AND empresa_id = $2',
-      [id, req.empresaId]
-    );
-
-    if (userCheck.rows.length === 0) {
-      throw new NotFoundError('Usuário não encontrado nesta empresa.', 'USUARIO_NAO_ENCONTRADO');
+    if (papel && papel.toLowerCase() === 'super_admin') {
+      throw new ForbiddenError(
+        'Permissão negada: administradores de organização não podem conceder papel de super_admin.',
+        'CONCESSAO_SUPERADMIN_PROIBIDA'
+      );
     }
 
-    const updates = [];
-    const params = [id, req.empresaId];
+    const usuario = await comTransacao(async (client) => {
+      const userCheck = await client.query(
+        'SELECT id, papel FROM usuarios WHERE id = $1 AND empresa_id = $2',
+        [id, req.empresaId]
+      );
 
-    if (nome && nome.trim()) {
-      params.push(nome.trim());
-      updates.push(`nome = $${params.length}`);
-    }
-    if (papel) {
-      if (papel.toLowerCase() === 'super_admin') {
-        throw new ForbiddenError(
-          'Permissão negada: administradores de organização não podem conceder papel de super_admin.',
-          'CONCESSAO_SUPERADMIN_PROIBIDA'
-        );
+      if (userCheck.rows.length === 0) {
+        throw new NotFoundError('Usuário não encontrado nesta empresa.', 'USUARIO_NAO_ENCONTRADO');
       }
 
-      const roleAtual = (userCheck.rows[0].papel || '').toLowerCase();
-      const isCurrentAdmin = ['administrador', 'gestor', 'admin'].includes(roleAtual);
-      const isNewAdmin = ['administrador', 'gestor', 'admin'].includes(papel.toLowerCase());
+      const updates = [];
+      const params = [id, req.empresaId];
 
-      if (isCurrentAdmin && !isNewAdmin) {
-        const adminsAtivos = await query(
-          `SELECT COUNT(*)::int AS total
-           FROM usuarios
-           WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ('administrador', 'gestor', 'admin')`,
-          [req.empresaId]
-        );
-        const totalAdmins = adminsAtivos.rows[0]?.total || 0;
-        if (totalAdmins <= 1) {
-          throw new ConflictError(
-            'Operação não permitida: não é possível rebaixar o único administrador ativo da organização.',
-            'ULTIMO_ADMIN_PROIBIDO'
+      if (nome && nome.trim()) {
+        params.push(nome.trim());
+        updates.push(`nome = $${params.length}`);
+      }
+      if (papel) {
+        const roleAtual = (userCheck.rows[0].papel || '').toLowerCase();
+        const isCurrentAdmin = ['administrador', 'gestor', 'admin'].includes(roleAtual);
+        const isNewAdmin = ['administrador', 'gestor', 'admin'].includes(papel.toLowerCase());
+
+        if (isCurrentAdmin && !isNewAdmin) {
+          const adminsAtivos = await client.query(
+            `SELECT COUNT(*)::int AS total
+             FROM usuarios
+             WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ('administrador', 'gestor', 'admin')`,
+            [req.empresaId]
           );
+          const totalAdmins = adminsAtivos.rows[0]?.total || 0;
+          if (totalAdmins <= 1) {
+            throw new ConflictError(
+              'Operação não permitida: não é possível rebaixar o único administrador ativo da organização.',
+              'ULTIMO_ADMIN_PROIBIDO'
+            );
+          }
         }
+
+        params.push(papel);
+        updates.push(`papel = $${params.length}`);
       }
 
-      params.push(papel);
-      updates.push(`papel = $${params.length}`);
-    }
-
-    if (updates.length === 0) {
-      throw new ValidationError('Nenhum campo para atualização informado.', 'SEM_ALTERACOES');
-    }
-
-    updates.push('atualizado_em = NOW()');
-
-    const sql = `
-      UPDATE usuarios
-      SET ${updates.join(', ')}
-      WHERE id = $1 AND empresa_id = $2
-      RETURNING id, nome, email, papel, ativo, must_change_password, atualizado_em
-    `;
-
-    const result = await query(sql, params);
-
-    res.json({
-      success: true,
-      message: 'Usuário atualizado com sucesso.',
-      data: {
-        usuario: result.rows[0]
+      if (updates.length === 0) {
+        throw new ValidationError('Nenhum campo para atualização informado.', 'SEM_ALTERACOES');
       }
-    });
 
-    // Auditoria: usuário editado
-    try {
-      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+      updates.push('atualizado_em = NOW()');
+
+      const result = await client.query(
+        `UPDATE usuarios
+         SET ${updates.join(', ')}
+         WHERE id = $1 AND empresa_id = $2
+         RETURNING id, nome, email, papel, ativo, must_change_password, atualizado_em`,
+        params
+      );
+
+      await auditService.registrar(client, req.auditContext || {}, {
         empresaId: req.empresaId,
         atorId: req.usuario.id,
         atorPapel: req.usuario.papel,
@@ -212,7 +223,16 @@ async function editar(req, res, next) {
         whitelistCampos: ['nome', 'papel'],
         eventoChave: `usuario_editado_${id}`
       });
-    } catch { /* Auditoria não deve bloquear resposta */ }
+      return result.rows[0];
+    });
+
+    res.json({
+      success: true,
+      message: 'Usuário atualizado com sucesso.',
+      data: {
+        usuario
+      }
+    });
   } catch (err) {
     next(err);
   }
@@ -220,7 +240,7 @@ async function editar(req, res, next) {
 
 /**
  * PATCH /api/usuarios/:id/status
- * Ativa ou desativa um usuário da empresa
+ * Ativa ou desativa um usuário da empresa (alteração + revogação + auditoria na mesma transação)
  */
 async function alternarStatus(req, res, next) {
   try {
@@ -234,64 +254,55 @@ async function alternarStatus(req, res, next) {
       );
     }
 
-    if (ativo === false) {
-      const userCheck = await query(
-        'SELECT papel, ativo FROM usuarios WHERE id = $1 AND empresa_id = $2',
-        [id, req.empresaId]
+    const usuario = await comTransacao(async (client) => {
+      if (ativo === false) {
+        const userCheck = await client.query(
+          'SELECT papel, ativo FROM usuarios WHERE id = $1 AND empresa_id = $2',
+          [id, req.empresaId]
+        );
+        if (userCheck.rows.length === 0) {
+          throw new NotFoundError('Usuário não encontrado nesta empresa.', 'USUARIO_NAO_ENCONTRADO');
+        }
+
+        const roleAtual = (userCheck.rows[0].papel || '').toLowerCase();
+        const isCurrentAdmin = ['administrador', 'gestor', 'admin'].includes(roleAtual);
+        const isUserAtivo = userCheck.rows[0].ativo !== false;
+
+        if (isCurrentAdmin && isUserAtivo) {
+          const adminsAtivos = await client.query(
+            `SELECT COUNT(*)::int AS total
+             FROM usuarios
+             WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ('administrador', 'gestor', 'admin')`,
+            [req.empresaId]
+          );
+          const totalAdmins = adminsAtivos.rows[0]?.total || 0;
+          if (totalAdmins <= 1) {
+            throw new ConflictError(
+              'Operação não permitida: não é possível desativar o único administrador ativo da organização.',
+              'ULTIMO_ADMIN_PROIBIDO'
+            );
+          }
+        }
+      }
+
+      const result = await client.query(
+        `UPDATE usuarios
+         SET ativo = $1, atualizado_em = NOW()
+         WHERE id = $2 AND empresa_id = $3
+         RETURNING id, nome, email, papel, ativo`,
+        [Boolean(ativo), id, req.empresaId]
       );
-      if (userCheck.rows.length === 0) {
+
+      if (result.rows.length === 0) {
         throw new NotFoundError('Usuário não encontrado nesta empresa.', 'USUARIO_NAO_ENCONTRADO');
       }
 
-      const roleAtual = (userCheck.rows[0].papel || '').toLowerCase();
-      const isCurrentAdmin = ['administrador', 'gestor', 'admin'].includes(roleAtual);
-      const isUserAtivo = userCheck.rows[0].ativo !== false;
-
-      if (isCurrentAdmin && isUserAtivo) {
-        const adminsAtivos = await query(
-          `SELECT COUNT(*)::int AS total
-           FROM usuarios
-           WHERE empresa_id = $1 AND ativo = TRUE AND papel IN ('administrador', 'gestor', 'admin')`,
-          [req.empresaId]
-        );
-        const totalAdmins = adminsAtivos.rows[0]?.total || 0;
-        if (totalAdmins <= 1) {
-          throw new ConflictError(
-            'Operação não permitida: não é possível desativar o único administrador ativo da organização.',
-            'ULTIMO_ADMIN_PROIBIDO'
-          );
-        }
+      // Se desativado, revogar todas as sessões ativas
+      if (!ativo) {
+        await client.query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [id]);
       }
-    }
 
-    const result = await query(
-      `UPDATE usuarios
-       SET ativo = $1, atualizado_em = NOW()
-       WHERE id = $2 AND empresa_id = $3
-       RETURNING id, nome, email, papel, ativo`,
-      [Boolean(ativo), id, req.empresaId]
-    );
-
-    if (result.rows.length === 0) {
-      throw new NotFoundError('Usuário não encontrado nesta empresa.', 'USUARIO_NAO_ENCONTRADO');
-    }
-
-    // Se desativado, revogar todas as sessões ativas
-    if (!ativo) {
-      await query('UPDATE refresh_tokens SET revogado = TRUE WHERE usuario_id = $1', [id]);
-    }
-
-    res.json({
-      success: true,
-      message: `Usuário ${ativo ? 'ativado' : 'desativado'} com sucesso.`,
-      data: {
-        usuario: result.rows[0]
-      }
-    });
-
-    // Auditoria: status do usuário alterado
-    try {
-      await auditService.registrarForaDaTransacao(req.auditContext || {}, {
+      await auditService.registrar(client, req.auditContext || {}, {
         empresaId: req.empresaId,
         atorId: req.usuario.id,
         atorPapel: req.usuario.papel,
@@ -303,12 +314,20 @@ async function alternarStatus(req, res, next) {
         whitelistCampos: ['ativo', 'nome', 'papel'],
         eventoChave: `usuario_status_${id}_${Date.now()}`
       });
-    } catch { /* Auditoria não deve bloquear resposta */ }
+      return result.rows[0];
+    });
+
+    res.json({
+      success: true,
+      message: `Usuário ${ativo ? 'ativado' : 'desativado'} com sucesso.`,
+      data: {
+        usuario
+      }
+    });
   } catch (err) {
     next(err);
   }
 }
-
 /**
  * POST /api/usuarios/:id/reset-senha
  * Administrador redefine a senha com uma nova senha temporária

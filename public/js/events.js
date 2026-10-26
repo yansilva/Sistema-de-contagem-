@@ -17,6 +17,19 @@ const UIActions = {
     Contagens.abrirModalidade(tipo);
     document.getElementById(`contagem-aba-${tipo}`).focus();
   },
+  'empresa-aba-teclado': (element, event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const abas = [...element.parentElement.querySelectorAll('[role="tab"]')];
+    if (!abas.length) return;
+    const atual = abas.indexOf(element);
+    const indice = event.key === 'Home' ? 0
+      : event.key === 'End' ? abas.length - 1
+        : (atual + (event.key === 'ArrowRight' ? 1 : -1) + abas.length) % abas.length;
+    const alvo = abas[indice];
+    alvo.focus();
+    EmpresaDetalhes.mudarAba(alvo.getAttribute('data-tab'));
+  },
   'contagem-continuar': element => { Contagens.continuarSessao(element.dataset.id); },
   'contagem-sessoes-pagina': element => { Contagens.carregarSessoesAbertas(Number(element.dataset.page)); },
   'contagem-nova-modalidade': () => { Contagens.iniciarNovaSessao(Contagens.tipoSelecao); },

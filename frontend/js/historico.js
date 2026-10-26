@@ -43,6 +43,8 @@ const Historico = {
     const lote = document.getElementById('btn-historico-apagar-em-aberto');
     const blocoLote = document.getElementById('historico-lote');
     const contador = document.getElementById('historico-counter');
+    // O botão fica desabilitado durante a exclusão em lote: foco em elemento desabilitado não funciona
+    if (lote && lote.disabled) { lote.disabled = false; lote.removeAttribute('aria-busy'); }
     const alvo = lote && blocoLote && !blocoLote.hidden ? lote : contador;
     if (alvo && typeof alvo.focus === 'function') {
       if (alvo === contador) alvo.setAttribute('tabindex', '-1');
