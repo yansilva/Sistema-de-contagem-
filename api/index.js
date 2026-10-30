@@ -1,4 +1,10 @@
 // Handler Serverless da Vercel para o backend Express
+
+// Descarta só o aviso [DEP0169] (url.parse) emitido pelo runtime da Vercel; outros avisos continuam visíveis.
+try {
+  require('../backend/src/config/avisos').ignorarAvisos(['DEP0169']);
+} catch { /* o filtro é opcional: nunca deve impedir a função de subir */ }
+
 if (process.env.NODE_ENV !== 'production') {
   const path = require('path');
   try {

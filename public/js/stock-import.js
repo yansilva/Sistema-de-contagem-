@@ -58,6 +58,12 @@ const StockImport = {
       return;
     }
 
+    if (file.size === 0) {
+      this.mostrarStatus('O arquivo está vazio (0 bytes). Gere o relatório de novo no ERP e envie outra vez.', 'error');
+      showToast('O arquivo PDF está vazio (0 bytes). Gere o relatório novamente no ERP.', 'error');
+      return;
+    }
+
     this.dadosPrevia = null;
     const formData = new FormData();
     formData.append('arquivo', file);
@@ -94,9 +100,12 @@ const StockImport = {
     this.dadosPrevia = res.data;
     this.renderizarPrevia();
     const total = res.data.produtos_correspondentes || 0;
+    const nenhumNoPdf = !(res.data.produtos_encontrados > 0);
     this.mostrarStatus(total
       ? `PDF recebido e analisado. ${total} ${total === 1 ? 'produto cadastrado pronto' : 'produtos cadastrados prontos'} para atualização. Nenhum estoque foi alterado. Revise a prévia e confirme.`
-      : 'PDF recebido e analisado, mas nenhum SKU cadastrado foi encontrado. Nenhum estoque foi alterado. Confira os códigos na prévia.',
+      : (nenhumNoPdf
+        ? 'O PDF foi lido, mas não traz nenhum produto. Se o relatório do ERP ainda estava carregando (barra de progresso) quando foi salvo, gere de novo e envie outra vez. Nenhum estoque foi alterado.'
+        : 'PDF recebido e analisado, mas nenhum SKU cadastrado foi encontrado. Nenhum estoque foi alterado. Confira os códigos na prévia.'),
     total ? 'success' : 'info');
   },
 

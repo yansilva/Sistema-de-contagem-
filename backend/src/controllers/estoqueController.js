@@ -14,6 +14,20 @@ async function uploadPdf(req, res, next) {
     if (!req.file || !req.file.buffer) {
       throw new ValidationError('Nenhum arquivo PDF foi enviado.', 'ARQUIVO_OBRIGATORIO');
     }
+    if (req.file.buffer.length === 0) {
+      throw new AppError(
+        'O arquivo PDF está vazio (0 bytes). Gere o relatório novamente no ERP e envie de novo.',
+        400,
+        'ARQUIVO_VAZIO'
+      );
+    }
+    if (req.file.buffer.subarray(0, 5).toString('latin1') !== '%PDF-') {
+      throw new AppError(
+        'O arquivo enviado não é um PDF válido. Exporte o relatório de estoque em PDF no ERP e tente novamente.',
+        400,
+        'PDF_INVALIDO'
+      );
+    }
 
     // Buscar produtos já cadastrados na empresa
     const produtosDb = await query(
@@ -23,11 +37,23 @@ async function uploadPdf(req, res, next) {
       [req.empresaId]
     );
 
-    const previa = await processarPdfEstoque(
-      req.file.buffer,
-      req.file.originalname,
-      produtosDb.rows
-    );
+    let previa;
+    try {
+      previa = await processarPdfEstoque(
+        req.file.buffer,
+        req.file.originalname,
+        produtosDb.rows
+      );
+    } catch (errLeitura) {
+      if (errLeitura instanceof AppError) throw errLeitura;
+      // PDF corrompido ou ilegível: erro do arquivo enviado (400), não falha interna do servidor.
+      console.error('[ESTOQUE_PDF_ILEGIVEL]', { nome: errLeitura.name, mensagem: errLeitura.message });
+      throw new AppError(
+        'Não foi possível ler este PDF. Gere o relatório novamente no ERP, aguarde terminar de carregar e envie de novo.',
+        400,
+        'PDF_ILEGIVEL'
+      );
+    }
 
     // Auditoria: PDF de estoque recebido e processado
     try {

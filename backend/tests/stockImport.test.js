@@ -194,11 +194,18 @@ Boursin sem código \t200,00 -2,00 KG
       db.query.mockResolvedValueOnce({rows:[actor()]}).mockResolvedValueOnce({rows:[]});
       require('pdf-parse').PDFParse.mockImplementationOnce(()=>({getText:async()=>{throw Error('invalid PDF');},destroy:async()=>{}}));
       const consoleSpy=jest.spyOn(console,'error').mockImplementation(()=>{});
-      try {const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',Buffer.from('bad'),'bad.pdf');expect(r.status).toBe(500);expect(r.body.success).toBe(false);expect(db.getClient).not.toHaveBeenCalled();} finally {consoleSpy.mockRestore();}
+      try {const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',Buffer.from('%PDF-1.4 corrompido'),'bad.pdf');expect(r.status).toBe(400);expect(r.body.code).toBe('PDF_ILEGIVEL');expect(r.body.success).toBe(false);expect(db.getClient).not.toHaveBeenCalled();} finally {consoleSpy.mockRestore();}
+    });
+    it('arquivo de 0 bytes devolve 400 ARQUIVO_VAZIO e arquivo sem cabeçalho PDF devolve 400 PDF_INVALIDO',async()=>{
+      for(const [buffer,codigo] of [[Buffer.alloc(0),'ARQUIVO_VAZIO'],[Buffer.from('isto nao e um pdf'),'PDF_INVALIDO']]) {
+        db.query.mockResolvedValueOnce({rows:[actor()]});
+        const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',buffer,'relatorio.pdf');
+        expect(r.status).toBe(400);expect(r.body.code).toBe(codigo);expect(db.getClient).not.toHaveBeenCalled();
+      }
     });
     it('funcionário envia PDF sem campos administrativos; admin conserva saldo anterior', async()=>{
       db.query.mockResolvedValueOnce({rows:[actor()]}).mockResolvedValueOnce({rows:[{codigo:'001',nome:'Produto',fornecedor:'Produtor',estoque_atual:17}]});
-      const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',Buffer.from('pdf'),'tiny.pdf');
+      const r=await request(app).post('/api/estoque/upload-pdf').set('Authorization',`Bearer ${adminToken}`).attach('arquivo',Buffer.from('%PDF-1.4 tiny'),'tiny.pdf');
       expect(r.status).toBe(200);
       expect(r.body.data.produtos_para_atualizar[0]).toEqual({codigo:'001',nome:'Produto',fornecedor:'Produtor',estoque_novo:15});
       expect(db.getClient).not.toHaveBeenCalled();
