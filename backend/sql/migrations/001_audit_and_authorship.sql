@@ -49,18 +49,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     UNIQUE (operacao_id, evento_chave)
 );
 
-CREATE INDEX IF NOT EXISTS audit_logs_empresa_data_idx
-    ON audit_logs (empresa_id, criado_em DESC, id DESC)
-    WHERE escopo = 'empresa';
-CREATE INDEX IF NOT EXISTS audit_logs_empresa_ator_data_idx
-    ON audit_logs (empresa_id, ator_id, criado_em DESC, id DESC)
-    WHERE escopo = 'empresa';
-CREATE INDEX IF NOT EXISTS audit_logs_empresa_entidade_idx
-    ON audit_logs (empresa_id, entidade, entidade_id, criado_em DESC, id DESC);
-CREATE INDEX IF NOT EXISTS audit_logs_request_idx ON audit_logs (request_id);
-CREATE INDEX IF NOT EXISTS audit_logs_global_data_idx
-    ON audit_logs (escopo, criado_em DESC, id DESC)
-    WHERE escopo <> 'empresa';
+-- Índices de audit_logs: definidos em schema.sql (idx_audit_logs_*), que o migrate.js sempre aplica.
+-- Eram duplicados aqui (audit_logs_*_idx, idênticos) e foram removidos; ver 010_remove_indices_duplicados_audit.sql.
 
 -- Autoria Operacional em Produtos
 ALTER TABLE produtos
