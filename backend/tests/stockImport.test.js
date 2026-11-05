@@ -77,6 +77,15 @@ describe('Importação e Atualização de Estoque via PDF do Tiny ERP', () => {
       expect(PDFParse.mock.results[0].value.destroy).toHaveBeenCalledTimes(1);
     });
 
+    it('recusa PDF sem texto (só marcadores de página) com 400 PDF_SEM_TEXTO', async () => {
+      require('pdf-parse').PDFParse.mockImplementationOnce(() => ({
+        getText: async () => ({ text: '\n-- 1 of 17 --\n-- 2 of 17 --\n   \n-- 17 of 17 --\n' }),
+        destroy: async () => {}
+      }));
+      await expect(processarPdfEstoque(Buffer.from('pdf'), '02.pdf', []))
+        .rejects.toMatchObject({ statusCode: 400, code: 'PDF_SEM_TEXTO' });
+    });
+
     it('interpreta o estoque da Olist sem confundir preço, inclusive descrições quebradas', async () => {
       const { PDFParse } = require('pdf-parse');
       PDFParse.mockImplementationOnce(() => ({

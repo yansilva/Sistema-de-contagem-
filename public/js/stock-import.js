@@ -92,6 +92,12 @@ const StockImport = {
     if (!res || !res.success) {
       if (containerPrevia) containerPrevia.style.display = 'none';
       const mensagem = res?.message || 'Falha ao processar arquivo PDF.';
+      if (res?.code === 'PDF_SEM_TEXTO') {
+        // PDF salvo como imagem: a mensagem do servidor já explica como gerar de novo.
+        this.mostrarStatus(mensagem, 'error');
+        showToast(mensagem, 'error');
+        return;
+      }
       this.mostrarStatus(`Não foi possível analisar ${file.name}: ${mensagem}`, 'error');
       showToast(mensagem, 'error');
       return;

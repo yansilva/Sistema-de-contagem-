@@ -1,3 +1,5 @@
+const { AppError } = require('../errors/AppError');
+
 // A função serverless precisa do worker e do canvas carregados explicitamente.
 // Mantemos a inicialização sob demanda para não afetar as demais rotas.
 let _pdfParse;
@@ -160,6 +162,15 @@ async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) 
     textoCompleto = (await parser.getText()).text || '';
   } finally {
     await parser.destroy();
+  }
+  // PDF salvo como imagem (ex.: "Microsoft Print to PDF") só traz marcadores de página.
+  const textoUtil = textoCompleto.replace(/^\s*-- \d+ of \d+ --\s*$/gm, '');
+  if (!/[\p{L}\p{N}]/u.test(textoUtil)) {
+    throw new AppError(
+      'Este PDF foi salvo como imagem e não tem texto para ler. No ERP, gere o relatório de estoque e salve pelo próprio navegador (Imprimir → Destino: "Salvar como PDF"), não pelo "Microsoft Print to PDF".',
+      400,
+      'PDF_SEM_TEXTO'
+    );
   }
   const linhas = textoCompleto.split(/\r?\n/);
   const formato = linhas.some((linha) => colunasOlist.test(linha)) ? 'olist' : 'tiny';
