@@ -82,6 +82,7 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
       query: jest.fn()
         .mockResolvedValueOnce({ rows: [] }) // BEGIN
         .mockResolvedValueOnce({ rows: [{ id: contagemId, tipo: 'geral' }] }) // locked contagem em_andamento
+        .mockResolvedValueOnce({ rows: [{ ultima_atividade: new Date().toISOString(), ultima_importacao: null }] }) // situação da pausa: recente
         .mockResolvedValueOnce({ rows: [{ id: 'forn-1' }] }) // check fornecedor
         .mockResolvedValueOnce({ rows: [
           { produto_id: '11111111-2222-3333-4444-555555555555' },
@@ -247,7 +248,9 @@ describe('Contagem Cega, Snapshot de Referência e Exibição Estrita de Diferen
             ]
           }
         ]
-      });
+      })
+      // situação da pausa: sessão recente, sem bloqueio
+      .mockResolvedValueOnce({ rows: [{ ultima_atividade: new Date().toISOString(), ultima_importacao: null }] });
 
     const res = await request(app)
       .get(`/api/contagens/${contagemId}`)

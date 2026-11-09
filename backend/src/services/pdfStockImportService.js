@@ -175,9 +175,16 @@ async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) 
   const linhas = textoCompleto.split(/\r?\n/);
   const formato = linhas.some((linha) => colunasOlist.test(linha)) ? 'olist' : 'tiny';
 
+  // Produtos inativos (excluídos) ficam em mapa separado: o SKU não pode ser atualizado,
+  // mas não deve ser tratado como "não cadastrado".
   const mapaProdutosDb = new Map();
+  const mapaProdutosInativos = new Map();
   produtosCadastrados.forEach((p) => {
-    mapaProdutosDb.set(normalizarSku(p.codigo), p);
+    if (p.ativo === false) {
+      mapaProdutosInativos.set(normalizarSku(p.codigo), p);
+    } else {
+      mapaProdutosDb.set(normalizarSku(p.codigo), p);
+    }
   });
 
   const skusVistos = new Set();
@@ -236,6 +243,8 @@ async function processarPdfEstoque(pdfBuffer, nomeArquivo, produtosCadastrados) 
         estoque_novo: parsed.quantidade,
         diferenca_atualizacao: parsed.quantidade - (prodDb.estoque_atual || 0)
       });
+    } else if (mapaProdutosInativos.has(skuNorm)) {
+      itensIgnorados.push({ codigo: parsed.codigo, nome_relatorio: parsed.nome, quantidade: parsed.quantidade, motivo: 'produto excluído — reative em Produtos' });
     } else {
       skusNaoEncontrados.push({
         codigo: parsed.codigo,

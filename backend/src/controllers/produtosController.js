@@ -1,8 +1,29 @@
 const { query } = require('../config/db');
 const { withTransaction } = require('../config/transaction');
-const { NotFoundError, ConflictError } = require('../errors/AppError');
+const { AppError, NotFoundError, ConflictError } = require('../errors/AppError');
 const auditService = require('../services/auditService');
 const { isAdministrador, serializeProdutos } = require('../serializers/produtoSerializer');
+
+/**
+ * Procura um produto INATIVO da empresa com o mesmo SKU.
+ * O UNIQUE(empresa_id, codigo) conta a linha inativa, então o cadastro precisa reativá-la em vez de duplicar.
+ */
+async function buscarProdutoInativoPorCodigo(client, empresaId, codigo) {
+  const result = await client.query(
+    'SELECT id, codigo, nome FROM produtos WHERE empresa_id = $1 AND codigo = $2 AND ativo = FALSE',
+    [empresaId, codigo]
+  );
+  return result.rows[0] || null;
+}
+
+function erroProdutoInativoExiste(produtoInativo) {
+  return new AppError(
+    `Este SKU pertence a um produto excluído (${produtoInativo.nome}). Reative o produto antigo para usá-lo novamente.`,
+    409,
+    'PRODUTO_INATIVO_EXISTE',
+    { produto_inativo: { id: produtoInativo.id, codigo: produtoInativo.codigo, nome: produtoInativo.nome } }
+  );
+}
 
 /**
  * GET /api/produtos
@@ -121,6 +142,9 @@ async function criar(req, res, next) {
     const { codigo, nome, fornecedor, estoque_atual = 0, contagem_em_pecas = false } = req.body;
 
     const produto = await withTransaction(async (client) => {
+      const inativo = await buscarProdutoInativoPorCodigo(client, req.empresaId, codigo.trim());
+      if (inativo) throw erroProdutoInativoExiste(inativo);
+
       const result = await client.query(
         `INSERT INTO produtos (empresa_id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -188,6 +212,9 @@ async function editar(req, res, next) {
       const params = [id, req.empresaId];
 
       if (codigo !== undefined && codigo.trim()) {
+        const inativo = await buscarProdutoInativoPorCodigo(client, req.empresaId, codigo.trim());
+        if (inativo) throw erroProdutoInativoExiste(inativo);
+
         params.push(codigo.trim());
         updates.push(`codigo = $${params.length}`);
       }
@@ -259,6 +286,65 @@ async function editar(req, res, next) {
         new ConflictError('Já existe outro produto cadastrado com este código/SKU.', 'CODIGO_DUPLICADO')
       );
     }
+    next(err);
+  }
+}
+
+/**
+ * POST /api/produtos/:id/reativar
+ * Reativa um produto excluído (soft delete), mantendo o mesmo id e o histórico (gestor only)
+ */
+async function reativar(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const produto = await withTransaction(async (client) => {
+      const atualRes = await client.query(
+        'SELECT id, codigo, nome, fornecedor, ativo FROM produtos WHERE id = $1 AND empresa_id = $2 FOR UPDATE',
+        [id, req.empresaId]
+      );
+      if (atualRes.rows.length === 0) {
+        throw new NotFoundError('Produto não encontrado.', 'PRODUTO_NAO_ENCONTRADO');
+      }
+      const anterior = atualRes.rows[0];
+      if (anterior.ativo) {
+        throw new ConflictError('Este produto já está ativo.', 'PRODUTO_JA_ATIVO');
+      }
+
+      const result = await client.query(
+        `UPDATE produtos
+         SET ativo = TRUE, atualizado_por = $3, atualizado_em = NOW()
+         WHERE id = $1 AND empresa_id = $2 AND ativo = FALSE
+         RETURNING id, codigo, nome, fornecedor, estoque_atual, contagem_em_pecas, atualizado_em`,
+        [id, req.empresaId, req.usuario.id]
+      );
+      if (result.rows.length === 0) {
+        throw new ConflictError('Este produto já está ativo.', 'PRODUTO_JA_ATIVO');
+      }
+      const reativado = result.rows[0];
+
+      await auditService.registrar(client, req.auditContext || {}, {
+        empresaId: req.empresaId,
+        atorId: req.usuario.id,
+        atorPapel: req.usuario.papel,
+        atorRotulo: req.usuario.email,
+        acao: 'produto_reativado',
+        entidade: 'produto',
+        entidadeId: reativado.id,
+        dadosAnteriores: { codigo: anterior.codigo, nome: anterior.nome, fornecedor: anterior.fornecedor, ativo: false },
+        dadosNovos: { ativo: true },
+        whitelistCampos: ['codigo', 'nome', 'fornecedor', 'ativo'],
+        eventoChave: `produto_reativado_${reativado.id}`
+      });
+      return reativado;
+    });
+
+    res.json({
+      success: true,
+      message: 'Produto reativado com sucesso.',
+      data: { produto }
+    });
+  } catch (err) {
     next(err);
   }
 }
@@ -375,4 +461,4 @@ async function importar(req, res, next) {
   }
 }
 
-module.exports = { listar, listarFornecedores, criar, editar, desativar, importar };
+module.exports = { listar, listarFornecedores, criar, editar, desativar, reativar, importar };

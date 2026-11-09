@@ -10,6 +10,7 @@ const {
   criar,
   editar,
   desativar,
+  reativar,
   importar
 } = require('../controllers/produtosController');
 const {
@@ -34,6 +35,9 @@ router.post('/', gestor, validate(criarProdutoSchema), criar);
 
 // POST /api/produtos/importar — importar catálogo com suporte a modos mesclar/substituir (gestor only)
 router.post('/importar', gestor, validate(importarProdutosSchema), importar);
+
+// POST /api/produtos/:id/reativar — reativar produto excluído pelo SKU (gestor only)
+router.post('/:id/reativar', gestor, validate(idParamSchema), reativar);
 
 // PUT /api/produtos/:id — editar produto (gestor only)
 router.put('/:id', gestor, validate(editarProdutoSchema), editar);

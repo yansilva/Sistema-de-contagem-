@@ -225,6 +225,7 @@ const Rotulos = {
     produto_criado: 'Produto criado',
     produto_editado: 'Produto editado',
     produto_desativado: 'Produto desativado',
+    produto_reativado: 'Produto reativado',
     catalogo_importado: 'Catálogo importado',
     contagem_criada: 'Contagem criada',
     contagem_progresso_salvo: 'Progresso da contagem salvo',

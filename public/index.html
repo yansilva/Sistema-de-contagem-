@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html data-assets-v="c3b2bfc5bf" lang="pt-BR" data-theme="light">
+<html data-assets-v="f2c25973f7" lang="pt-BR" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,26 +8,26 @@
   <link rel="icon" type="image/svg+xml" href="/assets/logo-sistema-estoque.svg">
 
   <!-- Fontes auto-hospedadas (Plus Jakarta Sans + subset do Tabler Icons): sem CDN, sem Google Fonts -->
-  <link rel="preload" href="/assets/fonts/plus-jakarta-sans-latin.woff2?v=c3b2bfc5bf" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/assets/fonts/tabler-icons-subset.woff2?v=c3b2bfc5bf" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/plus-jakarta-sans-latin.woff2?v=f2c25973f7" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/tabler-icons-subset.woff2?v=f2c25973f7" as="font" type="font/woff2" crossorigin>
 
   <!-- CSS Modularizado. backoffice.css e superadmin.css são carregados sob demanda por js/module-loader.js -->
-  <link rel="stylesheet" href="/css/fonts.css?v=c3b2bfc5bf">
-  <link rel="stylesheet" href="/css/global.css?v=c3b2bfc5bf">
-  <link rel="stylesheet" href="/css/components.css?v=c3b2bfc5bf">
-  <link rel="stylesheet" href="/css/layout.css?v=c3b2bfc5bf">
-  <link rel="stylesheet" href="/css/pages.css?v=c3b2bfc5bf">
-  <link rel="stylesheet" href="/css/mobile.css?v=c3b2bfc5bf">
-  <link rel="stylesheet" href="/css/modais.css?v=c3b2bfc5bf">
+  <link rel="stylesheet" href="/css/fonts.css?v=f2c25973f7">
+  <link rel="stylesheet" href="/css/global.css?v=f2c25973f7">
+  <link rel="stylesheet" href="/css/components.css?v=f2c25973f7">
+  <link rel="stylesheet" href="/css/layout.css?v=f2c25973f7">
+  <link rel="stylesheet" href="/css/pages.css?v=f2c25973f7">
+  <link rel="stylesheet" href="/css/mobile.css?v=f2c25973f7">
+  <link rel="stylesheet" href="/css/modais.css?v=f2c25973f7">
 
   <!-- Scripts do shell: defer baixa em paralelo e executa na ordem, depois do HTML -->
-  <script src="/js/utils.js?v=c3b2bfc5bf" defer></script>
-  <script src="/js/api.js?v=c3b2bfc5bf" defer></script>
-  <script src="/js/module-loader.js?v=c3b2bfc5bf" defer></script>
-  <script src="/js/auth.js?v=c3b2bfc5bf" defer></script>
-  <script src="/js/events.js?v=c3b2bfc5bf" defer></script>
-  <script src="/js/mobile-nav.js?v=c3b2bfc5bf" defer></script>
-  <script src="/js/app.js?v=c3b2bfc5bf" defer></script>
+  <script src="/js/utils.js?v=f2c25973f7" defer></script>
+  <script src="/js/api.js?v=f2c25973f7" defer></script>
+  <script src="/js/module-loader.js?v=f2c25973f7" defer></script>
+  <script src="/js/auth.js?v=f2c25973f7" defer></script>
+  <script src="/js/events.js?v=f2c25973f7" defer></script>
+  <script src="/js/mobile-nav.js?v=f2c25973f7" defer></script>
+  <script src="/js/app.js?v=f2c25973f7" defer></script>
 </head>
 <body>
   <a class="skip-link" href="#conteudo-principal">Pular para o conteúdo</a>
@@ -720,6 +720,20 @@
         </div>
       </div>
 
+      <!-- Aviso persistente: contagem parada há mais de 1 hora sem importação de estoque posterior -->
+      <div id="contagem-aviso-estoque" class="contagem-aviso-estoque" role="alert" hidden>
+        <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+        <div>
+          <strong>Contagem bloqueada: estoque desatualizado</strong>
+          <p>A contagem ficou parada por mais de 1 hora. Peça ao gestor para importar o estoque atualizado do ERP antes de continuar.</p>
+          <p class="contagem-aviso-estoque-nota">Não é possível contar nem salvar até o estoque ser importado. Quantidades digitadas e não salvas se perdem se a página for recarregada.</p>
+          <div class="contagem-aviso-estoque-acoes">
+            <button type="button" class="btn btn-outline btn-sm contagem-aviso-estoque-importar" id="contagem-aviso-estoque-importar" data-click="estoque-abrir" hidden>Importar estoque do ERP</button>
+            <button type="button" class="btn btn-primary btn-sm" id="contagem-aviso-estoque-verificar" data-click="contagem-verificar-estoque">Verificar de novo</button>
+          </div>
+        </div>
+      </div>
+
       <div class="step-indicator">
         <i class="ti ti-info-circle" aria-hidden="true"></i>
         <span>Escolha um produtor e informe a quantidade física de cada produto.</span>
@@ -736,6 +750,19 @@
 
       <!-- Produtos do produtor em uma janela de contagem cega -->
       <dialog id="bloco-produtos-contagem" class="contagem-dialog" aria-labelledby="titulo-produtor-ativo" data-click="action-121">
+        <!-- Cópia do aviso dentro da janela modal do produtor: sem ela o aviso fica atrás do diálogo aberto -->
+        <div id="contagem-aviso-estoque-dialogo" class="contagem-aviso-estoque" role="alert" hidden>
+          <i class="ti ti-alert-triangle" aria-hidden="true"></i>
+          <div>
+            <strong>Contagem bloqueada: estoque desatualizado</strong>
+            <p>A contagem ficou parada por mais de 1 hora. Peça ao gestor para importar o estoque atualizado do ERP antes de continuar.</p>
+            <p class="contagem-aviso-estoque-nota">Os valores digitados continuam aqui até você recarregar a página. Quantidades ainda não salvas se perdem se a página for recarregada.</p>
+            <div class="contagem-aviso-estoque-acoes">
+              <button type="button" class="btn btn-outline btn-sm contagem-aviso-estoque-importar" data-click="estoque-abrir" hidden>Importar estoque do ERP</button>
+              <button type="button" class="btn btn-primary btn-sm" data-click="contagem-verificar-estoque">Verificar de novo</button>
+            </div>
+          </div>
+        </div>
         <div class="contagem-dialog-header">
           <div>
             <span class="contagem-dialog-eyebrow"><span class="eyebrow-longo">Saldo do sistema oculto até a finalização</span><span class="eyebrow-curto">Saldo oculto até finalizar</span></span>

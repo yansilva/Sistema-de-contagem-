@@ -7,6 +7,36 @@ const { serializeContagemDetalhe } = require('../serializers/contagemSerializer'
 
 const MSG_CONTAGEM_APAGADA = 'Esta contagem foi apagada por um administrador. As quantidades não salvas foram perdidas.';
 
+// Depois de tanto tempo sem salvar nada, a referência de estoque de quem volta pode estar velha:
+// só volta a salvar depois que o gestor importar o estoque atualizado do ERP.
+const PAUSA_MAXIMA_MIN = 60;
+const MSG_ESTOQUE_DESATUALIZADO = 'A contagem ficou parada por mais de 1 hora. Peça ao gestor para importar o estoque atualizado do ERP antes de continuar.';
+
+/**
+ * Última atividade da sessão (maior contado_em dos itens, ou iniciado_em se nada foi salvo) e se
+ * a contagem está desatualizada: parada há mais de PAUSA_MAXIMA_MIN e sem importação de estoque
+ * posterior à última atividade. Devolve null se a contagem não existe para a empresa.
+ */
+async function situacaoEstoqueContagem(executor, contagemId, empresaId, agora = new Date()) {
+  const res = await executor.query(
+    `SELECT COALESCE(MAX(ci.contado_em), c.iniciado_em) AS ultima_atividade,
+            (SELECT MAX(h.criado_em) FROM historico_importacao_estoque h WHERE h.empresa_id = $2) AS ultima_importacao
+     FROM contagens c
+     LEFT JOIN contagem_fornecedores cf ON cf.contagem_id = c.id
+     LEFT JOIN contagem_itens ci ON ci.contagem_fornecedor_id = cf.id
+     WHERE c.id = $1 AND c.empresa_id = $2
+     GROUP BY c.id, c.iniciado_em`,
+    [contagemId, empresaId]
+  );
+  const linha = res.rows[0];
+  if (!linha) return null;
+  const ultimaAtividade = new Date(linha.ultima_atividade);
+  const ultimaImportacao = linha.ultima_importacao ? new Date(linha.ultima_importacao) : null;
+  const parada = agora - ultimaAtividade > PAUSA_MAXIMA_MIN * 60 * 1000;
+  const importadoDepois = ultimaImportacao !== null && ultimaImportacao > ultimaAtividade;
+  return { ultimaAtividade, estoqueDesatualizado: parada && !importadoDepois };
+}
+
 /**
  * Monta o erro 404 de contagem não encontrada. Uma única consulta extra (mesmas regras de tenant)
  * descobre se a contagem foi apagada por um administrador, para avisar o funcionário com clareza.
@@ -313,6 +343,12 @@ async function salvarProgresso(req, res, next) {
 
       const tipo = contagemCheck.rows[0].tipo || 'geral';
 
+      // Antes de gravar: contagem parada há mais de 1h sem importação posterior não recebe novos saldos.
+      const situacao = await situacaoEstoqueContagem(client, id, req.empresaId);
+      if (situacao?.estoqueDesatualizado) {
+        throw new AppError(MSG_ESTOQUE_DESATUALIZADO, 409, 'ESTOQUE_DESATUALIZADO');
+      }
+
       if (tipo === 'pecas_queijo' && itens.some(item => item.quantidade_vencida !== undefined)) {
         throw new AppError('Produtos vencidos não se aplicam à contagem de peças.', 400, 'ITEM_INCOMPATIVEL');
       }
@@ -349,15 +385,21 @@ async function salvarProgresso(req, res, next) {
       }
 
       // NULL = não contado; 0 = contado zero unidades. Os casts mantêm o NULL tipado.
+      // estoque_referencia é o estoque_atual do produto no instante em que a quantidade muda
+      // (peças não usam referência). Quantidade igual à gravada mantém a referência anterior.
       const upd = await client.query(
         `UPDATE contagem_itens AS ci
          SET quantidade_contada = v.qtd,
              quantidade_vencida = v.venc,
+             estoque_referencia = CASE
+               WHEN $5::boolean OR v.qtd IS NOT DISTINCT FROM ci.quantidade_contada THEN ci.estoque_referencia
+               ELSE COALESCE((SELECT p.estoque_atual FROM produtos p WHERE p.id = ci.produto_id AND p.empresa_id = $6::uuid), 0)
+             END,
              contado_em = CASE WHEN v.qtd IS NULL THEN NULL ELSE NOW() END
          FROM unnest($2::uuid[], $3::integer[], $4::integer[]) AS v(produto_id, qtd, venc)
          WHERE ci.contagem_fornecedor_id = $1 AND ci.produto_id = v.produto_id
          RETURNING ci.produto_id`,
-        [fornecedorId, produtoIds, quantidades, vencidas]
+        [fornecedorId, produtoIds, quantidades, vencidas, tipo === 'pecas_queijo', req.empresaId]
       );
       const casados = new Set(upd.rows.map(row => chaveProduto(row.produto_id)));
 
@@ -805,10 +847,23 @@ async function detalhe(req, res, next) {
       req.usuario
     );
 
+    // Aviso antes de a pessoa voltar a contar: só faz sentido com a contagem aberta.
+    // Não expõe saldo de referência; é só o estado da pausa.
+    let indicadorEstoque = { estoque_desatualizado: false, ultima_atividade: null };
+    if (!isFinalizada) {
+      const situacao = await situacaoEstoqueContagem({ query }, id, req.empresaId);
+      if (situacao) {
+        indicadorEstoque = {
+          estoque_desatualizado: situacao.estoqueDesatualizado,
+          ultima_atividade: situacao.ultimaAtividade.toISOString()
+        };
+      }
+    }
+
     res.json({
       success: true,
       data: {
-        contagem: contagemSerializada
+        contagem: { ...contagemSerializada, ...indicadorEstoque }
       }
     });
   } catch (err) {

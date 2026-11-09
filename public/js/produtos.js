@@ -212,6 +212,12 @@ const Produtos = {
 
     if (!res || !res.success) {
       const campoCodigo = document.getElementById('prod-codigo');
+      if (res?.code === 'PRODUTO_INATIVO_EXISTE') {
+        // SKU de produto excluído: oferece reativar o antigo (mantém o histórico) em vez de duplicar
+        this.mostrarReativacao(campoCodigo, res.details?.produto_inativo);
+        campoCodigo.focus();
+        return;
+      }
       if (res?.code === 'CODIGO_DUPLICADO' || res?.code === 'DUPLICIDADE_REGISTRO' || /j[áa] (existe|cadastrad)/i.test(res?.message || '')) {
         marcarErroCampo(campoCodigo, res?.message && !/^Registro duplicado/i.test(res.message) ? res.message : 'Este código ou SKU já existe.');
         campoCodigo.focus();
@@ -223,6 +229,40 @@ const Produtos = {
     }
 
     showToast(id ? 'Produto atualizado!' : 'Produto cadastrado com sucesso!', 'success');
+    this.fecharModal();
+    this.carregar();
+  },
+
+  /**
+   * Mostra junto ao campo SKU a oferta de reativar o produto excluído com o mesmo código
+   */
+  mostrarReativacao(campo, produtoInativo) {
+    if (!produtoInativo) return;
+    const nome = produtoInativo.nome || 'sem nome';
+    marcarErroCampo(campo, `Este SKU pertence a um produto excluído (${nome}). Reativar o produto antigo?`);
+    const erro = document.getElementById(`${campo.id}-erro`);
+    if (!erro) return;
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.className = 'btn btn-outline btn-sm';
+    botao.textContent = 'Reativar';
+    botao.setAttribute('aria-label', `Reativar produto ${nome} (SKU ${produtoInativo.codigo})`);
+    botao.addEventListener('click', () => this.reativar(produtoInativo.id, botao));
+    erro.append(' ', botao);
+  },
+
+  /**
+   * Reativa o produto excluído (mesmo id, histórico preservado) e recarrega a lista
+   */
+  async reativar(id, botao) {
+    if (botao) botao.disabled = true;
+    const res = await API.post(`/produtos/${id}/reativar`, {});
+    if (!res || !res.success) {
+      if (botao) botao.disabled = false;
+      showToast(res?.message || 'Erro ao reativar produto.', 'error');
+      return;
+    }
+    showToast('Produto reativado com sucesso!', 'success');
     this.fecharModal();
     this.carregar();
   },

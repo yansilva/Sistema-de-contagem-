@@ -34,6 +34,25 @@ function resetMockDb() {
 async function executeMockQuery(sql, params = []) {
   const norm = sql.trim().replace(/\s+/g, ' ');
 
+  // Situação de estoque da contagem: última atividade (maior contado_em ou iniciado_em) e última importação.
+  // Precisa vir antes do bloco de historico_importacao_estoque, que também aparece nesta consulta.
+  if (norm.includes('MAX(ci.contado_em)') && norm.includes('MAX(h.criado_em)')) {
+    const [contagemId, empresaId] = params;
+    const c = state.contagens.find((x) => x.id === contagemId && x.empresa_id === empresaId);
+    if (!c) return { rows: [] };
+    const fornIds = state.contagemFornecedores.filter((f) => f.contagem_id === c.id).map((f) => f.id);
+    const datasAtividade = state.contagemItens
+      .filter((i) => fornIds.includes(i.contagem_fornecedor_id) && i.contado_em)
+      .map((i) => new Date(i.contado_em).getTime());
+    const datasImportacao = state.historicoImportacaoEstoque
+      .filter((h) => h.empresa_id === empresaId)
+      .map((h) => new Date(h.criado_em).getTime());
+    return { rows: [{
+      ultima_atividade: new Date(datasAtividade.length ? Math.max(...datasAtividade) : new Date(c.iniciado_em).getTime()),
+      ultima_importacao: datasImportacao.length ? new Date(Math.max(...datasImportacao)) : null
+    }] };
+  }
+
   if (norm.startsWith('WITH referencia AS')) {
     const clientes = state.empresas.filter((e) => (e.tipo || 'cliente') === 'cliente' && !e.excluida_em);
     const ids = new Set(clientes.map((e) => e.id));
@@ -703,13 +722,19 @@ async function executeMockQuery(sql, params = []) {
     return { rows: [] };
   }
 
-  // UPDATE em lote do salvar-progresso: params = [fornecedorId, produtoIds[], quantidades[], vencidas[]]
+  // UPDATE em lote do salvar-progresso: params = [fornecedorId, produtoIds[], quantidades[], vencidas[], pecas, empresaId]
+  // Referência: quando a quantidade muda (e não é peças), recebe produtos.estoque_atual do instante.
   if (norm.startsWith('UPDATE contagem_itens AS ci SET quantidade_contada = v.qtd')) {
-    const [fornId, produtoIds, quantidades, vencidas] = params;
+    const [fornId, produtoIds, quantidades, vencidas, pecas, empresaId] = params;
     const rows = [];
     produtoIds.forEach((produtoId, i) => {
       const item = state.contagemItens.find((x) => x.contagem_fornecedor_id === fornId && x.produto_id === produtoId);
       if (!item) return;
+      const mudou = (item.quantidade_contada ?? null) !== (quantidades[i] ?? null);
+      if (!pecas && mudou) {
+        const produto = state.produtos.find((p) => p.id === produtoId && p.empresa_id === empresaId);
+        item.estoque_referencia = produto?.estoque_atual ?? 0;
+      }
       item.quantidade_contada = quantidades[i];
       item.quantidade_vencida = vencidas[i];
       item.contado_em = quantidades[i] === null ? null : new Date().toISOString();
@@ -749,7 +774,7 @@ async function executeMockQuery(sql, params = []) {
   }
 
   // SELECT contagens detalhe
-  if (norm.includes('SELECT c.id, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status') && norm.includes('FROM contagens c')) {
+  if ((norm.includes('SELECT c.id, c.iniciado_em, c.finalizado_em, c.tem_diferenca, c.status') || norm.includes('SELECT c.id, c.tipo, c.iniciado_em')) && norm.includes('FROM contagens c')) {
     const id = params[0];
     const empresaId = params[1];
     const c = state.contagens.find((x) => x.id === id && x.empresa_id === empresaId);

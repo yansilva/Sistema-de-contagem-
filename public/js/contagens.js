@@ -18,8 +18,143 @@ const Contagens = {
   paginaSessoes: 1,
   requisicaoSessoes: 0,
   edicaoPendente: false,
+  // Contagem parada há mais de 1h sem importação de estoque: o servidor recusa salvar até importar.
+  estoqueDesatualizado: false,
   entradasInvalidas: new Set(),
   itensTocados: new Set(),
+
+  /** Digitação e salvamento ficam travados enquanto o salvamento roda ou o estoque está desatualizado. */
+  bloqueadoParaEdicao() {
+    return Boolean(this._salvando || this.estoqueDesatualizado);
+  },
+
+  /**
+   * Fila de salvamentos: autosave por item e botão do produtor usam a mesma PUT, uma por vez,
+   * na ordem em que foram pedidas. Erros não travam a fila.
+   */
+  filaSalvamento: Promise.resolve(),
+  enfileirarSalvamento(tarefa) {
+    const execucao = this.filaSalvamento.then(() => tarefa());
+    this.filaSalvamento = execucao.catch(() => {});
+    return execucao;
+  },
+
+  /** Marca a contagem como parada e mantém os valores digitados na tela para salvar depois. */
+  marcarEstoqueDesatualizado() {
+    this.estoqueDesatualizado = true;
+    this.atualizarAvisoEstoque();
+  },
+
+  /**
+   * Salvamento por item: ao sair do campo de quantidade com valor válido e diferente do último salvo,
+   * envia só este item. Não redesenha a lista nem mexe no foco; só atualiza o selo do item e o progresso.
+   * Cada item salvo renova a última atividade da contagem (a pausa de 1 h conta a partir daí).
+   */
+  salvarItemAutomatico(index) {
+    const item = this.itensFornecedor[index];
+    if (!item || !this.contagemId || !this.fornecedorAtual) return Promise.resolve(false);
+    if (this._salvando || this.estoqueDesatualizado) return Promise.resolve(false);
+    if (this.entradasInvalidas.has(index) || this.entradasInvalidas.has(`vencidos-${index}`)) return Promise.resolve(false);
+    if (item.quantidade_contada === item.salvoQuantidade) return Promise.resolve(false);
+
+    const quantidade = item.quantidade_contada;
+    const vencidos = item.quantidade_vencida;
+    const itemPayload = { produto_id: item.produto_id, quantidade_contada: quantidade };
+    if (this.tipoAtual === 'geral') itemPayload.quantidade_vencida = vencidos;
+    const payload = { fornecedor: this.fornecedorAtual, itens: [itemPayload] };
+
+    return this.enfileirarSalvamento(async () => {
+      if (this.estoqueDesatualizado || this._salvando) return false;
+      let res = null;
+      try { res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload); }
+      catch (err) { res = null; }
+      if (this.tratarContagemApagada(res)) return false;
+      if (res?.code === 'ESTOQUE_DESATUALIZADO') {
+        this.marcarEstoqueDesatualizado();
+        return false;
+      }
+      // Falha de rede ou validação: o valor continua na tela e o botão do produtor serve de novo.
+      if (!res?.success) return false;
+
+      item.salvoQuantidade = quantidade;
+      if (item.quantidade_contada === quantidade && item.quantidade_vencida === vencidos) {
+        this.itensTocados.delete(item.produto_id);
+      }
+      this.edicaoPendente = this.itensTocados.size > 0;
+      const dadosProduto = this.dadosSessao?.fornecedores?.find((f) => f.fornecedor === this.fornecedorAtual)
+        ?.produtos?.find((p) => p.produto_id === item.produto_id);
+      if (dadosProduto) {
+        dadosProduto.quantidade_contada = quantidade;
+        if (this.tipoAtual === 'geral') dadosProduto.quantidade_vencida = vencidos;
+      }
+      const statusEl = document.getElementById(`status-item-${index}`);
+      if (statusEl) statusEl.innerHTML = this.htmlStatusItem(item, false);
+      this.atualizarBarraProgresso();
+      return true;
+    });
+  },
+
+  /**
+   * "Verificar de novo" no aviso: rebusca só o estado da contagem. Se o gestor já importou o estoque,
+   * destrava sem recarregar a página e mantém os valores digitados (não reaplica os dados do servidor).
+   */
+  async verificarEstoqueNovamente() {
+    if (!this.contagemId || this._verificandoEstoque) return;
+    this._verificandoEstoque = true;
+    const botao = document.getElementById('contagem-aviso-estoque-verificar');
+    if (botao) botao.disabled = true;
+    try {
+      const res = await API.get(`/contagens/${encodeURIComponent(this.contagemId)}`);
+      if (this.tratarContagemApagada(res)) return;
+      if (!res?.success || !res.data?.contagem) {
+        showToast('Não foi possível verificar agora. Tente novamente.', 'error');
+        return;
+      }
+      if (res.data.contagem.estoque_desatualizado === true) {
+        showToast('O estoque ainda não foi importado. Peça ao gestor e verifique de novo.', 'error');
+        return;
+      }
+      this.estoqueDesatualizado = false;
+      this.atualizarAvisoEstoque();
+      this.bloquearEdicaoDuranteSalvamento(false);
+      const btnSalvar = document.getElementById('btn-salvar-progresso-produtor');
+      if (btnSalvar) btnSalvar.disabled = this.bloqueadoParaEdicao();
+      showToast(this.itensTocados.size
+        ? 'Estoque atualizado. Os valores digitados continuam na tela: salve para registrar.'
+        : 'Estoque atualizado. Você pode continuar a contagem.', 'success');
+    } catch (err) {
+      showToast('Não foi possível verificar agora. Tente novamente.', 'error');
+    } finally {
+      this._verificandoEstoque = false;
+      if (botao) botao.disabled = false;
+    }
+  },
+
+  /**
+   * Mostra (ou esconde) o aviso persistente de estoque desatualizado e trava a digitação.
+   * O bloqueio só sai ao recarregar a contagem depois de importar o estoque no servidor.
+   */
+  atualizarAvisoEstoque() {
+    const aviso = document.getElementById('contagem-aviso-estoque');
+    if (!aviso) return;
+    const ativo = Boolean(this.estoqueDesatualizado);
+    aviso.hidden = !ativo;
+    const avisoDialogo = document.getElementById('contagem-aviso-estoque-dialogo');
+    if (avisoDialogo) avisoDialogo.hidden = !ativo;
+    const gestor = typeof Auth !== 'undefined' && ['administrador', 'gestor', 'admin'].includes(Auth.usuario?.papel);
+    document.querySelectorAll('.contagem-aviso-estoque-importar').forEach((botao) => { botao.hidden = !ativo || !gestor; });
+    if (!ativo) {
+      // Sem bloqueio (sessão nova ou estoque liberado): devolve campos e botão ao estado normal, mesmo ao trocar de sessão.
+      this.bloquearEdicaoDuranteSalvamento(Boolean(this._salvando));
+      const btnSalvar = document.getElementById('btn-salvar-progresso-produtor');
+      if (btnSalvar && !this._salvando) btnSalvar.disabled = false;
+      return;
+    }
+    document.querySelectorAll('.input-qtd-fisica, .input-qtd-vencida, .contagem-vencidos button')
+      .forEach((el) => { el.disabled = true; });
+    const btnSalvar = document.getElementById('btn-salvar-progresso-produtor');
+    if (btnSalvar) btnSalvar.disabled = true;
+  },
 
   async abrirModalidade(tipo = 'geral') {
     this.tipoSelecao = tipo === 'pecas_queijo' ? tipo : 'geral';
@@ -224,6 +359,8 @@ const Contagens = {
 
   aplicarDadosSessao(contagem) {
     this.dadosSessao = contagem;
+    this.estoqueDesatualizado = contagem.estoque_desatualizado === true;
+    this.atualizarAvisoEstoque();
     this.tipoAtual = contagem.tipo || 'geral';
     document.getElementById('contagem-sessao-modalidade').textContent = this.tipoAtual === 'pecas_queijo' ? 'Peças de queijo' : 'Contagem geral';
     this.fornecedoresLista = (this.dadosSessao.fornecedores || []).map((f) => f.fornecedor);
@@ -374,6 +511,8 @@ const Contagens = {
       nome: p.nome,
       // Distinção: valor original pode ser null ou número
       quantidade_contada: p.quantidade_contada !== undefined ? p.quantidade_contada : null,
+      // Último valor confirmado pelo servidor: o autosave só envia quando o campo muda.
+      salvoQuantidade: p.quantidade_contada !== undefined ? p.quantidade_contada : null,
       quantidade_vencida: Number(p.quantidade_vencida || 0),
       vencidosAbertos: Number(p.quantidade_vencida || 0) > 0
     }));
@@ -578,6 +717,7 @@ const Contagens = {
     container.innerHTML = this.itensFornecedor.map((p, index) => {
       const valorInput = p.fisicoTexto ?? (p.quantidade_contada ?? '');
       const fisicoInvalido = this.entradasInvalidas.has(index);
+      const bloqueado = this.bloqueadoParaEdicao() ? 'disabled' : '';
 
       const statusItem = this.htmlStatusItem(p, fisicoInvalido);
       const vencidos = this.tipoAtual === 'geral' ? `
@@ -586,7 +726,7 @@ const Contagens = {
           ${p.quantidade_vencida > 0 ? `<span class="badge badge-warning contagem-vencidos-qtd">${p.quantidade_vencida} vencidas</span>` : ''}
           <div id="contagem-vencidos-campo-${index}" class="contagem-vencidos-campo" ${p.vencidosAbertos ? '' : 'hidden'}>
             <label for="qtd-vencida-${index}">Quantidade vencida</label>
-            <input id="qtd-vencida-${index}" class="input-qtd-vencida" type="number" inputmode="numeric" min="0" step="1" max="${p.quantidade_contada ?? 0}" value="${escapeHtml(p.vencidosTexto ?? p.quantidade_vencida)}" ${this._salvando ? 'disabled' : ''} aria-label="Quantidade vencida, ${escapeHtml(p.nome)}" aria-describedby="dica-vencidos-${index} erro-vencidos-${index}" aria-invalid="${this.entradasInvalidas.has(`vencidos-${index}`)}" data-input="contagem-vencidos-alterar" data-index="${index}">
+            <input id="qtd-vencida-${index}" class="input-qtd-vencida" type="number" inputmode="numeric" min="0" step="1" max="${p.quantidade_contada ?? 0}" value="${escapeHtml(p.vencidosTexto ?? p.quantidade_vencida)}" ${bloqueado} aria-label="Quantidade vencida, ${escapeHtml(p.nome)}" aria-describedby="dica-vencidos-${index} erro-vencidos-${index}" aria-invalid="${this.entradasInvalidas.has(`vencidos-${index}`)}" data-input="contagem-vencidos-alterar" data-index="${index}">
             <small id="dica-vencidos-${index}" class="contagem-vencidos-dica">${MSG_VENCIDOS_INCLUIDOS}</small>
             <small id="erro-vencidos-${index}" class="contagem-vencidos-erro" role="alert">${this.entradasInvalidas.has(`vencidos-${index}`) ? MSG_VENCIDOS_INVALIDOS : ''}</small>
           </div>
@@ -604,13 +744,13 @@ const Contagens = {
             <div class="contagem-item-campo">
               <label for="qtd-fisica-${index}" class="contagem-item-rotulo">${this.tipoAtual === 'pecas_queijo' ? 'Peças encontradas' : 'Quantidade física'}</label>
               <input id="qtd-fisica-${index}" type="text" inputmode="numeric" pattern="[0-9]*" enterkeyhint="${index === this.itensFornecedor.length - 1 ? 'done' : 'next'}"
-                     ${this._salvando ? 'disabled' : ''}
+                     ${bloqueado}
                      placeholder="Contar"
                      value="${escapeHtml(valorInput)}"
                      class="input-qtd-fisica"
                      aria-label="${this.tipoAtual === 'pecas_queijo' ? 'Peças encontradas' : 'Quantidade física'}, ${escapeHtml(p.nome)}"
                      aria-invalid="${fisicoInvalido}" aria-describedby="contagem-quantidade-ajuda erro-fisico-${index}"
-                     data-input="action-74" data-keydown="contagem-qtd-enter" data-arg-0="${escapeHtml(String(index))}">
+                     data-input="action-74" data-change="contagem-salvar-item" data-keydown="contagem-qtd-enter" data-arg-0="${escapeHtml(String(index))}">
               <small id="erro-fisico-${index}" class="contagem-vencidos-erro" role="alert">${fisicoInvalido ? 'Informe uma quantidade inteira maior ou igual a zero.' : ''}</small>
             </div>
             ${vencidos}
@@ -628,7 +768,7 @@ const Contagens = {
   atualizarQuantidadeItem(index, valorStr) {
     const item = this.itensFornecedor[index];
     if (!item) return;
-    if (this._salvando) {
+    if (this.bloqueadoParaEdicao()) {
       const input = document.getElementById(`qtd-fisica-${index}`);
       if (input) input.value = item.quantidade_contada ?? '';
       return;
@@ -705,7 +845,7 @@ const Contagens = {
   },
 
   atualizarVencidos(index, valorStr) {
-    if (this.tipoAtual !== 'geral' || this._salvando) return;
+    if (this.tipoAtual !== 'geral' || this.bloqueadoParaEdicao()) return;
     const item = this.itensFornecedor[index];
     if (!item) return;
     this.edicaoPendente = true;
@@ -740,6 +880,7 @@ const Contagens = {
    */
   async salvarProgressoAtual() {
     if (this._salvando) return false;
+    if (this.estoqueDesatualizado) { this.atualizarAvisoEstoque(); return false; }
     if (!this.fornecedorAtual) return false;
     this.itensFornecedor.forEach((_, index) => this.validarVencidos(index));
     if (this.entradasInvalidas.size) {
@@ -774,9 +915,16 @@ const Contagens = {
 
     try {
       let res;
-      try { res = await API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload); }
+      // Na mesma fila do autosave: nada de duas requisições de salvamento ao mesmo tempo.
+      try { res = await this.enfileirarSalvamento(() => API.put(`/contagens/${this.contagemId}/salvar-progresso`, payload)); }
       catch (err) { res = null; }
       if (this.tratarContagemApagada(res)) return false;
+      if (res?.code === 'ESTOQUE_DESATUALIZADO') {
+        // Bloqueio persistente (não só toast): fica até "Verificar de novo" ou recarregar; os valores digitados seguem na tela.
+        this.marcarEstoqueDesatualizado();
+        this.renderizarItensContagem();
+        return false;
+      }
       if (!res || !res.success) {
         showToast(res?.message || 'Não foi possível salvar as quantidades. Tente novamente.', 'error');
         return false;
@@ -801,7 +949,7 @@ const Contagens = {
       this._salvando = false;
       this.bloquearEdicaoDuranteSalvamento(false);
       if (btn) {
-        btn.disabled = false;
+        btn.disabled = this.bloqueadoParaEdicao();
         btn.innerHTML = '<i class="ti ti-device-floppy"></i> Salvar contagem do produtor';
       }
     }
@@ -830,9 +978,12 @@ const Contagens = {
   },
 
   bloquearEdicaoDuranteSalvamento(bloquear) {
-    for (const selector of ['.input-qtd-fisica', '.input-qtd-vencida', '.contagem-vencidos button', '.contagem-edicao-acao']) {
-      document.querySelectorAll(selector).forEach(element => { element.disabled = bloquear; });
+    // Com estoque desatualizado a digitação continua travada mesmo depois do salvamento.
+    const travarCampos = bloquear || this.estoqueDesatualizado;
+    for (const selector of ['.input-qtd-fisica', '.input-qtd-vencida', '.contagem-vencidos button']) {
+      document.querySelectorAll(selector).forEach(element => { element.disabled = travarCampos; });
     }
+    document.querySelectorAll('.contagem-edicao-acao').forEach(element => { element.disabled = bloquear; });
   },
 
   /**

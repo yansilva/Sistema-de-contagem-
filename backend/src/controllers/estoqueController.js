@@ -29,11 +29,11 @@ async function uploadPdf(req, res, next) {
       );
     }
 
-    // Buscar produtos já cadastrados na empresa
+    // Buscar produtos cadastrados na empresa (inativos entram só para aviso na prévia; não são atualizados)
     const produtosDb = await query(
-      `SELECT id, codigo, nome, fornecedor, estoque_atual
+      `SELECT id, codigo, nome, fornecedor, estoque_atual, ativo
        FROM produtos
-       WHERE empresa_id = $1 AND ativo = TRUE`,
+       WHERE empresa_id = $1`,
       [req.empresaId]
     );
 

@@ -1819,6 +1819,24 @@ button.kpi-card .kpi-value { display: block; }
 /* Dicas curtas da tela de contagem */
 .contagem-vencidos-dica { color: var(--cor-texto-secundario); font-size: .75rem; }
 .dica-finalizar { color: var(--cor-texto-secundario); font-size: .8rem; }
+
+.contagem-aviso-estoque {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--cor-perigo-border);
+  border-left: 4px solid var(--cor-perigo);
+  border-radius: 8px;
+  background: var(--cor-perigo-bg);
+  color: var(--cor-perigo-texto);
+}
+.contagem-aviso-estoque[hidden] { display: none; }
+.contagem-aviso-estoque > i { font-size: 1.3rem; margin-top: 2px; }
+.contagem-aviso-estoque p { margin: 4px 0 0; }
+.contagem-aviso-estoque-nota { font-size: .85rem; color: var(--cor-texto-secundario); }
+.contagem-aviso-estoque-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .dica-finalizar[hidden] { display: none; }
 
 
