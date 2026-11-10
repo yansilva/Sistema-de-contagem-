@@ -147,7 +147,7 @@ const Auth = {
       senha: document.getElementById('reg-senha')
     };
     const campoConfirmar = document.getElementById('reg-confirmar');
-    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const emailValido = email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const valido = validarCampos([
       [campos.empresa_nome,
         !empresa_nome ? 'Informe o nome da empresa.' : 'O nome da empresa deve ter pelo menos 2 caracteres.',
