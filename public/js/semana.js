@@ -82,7 +82,7 @@ const Semana = {
     const contados = Math.max(0, Math.min(total, Number(resumo.contados) || 0));
     const percentual = Math.round(contados / total * 100);
     const totais = [['todos', 'Todos', total, 'ti-layout-grid'], ['contado', 'Contados', resumo.contados, 'ti-circle-check'], ['parcial', 'Parciais', resumo.parciais, 'ti-progress'], ['pendente', 'Pendentes', resumo.pendentes, 'ti-clock']];
-    container.innerHTML = `<div class="semana-visao-geral"><div class="semana-visao-texto"><span class="semana-eyebrow">VISÃO DA SEMANA</span><h3>${contados} de ${total} produtores contados</h3><p>Veja o andamento da equipe e encontre o que ainda falta contar.</p></div><div class="semana-medidor" role="progressbar" aria-label="Produtores contados na semana" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${contados}" style="--semana-progresso:${percentual}%"><strong>${percentual}%</strong><span>concluído</span></div></div>
+    container.innerHTML = `<div class="semana-visao-geral"><div class="semana-visao-texto"><span class="semana-eyebrow">VISÃO DA SEMANA</span><h3>${contados} de ${pluralizar(total, 'produtor', 'produtores')} ${total === 1 ? 'contado' : 'contados'}</h3><p>Veja o andamento da equipe e encontre o que ainda falta contar.</p></div><div class="semana-medidor" role="progressbar" aria-label="Produtores contados na semana" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${contados}" style="--semana-progresso:${percentual}%"><strong>${percentual}%</strong><span>concluído</span></div></div>
       <div class="semana-controles"><div id="semana-filtros" class="semana-filtros" role="group" aria-label="Filtrar produtores por situação">${totais.map(([status, rotulo, quantidade, icone]) => `<button type="button" class="semana-filtro semana-filtro--${status}" data-click="semana-filtro" data-status="${status}" aria-pressed="${this.filtro === status}"><i class="ti ${icone}" aria-hidden="true"></i><span>${rotulo}</span><strong>${Number(quantidade) || 0}</strong></button>`).join('')}</div><label class="semana-busca"><i class="ti ti-search" aria-hidden="true"></i><input id="semana-busca" type="search" placeholder="Buscar produtor" aria-label="Buscar produtor" data-input="semana-busca" value="${escapeHtml(this.busca)}" autocomplete="off"></label></div>
       <p id="semana-resultado" class="semana-resultado"></p><div id="semana-grade" class="semana-grid"></div>`;
     this.renderizarCards();
@@ -94,10 +94,12 @@ const Semana = {
     const normalizar = valor => String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
     const busca = normalizar(this.busca.trim());
     const visiveis = this.dados.produtores.map((produtor, indice) => ({ produtor, indice })).filter(({ produtor }) => (this.filtro === 'todos' || produtor.status === this.filtro) && normalizar(produtor.fornecedor).includes(busca));
+    const totalProdutores = this.dados.produtores.length;
+    const textoExibidos = `${visiveis.length} de ${pluralizar(totalProdutores, 'produtor', 'produtores')} ${totalProdutores === 1 ? 'exibido' : 'exibidos'}`;
     const resultado = document.getElementById('semana-resultado');
-    if (resultado) resultado.textContent = `${visiveis.length} de ${this.dados.produtores.length} produtores exibidos`;
+    if (resultado) resultado.textContent = textoExibidos;
     const aviso = document.getElementById('semana-status-leitor');
-    if (aviso) aviso.textContent = `${visiveis.length} de ${this.dados.produtores.length} produtores exibidos`;
+    if (aviso) aviso.textContent = textoExibidos;
     if (!visiveis.some(({ produtor }) => produtor.fornecedor === this.produtorAberto)) this.produtorAberto = null;
     if (!visiveis.length) { grade.innerHTML = '<div class="semana-vazio"><i class="ti ti-search-off" aria-hidden="true"></i><p>Nenhum produtor encontrado para este filtro.</p></div>'; return; }
     const estados = { contado: ['Contado', 'ti-circle-check'], parcial: ['Parcial', 'ti-progress'], pendente: ['Pendente', 'ti-clock'] };
