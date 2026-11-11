@@ -64,7 +64,7 @@ jobs:
 
       - name: Audit de dependencias de producao
         working-directory: ./backend
-        run: npm audit --omit=dev --audit-level=high
+        run: npm audit --omit=dev --audit-level=high --workspaces=false
 
       - name: Aplicar schema e migracoes no Postgres de teste
         working-directory: ./backend

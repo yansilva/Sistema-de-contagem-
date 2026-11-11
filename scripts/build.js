@@ -28,14 +28,27 @@ function listar(dir) {
   });
 }
 
-function calcularHash() {
+const EXTENSOES_DE_TEXTO = /\.(css|js|html|svg|json|txt|map)$/i;
+
+/**
+ * Bytes que entram no hash. Arquivos de texto têm CRLF normalizado para LF: no Windows o checkout vem em
+ * CRLF (core.autocrlf) e no CI (Linux) em LF, e o hash dos bytes brutos geraria versões diferentes e
+ * quebraria o job de espelho. Binários (fontes) entram sem alteração.
+ */
+function bytesParaHash(arquivo) {
+  const bytes = fs.readFileSync(arquivo);
+  if (!EXTENSOES_DE_TEXTO.test(arquivo)) return bytes;
+  return Buffer.from(bytes.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
+}
+
+function calcularHash(base = origem) {
   const hash = crypto.createHash('sha256');
   const arquivos = ['css', 'js', path.join('assets', 'fonts')]
-    .flatMap((pasta) => (fs.existsSync(path.join(origem, pasta)) ? listar(path.join(origem, pasta)) : []))
+    .flatMap((pasta) => (fs.existsSync(path.join(base, pasta)) ? listar(path.join(base, pasta)) : []))
     .sort();
   for (const arquivo of arquivos) {
-    hash.update(path.relative(origem, arquivo).replace(/\\/g, '/'));
-    hash.update(fs.readFileSync(arquivo));
+    hash.update(path.relative(base, arquivo).replace(/\\/g, '/'));
+    hash.update(bytesParaHash(arquivo));
   }
   return hash.digest('hex').slice(0, 10);
 }
@@ -74,4 +87,4 @@ function build() {
 
 if (require.main === module) build();
 
-module.exports = { build, versionarHtml, versionarFontes };
+module.exports = { build, calcularHash, versionarHtml, versionarFontes };
