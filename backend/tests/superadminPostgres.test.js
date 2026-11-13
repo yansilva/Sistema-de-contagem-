@@ -93,7 +93,7 @@ integration('Super Admin — PostgreSQL isolado', () => {
 
   it('desativa impersonation e mantém a autoria real em auditoria de empresa inativa', async () => {
     expect((await request(app).post(`/api/empresas/${empresaId}/impersonar`).set('Authorization',`Bearer ${token}`)).status).toBe(410);
-    const start = await request(app).post('/api/auditoria/sessoes').set('Authorization',`Bearer ${token}`).send({empresa_id:empresaId});
+    const start = await request(app).post('/api/auditoria/sessoes').set('Authorization',`Bearer ${token}`).send({empresa_id:empresaId,motivo:'Auditoria de empresa inativa (teste)'});
     expect(start.status).toBe(201);
     const sessao = start.body.data.sessao;
     expect(sessao.ator_id).toBe(superId);
