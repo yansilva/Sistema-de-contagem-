@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const id = z.string().uuid();
+const id = z.guid();
 const motivo = z.string().trim().max(500).optional();
 const page = z.coerce.number().int().min(1).default(1);
 const limit = z.coerce.number().int().min(1).max(100).default(20);
@@ -32,7 +32,7 @@ module.exports = {
   excluir: { params: z.object({id}), body:z.object({nomeConfirmacao:z.string().trim().min(1).max(255),motivo}).strict() },
   iniciarAuditoria: { body: z.object({
     empresa_id: id,
-    motivo: z.string({ required_error: 'Informe o motivo da auditoria.' }).trim()
+    motivo: z.string({ error: (iss) => (iss.input === undefined ? 'Informe o motivo da auditoria.' : undefined) }).trim()
       .min(10, 'O motivo da auditoria deve ter no mínimo 10 caracteres.').max(500)
   }).strict() },
   sessao: {params:z.object({sessaoId:id})},

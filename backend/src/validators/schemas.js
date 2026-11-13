@@ -59,7 +59,7 @@ const criarUsuarioSchema = {
 
 const editarUsuarioSchema = {
   params: z.object({
-    id: z.string().uuid('ID de usuário inválido')
+    id: z.guid('ID de usuário inválido')
   }),
   body: z.object({
     nome: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').trim().optional(),
@@ -69,7 +69,7 @@ const editarUsuarioSchema = {
 
 const statusUsuarioSchema = {
   params: z.object({
-    id: z.string().uuid('ID de usuário inválido')
+    id: z.guid('ID de usuário inválido')
   }),
   body: z.object({
     ativo: z.boolean()
@@ -78,7 +78,7 @@ const statusUsuarioSchema = {
 
 const resetSenhaUsuarioSchema = {
   params: z.object({
-    id: z.string().uuid('ID de usuário inválido')
+    id: z.guid('ID de usuário inválido')
   }),
   body: z.object({
     novaSenhaTemporaria: senhaForte
@@ -98,7 +98,7 @@ const criarProdutoSchema = {
 
 const editarProdutoSchema = {
   params: z.object({
-    id: z.string().uuid('ID de produto inválido')
+    id: z.guid('ID de produto inválido')
   }),
   body: z.object({
     codigo: z.string().min(1, 'Código não pode ser vazio').trim().optional(),
@@ -111,7 +111,7 @@ const editarProdutoSchema = {
 
 const idParamSchema = {
   params: z.object({
-    id: z.string().uuid('ID inválido')
+    id: z.guid('ID inválido')
   })
 };
 
@@ -172,14 +172,14 @@ const iniciarContagemSchema = {
 
 const apagarContagemSchema = {
   params: z.object({
-    id: z.string().uuid('ID inválido')
+    id: z.guid('ID inválido')
   }),
   body: z.object({ motivo: z.string().trim().max(500).optional() }).optional()
 };
 
 const apagarContagensEmAbertoSchema = {
   body: z.object({
-    ids: z.array(z.string().uuid('ID inválido')).min(1, 'Informe ao menos uma contagem.').max(100, 'Informe no máximo 100 contagens por vez.'),
+    ids: z.array(z.guid('ID inválido')).min(1, 'Informe ao menos uma contagem.').max(100, 'Informe no máximo 100 contagens por vez.'),
     motivo: z.string().trim().max(500).optional()
   })
 };
@@ -195,14 +195,14 @@ const listarContagensQuerySchema = {
 
 const salvarProgressoContagemSchema = {
   params: z.object({
-    id: z.string().uuid('ID de contagem inválido')
+    id: z.guid('ID de contagem inválido')
   }),
   body: z.object({
     fornecedor: z.string().min(1, 'Nome do produtor é obrigatório').trim(),
     itens: z
       .array(
         z.object({
-          produto_id: z.string().uuid('ID do produto inválido'),
+          produto_id: z.guid('ID do produto inválido'),
           // Quantidade física: NULL = ainda não contado; 0 = contado zero unidades
           quantidade_contada: z.number().int().min(0, 'Quantidade não pode ser negativa').nullable(),
           quantidade_vencida: z.number().int().min(0, 'Quantidade vencida não pode ser negativa').optional()
@@ -215,7 +215,7 @@ const salvarProgressoContagemSchema = {
 // Compatibilidade com adicionarFornecedor original
 const adicionarFornecedorSchema = {
   params: z.object({
-    id: z.string().uuid('ID de contagem inválido')
+    id: z.guid('ID de contagem inválido')
   }),
   body: z.object({
     fornecedor: z.string().min(1, 'Nome do produtor é obrigatório').trim(),
@@ -223,7 +223,7 @@ const adicionarFornecedorSchema = {
     produtos: z
       .array(
         z.object({
-          produto_id: z.string().uuid().nullable().optional(),
+          produto_id: z.guid().nullable().optional(),
           codigo: z.string().min(1, 'Código é obrigatório'),
           nome: z.string().min(1, 'Nome é obrigatório'),
           qty_tiny: z.number().int().default(0).optional(),
@@ -255,7 +255,7 @@ const listarAtividadesQuerySchema = {
       limit: z.coerce.number().int().positive().max(100).default(20),
       data_inicio: dataFiltro.optional(),
       data_fim: dataFiltro.optional(),
-      ator_id: z.string().uuid('ID do ator inválido').optional(),
+      ator_id: z.guid('ID do ator inválido').optional(),
       acao: z.string().trim().optional(),
       entidade: z.string().trim().optional(),
       resultado: z.enum(['sucesso', 'falha']).optional(),
@@ -284,7 +284,7 @@ const exportarAtividadesSchema = {
     .object({
       data_inicio: dataFiltro.optional(),
       data_fim: dataFiltro.optional(),
-      ator_id: z.string().uuid('ID do ator inválido').optional(),
+      ator_id: z.guid('ID do ator inválido').optional(),
       acao: z.string().trim().optional(),
       entidade: z.string().trim().optional(),
       resultado: z.enum(['sucesso', 'falha']).optional(),

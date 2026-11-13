@@ -18,8 +18,9 @@ function validate(schema) {
       }
       next();
     } catch (err) {
-      if (err.errors) {
-        const detalhes = err.errors.map((e) => ({
+      const problemas = err.issues || err.errors;
+      if (problemas) {
+        const detalhes = problemas.map((e) => ({
           campo: e.path.join('.'),
           mensagem: e.message
         }));
