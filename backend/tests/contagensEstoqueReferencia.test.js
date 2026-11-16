@@ -111,15 +111,15 @@ describe('Referência de estoque por item (salvar-progresso)', () => {
   });
 });
 
-describe('Pausa de 1 hora sem salvar (ESTOQUE_DESATUALIZADO)', () => {
-  it('(b) salvar depois de mais de 60 min sem importação posterior devolve 409 e não grava nada', async () => {
-    semear({ iniciadaHa: 3 * HORA, itens: { [P1]: { quantidade_contada: 5, contado_em: ha(2 * HORA) } } });
+describe('Pausa de 30 minutos sem salvar (ESTOQUE_DESATUALIZADO)', () => {
+  it('(b) salvar depois de 40 min parada (acima de 30) sem importação posterior devolve 409 e não grava nada', async () => {
+    semear({ iniciadaHa: 3 * HORA, itens: { [P1]: { quantidade_contada: 5, contado_em: ha(40 * 60 * 1000) } } });
 
     const res = await salvar([{ produto_id: P2, quantidade_contada: 2 }]);
 
     expect(res.status).toBe(409);
     expect(res.body.code).toBe('ESTOQUE_DESATUALIZADO');
-    expect(res.body.message).toMatch(/parada por mais de 1 hora/);
+    expect(res.body.message).toMatch(/parada por mais de 30 minutos/);
     expect(item(P2).quantidade_contada).toBeNull();
     expect(item(P2).estoque_referencia).toBe(10);
     expect(contagem().status).toBe('em_andamento');
@@ -132,7 +132,7 @@ describe('Pausa de 1 hora sem salvar (ESTOQUE_DESATUALIZADO)', () => {
     expect(res.body.code).toBe('ESTOQUE_DESATUALIZADO');
   });
 
-  it('(c) depois de mais de 60 min, mas com importação posterior à última atividade, libera e usa o estoque novo', async () => {
+  it('(c) depois de mais de 30 min, mas com importação posterior à última atividade, libera e usa o estoque novo', async () => {
     semear({ iniciadaHa: 3 * HORA, itens: { [P1]: { quantidade_contada: 5, contado_em: ha(2 * HORA) } } });
     estoqueDe(P2, 12);
     importacaoEm(ha(HORA));
@@ -154,8 +154,8 @@ describe('Pausa de 1 hora sem salvar (ESTOQUE_DESATUALIZADO)', () => {
     expect(res.body.code).toBe('ESTOQUE_DESATUALIZADO');
   });
 
-  it('dentro de 60 min não há bloqueio, mesmo sem importação', async () => {
-    semear({ iniciadaHa: 2 * HORA, itens: { [P1]: { quantidade_contada: 5, contado_em: ha(30 * 60 * 1000) } } });
+  it('dentro de 30 min não há bloqueio, mesmo sem importação', async () => {
+    semear({ iniciadaHa: 2 * HORA, itens: { [P1]: { quantidade_contada: 5, contado_em: ha(20 * 60 * 1000) } } });
     const res = await salvar([{ produto_id: P2, quantidade_contada: 2 }]);
     expect(res.status).toBe(200);
   });

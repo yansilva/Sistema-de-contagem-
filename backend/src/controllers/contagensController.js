@@ -9,8 +9,8 @@ const MSG_CONTAGEM_APAGADA = 'Esta contagem foi apagada por um administrador. As
 
 // Depois de tanto tempo sem salvar nada, a referência de estoque de quem volta pode estar velha:
 // só volta a salvar depois que o gestor importar o estoque atualizado do ERP.
-const PAUSA_MAXIMA_MIN = 60;
-const MSG_ESTOQUE_DESATUALIZADO = 'A contagem ficou parada por mais de 1 hora. Peça ao gestor para importar o estoque atualizado do ERP antes de continuar.';
+const PAUSA_MAXIMA_MIN = 30;
+const MSG_ESTOQUE_DESATUALIZADO = 'A contagem ficou parada por mais de 30 minutos. Peça ao gestor para importar o estoque atualizado do ERP antes de continuar.';
 
 /**
  * Última atividade da sessão (maior contado_em dos itens, ou iniciado_em se nada foi salvo) e se
@@ -343,7 +343,7 @@ async function salvarProgresso(req, res, next) {
 
       const tipo = contagemCheck.rows[0].tipo || 'geral';
 
-      // Antes de gravar: contagem parada há mais de 1h sem importação posterior não recebe novos saldos.
+      // Antes de gravar: contagem parada há mais de 30 min sem importação posterior não recebe novos saldos.
       const situacao = await situacaoEstoqueContagem(client, id, req.empresaId);
       if (situacao?.estoqueDesatualizado) {
         throw new AppError(MSG_ESTOQUE_DESATUALIZADO, 409, 'ESTOQUE_DESATUALIZADO');

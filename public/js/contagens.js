@@ -18,7 +18,7 @@ const Contagens = {
   paginaSessoes: 1,
   requisicaoSessoes: 0,
   edicaoPendente: false,
-  // Contagem parada há mais de 1h sem importação de estoque: o servidor recusa salvar até importar.
+  // Contagem parada há mais de 30 min sem importação de estoque: o servidor recusa salvar até importar.
   estoqueDesatualizado: false,
   entradasInvalidas: new Set(),
   itensTocados: new Set(),
